@@ -2,7 +2,7 @@
 #include <variant>
 #include <vector>
 
-namespace PanzerReg
+namespace RegPanzer
 {
 
 namespace RegexpElements
@@ -47,4 +47,4 @@ using RegexpElement=
 
 using Regexp= std::vector<RegexpElement>;
 
-} // namespace PanzerReg
+} // namespace RegPanzer
