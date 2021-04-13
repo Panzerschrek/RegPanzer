@@ -1,0 +1,34 @@
+Biblioteka "RegPanzer" naçelena na generaçiju "LLVM" koda iz regulärnyh vyraženij.
+
+V nej planirujutsä sledujuscije casti:
+* Razbor stroki i postrojenije promežutocnogo predstavlenija.
+* Funkçija neposredstvennogo poiska sopostavlenij s ispoljzovanijem promežutocnogo predstavlenija (nužna dlä otladki).
+* Funkçija postrojenija "LLVM" koda funkçii poiska sopostavlenija (osnovnoj funkçional).
+
+Planirujetsä podderžka vsego mnogoobrazija regulärnyh vyraženij - bazovyh, rasširennyh, "Perl"-vyraženij.
+
+Biblioteku neobhodimo budet razrabatyvatj s maksimaljnym pokrytijem testov. Planirujutsä sledujuscije testy:
+* Testy na razbor stroki regulärnogo vyraženija.
+* Testy na obnaruženije ošibok v stroke regulärnogo vyraženija.
+* Testy na funkçii poiska sopostavlenij.
+
+Pri etom testy na funkçii poiska sopostavlenij planirujetsä zapuskatj i dlä funkçii, operirujuscej neposredstvenno s promežutocnym predstavlenijem, tak i dlä funkçij, sgenerirovannyh dannoj bibliotekoj.
+Dlä zapuska testov na sgenerirovannyje funkçii nado budet ili ih kompilirovatj v mašinnyj kod, ili zapuskatj cerez "LLVM" interpretator.
+
+Oçenocnoje kolicestvo testov (oçenen desäticnyj porädok velicin):
+* Razbor rugulärnyh vyraženij - 128 testov (1 vyraženije - 1 test).
+* Proverka funkçij poiska sopostavlenij - 128 testov (1 vyraženije - 1 test), po 8 posikov sopostavlenij v každom teste.
+
+
+Itak, summarnyje trudozatraty (desäticnyj porädok) primerno takije:
+* Razbor stroki (+testy) 16 casov.
+* Funkçija neposredsvennogo poiska - 16 casov.
+* Generaçija "LLVM" koda - 16 casov.
+* Testy na funkçii poiska sopostavlenij (vklücaja otladku) - 24 casa.
+* Vspomogateljnyje zadaci (organizaçija sborki, testov) - 6 casov.
+* Podderžka "Unicode" - 8 casov.
+Itogo: 86 casov.
+
+Odin cas tut jestj odin cas vesjma intensivnogo programmirovanija.
+V srednem za odnu nedelü u menä vyhodit okolo 6 takih svobodnyh casov. Znacit, razrabotka potrebujet okolo 15 nedelj (+- porädok) ~ 3.5 mesäça.
+Sroki vyglädät vpolne razumnymi. V sravnenijami s proektami "Ü", "PanzerChasm" ili daže takimi kak "Micro-F" ili "Hex" vyhodit ne tak už i mnogo.
