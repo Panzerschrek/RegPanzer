@@ -41,8 +41,23 @@ else()
 	message(FATAL_ERROR "llvm not found. Define LLVM_SRC_DIR for building llvm from sources, or define LLVM_LIB_DIR for installed llvm.")
 endif()
 
-# RegPanzer options
+llvm_map_components_to_libnames(LLVM_LIBS_FOR_REG_PANZER_LIB Core)
+llvm_map_components_to_libnames(LLVM_LIBS_FOR_REG_PANZER_TEST Interpreter)
+
+# RegPanzerLib
 
 file(GLOB REG_LIB_SOURCES "RegPanzerLib/*")
 add_library(RegPanzerLib ${REG_LIB_SOURCES})
 target_include_directories(RegPanzerLib PUBLIC ${Boost_INCLUDE_DIRS})
+target_link_libraries(RegPanzerLib PUBLIC ${LLVM_LIBS_FOR_REG_PANZER_LIB})
+
+# Tests
+# Tests depends on gtest library which present only in LLVM sources but not in LLVM binary distribution.
+
+if(DEFINED LLVM_SRC_DIR)
+	file(GLOB REG_PANZER_TEST_SOURCES "Tests/*")
+	add_executable(RegPanzerTest ${REG_PANZER_TEST_SOURCES})
+	target_link_libraries(RegPanzerTest PRIVATE gtest gtest_main ${LLVM_LIBS_FOR_REG_PANZER_TEST})
+	target_include_directories(RegPanzerTest PRIVATE ${LLVM_SRC_DIR}/utils/unittest/googletest/include/)
+	add_custom_command(TARGET RegPanzerTest POST_BUILD COMMAND RegPanzerTest)
+endif()
