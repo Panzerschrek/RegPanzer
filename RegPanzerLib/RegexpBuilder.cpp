@@ -24,6 +24,7 @@ std::optional<RegexpElementsChain> ParseRegexpStringImpl(std::basic_string_view<
 		{
 		case '|':
 		{
+			str.remove_prefix(1);
 			Alternatives alternatives;
 			alternatives.alternatives.emplace_back();
 			alternatives.alternatives.back().swap(chain);
@@ -130,7 +131,7 @@ std::optional<RegexpElementsChain> ParseRegexpStringImpl(std::basic_string_view<
 			break;
 
 		case '*':
-			res.seq.min_elements= 1;
+			res.seq.min_elements= 0;
 			res.seq.max_elements= std::numeric_limits<decltype(res.seq.max_elements)>::max();
 			str.remove_prefix(1);
 			break;
@@ -138,11 +139,13 @@ std::optional<RegexpElementsChain> ParseRegexpStringImpl(std::basic_string_view<
 		case '{':
 			str.remove_prefix(1); // skip {
 
+			// TODO - skip whitespaces inside {}
+
 			res.seq.min_elements= 0;
 			while(!str.empty() && str.front() >= '0' && str.front() <= '9')
 			{
 				res.seq.min_elements*= 10;
-				res.seq.min_elements= str.front() - '0';
+				res.seq.min_elements+= str.front() - '0';
 				str.remove_prefix(1);
 			}
 
@@ -155,13 +158,18 @@ std::optional<RegexpElementsChain> ParseRegexpStringImpl(std::basic_string_view<
 			{
 				str.remove_prefix(1); // Skip ,
 
-				res.seq.max_elements= 0;
-				while(!str.empty() && str.front() >= '0' && str.front() <= '9')
+				if(!str.empty() && str.front() >= '0' && str.front() <= '9')
 				{
-					res.seq.max_elements*= 10;
-					res.seq.max_elements= str.front() - '0';
-					str.remove_prefix(1);
+					res.seq.max_elements= 0;
+					do
+					{
+						res.seq.max_elements*= 10;
+						res.seq.max_elements+= str.front() - '0';
+						str.remove_prefix(1);
+					}while(!str.empty() && str.front() >= '0' && str.front() <= '9');
 				}
+				else
+					res.seq.max_elements= std::numeric_limits<size_t>::max();
 			}
 			else
 				res.seq.max_elements= res.seq.min_elements;

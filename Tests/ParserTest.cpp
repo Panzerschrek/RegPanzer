@@ -43,6 +43,56 @@ const TestDataElement c_test_data[]
 		}
 	},
 
+	// One of with some symbols.
+	{
+		"[GrTx]",
+		{
+			{
+				OneOf
+				{
+					{ 'G', 'r', 'T', 'x' },
+					{}
+				},
+				{ 1, 1, false },
+			},
+		}
+	},
+
+	// One of with range.
+	{
+		"[a-f]",
+		{
+			{
+				OneOf
+				{
+					{},
+					{
+						{ 'a', 'f' },
+					}
+				},
+				{ 1, 1, false },
+			},
+		}
+	},
+
+	// One of with symobls and range.
+	{
+		"[@a-z_0-9]",
+		{
+			{
+				OneOf
+				{
+					{ '@', '_' },
+					{
+						{ 'a', 'z' },
+						{ '0', '9' },
+					}
+				},
+				{ 1, 1, false },
+			},
+		}
+	},
+
 	// Bracket expression.
 	{
 		"A(bc)ef",
@@ -85,6 +135,98 @@ const TestDataElement c_test_data[]
 			},
 			{ SpecificSymbol{ 'w' }, { 1, 1, false }, },
 			{ SpecificSymbol{ 'w' }, { 1, 1, false }, },
+		}
+	},
+
+	// Alternatives.
+	{
+		"lol|wat",
+		{ {
+			Alternatives
+			{ {
+				{
+					{ SpecificSymbol{ 'l' }, { 1, 1, false }, },
+					{ SpecificSymbol{ 'o' }, { 1, 1, false }, },
+					{ SpecificSymbol{ 'l' }, { 1, 1, false }, },
+				},
+				{
+					{ SpecificSymbol{ 'w' }, { 1, 1, false }, },
+					{ SpecificSymbol{ 'a' }, { 1, 1, false }, },
+					{ SpecificSymbol{ 't' }, { 1, 1, false }, },
+				},
+			} },
+			{ 1, 1, false }
+		} }
+	},
+
+	// Zero or more quantifier.
+	{
+		"B*",
+		{
+			{ SpecificSymbol{ 'B' }, { 0, std::numeric_limits<size_t>::max(), false }, },
+		}
+	},
+
+	// One or more quantifier.
+	{
+		"WrV+",
+		{
+			{ SpecificSymbol{ 'W' }, { 1, 1, false }, },
+			{ SpecificSymbol{ 'r' }, { 1, 1, false }, },
+			{ SpecificSymbol{ 'V' }, { 1, std::numeric_limits<size_t>::max(), false }, },
+		}
+	},
+
+	// Specific amount quantifier (range).
+	{
+		"z{354,789}",
+		{
+			{ SpecificSymbol{ 'z' }, { 354, 789, false }, },
+		}
+	},
+
+	// Specific amount quantifier (single value).
+	{
+		"Q{1234}W",
+		{
+			{ SpecificSymbol{ 'Q' }, { 1234, 1234, false }, },
+			{ SpecificSymbol{ 'W' }, { 1, 1, false }, }
+		}
+	},
+
+	// Specific amount quantifier (lower bound).
+	{
+		"s{34,}t",
+		{
+			{ SpecificSymbol{ 's' }, { 34, std::numeric_limits<size_t>::max(), false }, },
+			{ SpecificSymbol{ 't' }, { 1, 1, false }, }
+		}
+	},
+
+	// Specific amount quantifier (upper bound).
+	{
+		"J{,786}_",
+		{
+			{ SpecificSymbol{ 'J' }, { 0, 786, false }, },
+			{ SpecificSymbol{ '_' }, { 1, 1, false }, }
+		}
+	},
+
+	// Quantifier for brackets.
+	{
+		"l(Qwe)+P",
+		{
+			{ SpecificSymbol{ 'l' }, { 1, 1, false }, },
+			{
+				BracketExpression
+				{ {
+					{ SpecificSymbol{ 'Q' }, { 1, 1, false }, },
+					{ SpecificSymbol{ 'w' }, { 1, 1, false }, },
+					{ SpecificSymbol{ 'e' }, { 1, 1, false }, },
+				} },
+				{ 1, std::numeric_limits<size_t>::max(), false }
+			},
+			{ SpecificSymbol{ 'P' }, { 1, 1, false }, },
 		}
 	},
 };
