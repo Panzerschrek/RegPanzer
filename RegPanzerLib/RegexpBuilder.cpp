@@ -8,150 +8,189 @@ namespace
 
 // Work in progress!
 // TODO - write unit-tests.
-std::optional<RegexpElementFull> ParseRegexpStringImpl(std::basic_string_view<CharType> str)
+std::optional<RegexpElementsChain> ParseRegexpStringImpl(std::basic_string_view<CharType>& str)
 {
-	if(str.empty())
-		return std::nullopt;
+	RegexpElementsChain chain;
 
-	RegexpElementFull res;
-	res.seq.min_elements= 1;
-	res.seq.max_elements= 1;
-
-	// Extract element.
-	// TODO - porcess escape sequences.
-	switch(str.front())
+	while(!str.empty())
 	{
-	case '.':
-		res.el= AnySymbol{};
-		str.remove_prefix(1);
-		break;
+		RegexpElementFull res;
+		res.seq.min_elements= 1;
+		res.seq.max_elements= 1;
 
-	case '[':
-	{
-		OneOf one_of;
-		str.remove_prefix(1);
-		while(!str.empty() && str.front() != ']')
+		// Extract element.
+		// TODO - porcess escape sequences.
+		switch(str.front())
 		{
-			// TODO - process escape sequences.
+		case '|':
+		{
+			Alternatives alternatives;
+			alternatives.alternatives.emplace_back();
+			alternatives.alternatives.back().swap(chain);
 
-			const CharType c= str.front();
+			auto remaining_expression= ParseRegexpStringImpl(str);
+			if(remaining_expression == std::nullopt)
+				return std::nullopt;
+
+			alternatives.alternatives.push_back(std::move(*remaining_expression));
+
+			res.el= std::move(alternatives);
+		}
+			break;
+
+		case '(':
+		{
 			str.remove_prefix(1);
-			if(str.empty())
+			auto sub_elements= ParseRegexpStringImpl(str);
+			if(sub_elements == std::nullopt)
+				return std::nullopt;
+
+			if(str.empty() || str.front() != ')')
 			{
 				// TODO - handle error here
 				return std::nullopt;
 			}
+			str.remove_prefix(1);
 
-			if(str.front() == '-')
+			res.el= BracketExpression{ std::move(*sub_elements) };
+		}
+			break;
+
+		case ')':
+			return chain;
+
+		case '.':
+			res.el= AnySymbol{};
+			str.remove_prefix(1);
+			break;
+
+		case '[':
+		{
+			OneOf one_of;
+			str.remove_prefix(1);
+			while(!str.empty() && str.front() != ']')
 			{
+				// TODO - process escape sequences.
+
+				const CharType c= str.front();
 				str.remove_prefix(1);
 				if(str.empty())
 				{
 					// TODO - handle error here
 					return std::nullopt;
 				}
-				const CharType end_c= str.front();
-				// TODO - validate range
-				one_of.ranges.emplace_back(c, end_c);
-				str.remove_prefix(1);
+
+				if(str.front() == '-')
+				{
+					str.remove_prefix(1);
+					if(str.empty())
+					{
+						// TODO - handle error here
+						return std::nullopt;
+					}
+					const CharType end_c= str.front();
+					// TODO - validate range
+					one_of.ranges.emplace_back(c, end_c);
+					str.remove_prefix(1);
+				}
+				else
+					one_of.variants.push_back(c);
 			}
-			else
-				one_of.variants.push_back(c);
-		}
 
-		if(str.empty() || str.front() != ']')
-		{
-			// TODO - handle error here
-			return std::nullopt;
-		}
-		str.remove_prefix(1);
-
-		res.el= std::move(one_of);
-	}
-		break;
-
-	default:
-		res.el= SpecificSymbol{ str.front() };
-		str.remove_prefix(1);
-		break;
-	};
-
-	if(str.empty())
-		return res;
-
-	// Try extract sequence.
-	switch(str.front())
-	{
-	case '+':
-		res.seq.min_elements= 1;
-		res.seq.max_elements= std::numeric_limits<decltype(res.seq.max_elements)>::max();
-		str.remove_prefix(1);
-		break;
-
-	case '*':
-		res.seq.min_elements= 1;
-		res.seq.max_elements= std::numeric_limits<decltype(res.seq.max_elements)>::max();
-		str.remove_prefix(1);
-		break;
-
-	case '{':
-		str.remove_prefix(1); // skip {
-
-		res.seq.min_elements= 0;
-		while(!str.empty() && str.front() >= '0' && str.front() <= '9')
-		{
-			res.seq.min_elements*= 10;
-			res.seq.min_elements= str.front() - '0';
+			if(str.empty() || str.front() != ']')
+			{
+				// TODO - handle error here
+				return std::nullopt;
+			}
 			str.remove_prefix(1);
+
+			res.el= std::move(one_of);
 		}
+			break;
+
+		default:
+			res.el= SpecificSymbol{ str.front() };
+			str.remove_prefix(1);
+			break;
+		};
 
 		if(str.empty())
 		{
-			// TODO - handle error here
-			return std::nullopt;
+			chain.push_back(std::move(res));
+			break;
 		}
-		if(str.front() == ',')
-		{
-			str.remove_prefix(1); // Skip ,
 
-			res.seq.max_elements= 0;
+		// Try extract sequence.
+		switch(str.front())
+		{
+		case '+':
+			res.seq.min_elements= 1;
+			res.seq.max_elements= std::numeric_limits<decltype(res.seq.max_elements)>::max();
+			str.remove_prefix(1);
+			break;
+
+		case '*':
+			res.seq.min_elements= 1;
+			res.seq.max_elements= std::numeric_limits<decltype(res.seq.max_elements)>::max();
+			str.remove_prefix(1);
+			break;
+
+		case '{':
+			str.remove_prefix(1); // skip {
+
+			res.seq.min_elements= 0;
 			while(!str.empty() && str.front() >= '0' && str.front() <= '9')
 			{
-				res.seq.max_elements*= 10;
-				res.seq.max_elements= str.front() - '0';
+				res.seq.min_elements*= 10;
+				res.seq.min_elements= str.front() - '0';
 				str.remove_prefix(1);
 			}
+
+			if(str.empty())
+			{
+				// TODO - handle error here
+				return std::nullopt;
+			}
+			if(str.front() == ',')
+			{
+				str.remove_prefix(1); // Skip ,
+
+				res.seq.max_elements= 0;
+				while(!str.empty() && str.front() >= '0' && str.front() <= '9')
+				{
+					res.seq.max_elements*= 10;
+					res.seq.max_elements= str.front() - '0';
+					str.remove_prefix(1);
+				}
+			}
+			else
+				res.seq.max_elements= res.seq.min_elements;
+
+			if(str.empty() || str.front() != '}')
+			{
+				// TODO - handle error here
+				return std::nullopt;
+			}
+			str.remove_prefix(1); // Skip }
+
+			break;
+
+		default:
+			break;
 		}
-		else
-			res.seq.max_elements= res.seq.min_elements;
 
-		if(str.empty() || str.front() != '}')
-		{
-			// TODO - handle error here
-			return std::nullopt;
-		}
-		str.remove_prefix(1); // Skip }
-
-		break;
-
-	default:
-		break;
+		chain.push_back(std::move(res));
 	}
 
-	if(!str.empty())
-	{
-		if(std::optional<RegexpElementFull> next= ParseRegexpStringImpl(str))
-			res.next= std::make_unique<RegexpElementFull>(std::move(*next));
-	}
-
-	return res;
+	return chain;
 }
 
 } // namespace
 
-std::optional<RegexpElementFull> ParseRegexpString(const std::basic_string_view<CharType> str)
+std::optional<RegexpElementsChain> ParseRegexpString(const std::basic_string_view<CharType> str)
 {
-	return ParseRegexpStringImpl(str);
+	auto range_copy= str;
+	return ParseRegexpStringImpl(range_copy);
 }
 
 } // namespace RegPanzer

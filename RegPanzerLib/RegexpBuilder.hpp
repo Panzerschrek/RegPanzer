@@ -6,6 +6,6 @@
 namespace RegPanzer
 {
 
-std::optional<RegexpElementFull> ParseRegexpString(std::basic_string_view<CharType> str);
+std::optional<RegexpElementsChain> ParseRegexpString(std::basic_string_view<CharType> str);
 
 } // namespace RegPanzer
