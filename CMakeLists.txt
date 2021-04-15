@@ -5,6 +5,9 @@ project(RegPanzer)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS Off)
+if( MSVC )
+	add_definitions( -D_SILENCE_ALL_CXX17_DEPRECATION_WARNINGS )
+endif()
 
 # LLVM
 
@@ -60,4 +63,5 @@ if(DEFINED LLVM_SRC_DIR)
 	target_link_libraries(RegPanzerTest PRIVATE gtest gtest_main ${LLVM_LIBS_FOR_REG_PANZER_TEST})
 	target_include_directories(RegPanzerTest PRIVATE ${LLVM_SRC_DIR}/utils/unittest/googletest/include/)
 	add_custom_command(TARGET RegPanzerTest POST_BUILD COMMAND RegPanzerTest)
+	target_compile_definitions(RegPanzerTest PRIVATE -DGTEST_LANG_CXX11=1 -DGTEST_HAS_TR1_TUPLE=0)
 endif()
