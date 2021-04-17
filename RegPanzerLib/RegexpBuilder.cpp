@@ -7,7 +7,6 @@ namespace
 {
 
 // Work in progress!
-// TODO - write unit-tests.
 std::optional<RegexpElementsChain> ParseRegexpStringImpl(std::basic_string_view<CharType>& str)
 {
 	RegexpElementsChain chain;
@@ -25,19 +24,27 @@ std::optional<RegexpElementsChain> ParseRegexpStringImpl(std::basic_string_view<
 		case '|':
 		{
 			str.remove_prefix(1);
-			Alternatives alternatives;
-			alternatives.alternatives.emplace_back();
-			alternatives.alternatives.back().swap(chain);
 
 			auto remaining_expression= ParseRegexpStringImpl(str);
 			if(remaining_expression == std::nullopt)
 				return std::nullopt;
 
+			if(remaining_expression->size() == 1u)
+			{
+				if(const auto alternative= std::get_if<Alternatives>(&remaining_expression->front().el))
+				{
+					alternative->alternatives.insert(alternative->alternatives.begin(), std::move(chain));
+					return std::move(*remaining_expression);
+				}
+			}
+
+			Alternatives alternatives;
+			alternatives.alternatives.push_back(std::move(chain));
 			alternatives.alternatives.push_back(std::move(*remaining_expression));
 
-			res.el= std::move(alternatives);
+			res.el = std::move(alternatives);
+			return RegexpElementsChain{ std::move(res) };
 		}
-			break;
 
 		case '(':
 		{

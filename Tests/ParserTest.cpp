@@ -159,6 +159,41 @@ const TestDataElement c_test_data[]
 		} }
 	},
 
+	// Alternatives with multiple variants.
+	{
+		"Qrf|zc+|(Vx)*|svt",
+		{ {
+			Alternatives
+			{ {
+				{
+					{ SpecificSymbol{ 'Q' }, { 1, 1, false }, },
+					{ SpecificSymbol{ 'r' }, { 1, 1, false }, },
+					{ SpecificSymbol{ 'f' }, { 1, 1, false }, },
+				},
+				{
+					{ SpecificSymbol{ 'z' }, { 1, 1, false }, },
+					{ SpecificSymbol{ 'c' }, { 1, std::numeric_limits<size_t>::max(), false }, },
+				},
+				{
+					{
+						BracketExpression
+						{ {
+							{ SpecificSymbol{ 'V' }, { 1, 1, false }, },
+							{ SpecificSymbol{ 'x' }, { 1, 1, false }, },
+						} },
+						{ 0, std::numeric_limits<size_t>::max(), false },
+					}
+				},
+				{
+					{ SpecificSymbol{ 's' }, { 1, 1, false }, },
+					{ SpecificSymbol{ 'v' }, { 1, 1, false }, },
+					{ SpecificSymbol{ 't' }, { 1, 1, false }, },
+				}
+			} },
+			{ 1, 1, false }
+		} }
+	},
+
 	// Zero or more quantifier.
 	{
 		"B*",
