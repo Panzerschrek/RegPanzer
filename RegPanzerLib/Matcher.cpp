@@ -89,55 +89,39 @@ bool MatchElementFull(
 	const RegexpIterator tail_begin,
 	const RegexpIterator tail_end)
 {
-	if(element.seq.min_elements == 1 && element.seq.max_elements == 1)
+	std::optional<MatchInput> last_success_pos;
+
+	if(element.seq.min_elements == 0)
 	{
 		MatchInput range_copy= str;
-
-		const bool success=
-			MatchElement(element.el, range_copy) &&
-			(tail_begin == tail_end || MatchElementFull(*tail_begin, range_copy, std::next(tail_begin), tail_end));
-
-		if(success)
-			str= range_copy;
-		return success;
+		const bool tail_success= tail_begin == tail_end || MatchElementFull(*tail_begin, range_copy, std::next(tail_begin), tail_end);
+		if(tail_success)
+			last_success_pos= range_copy;
 	}
-	else
 	{
-		std::optional<MatchInput> last_success_pos;
-
+		MatchInput range_copy= str;
+		for(size_t i= 0; i < element.seq.max_elements; ++i)
 		{
-			if(element.seq.min_elements == 0)
+			if(!MatchElement(element.el, range_copy))
 			{
-				MatchInput range_copy= str;
-				const bool tail_success= tail_begin == tail_end || MatchElementFull(*tail_begin, range_copy, std::next(tail_begin), tail_end);
-				if(tail_success)
-					last_success_pos= range_copy;
+				if(i < element.seq.min_elements)
+					return false;
+				else
+					break;
 			}
 
-			MatchInput range_copy= str;
-			for(size_t i= 0; i <= element.seq.max_elements; ++i)
-			{
-				if(!MatchElement(element.el, range_copy))
-				{
-					if(i < element.seq.min_elements)
-						return false;
-					else
-						break;
-				}
-
-				MatchInput range_for_tail= range_copy;
-				const bool tail_success= tail_begin == tail_end || MatchElementFull(*tail_begin, range_for_tail, std::next(tail_begin), tail_end);
-				if(tail_success)
-					last_success_pos= range_for_tail;
-			}
+			MatchInput range_for_tail= range_copy;
+			const bool tail_success= tail_begin == tail_end || MatchElementFull(*tail_begin, range_for_tail, std::next(tail_begin), tail_end);
+			if(tail_success)
+				last_success_pos= range_for_tail;
 		}
-
-		if(last_success_pos == std::nullopt)
-			return false;
-
-		str= *last_success_pos;
-		return true;
 	}
+
+	if(last_success_pos == std::nullopt)
+		return false;
+
+	str= *last_success_pos;
+	return true;
 }
 
 bool MatchChain(const RegexpElementsChain& chain, MatchInput& str)

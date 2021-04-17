@@ -328,6 +328,170 @@ const TestDataElement c_test_data[]
 			},
 		}
 	},
+
+	// Match sequence with exact size.
+	{
+		"A{3}",
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // Non-empty string with no matches.
+				"BBB",
+				{}
+			},
+			{ // Not enough symbols for match.
+				"QAvAAwwAA1A",
+				{}
+			},
+			{ // Single match for whole string.
+				"AAA",
+				{ {0, 3} }
+			},
+			{ // Two matches for sequence longer that needed.
+				"AAAAAAA",
+				{ {0, 3}, {3, 6} }
+			},
+			{ // Several separate matches.
+				"ABCWWAAAAGHTAAAWGGBLAAAAAGGEEAAAAAAH",
+				{ {5, 8}, {12, 15}, {20, 23}, {29, 32}, {32, 35} }
+			}
+		}
+	},
+
+	// Match sequence of groups with exact size.
+	{
+		"(ta){2}",
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // Non-empty string with no matches.
+				"rtra",
+				{}
+			},
+			{ // Not enough symbols for match.
+				"tat",
+				{}
+			},
+			{ // Break sequence.
+				"taqta",
+				{}
+			},
+			{ // Match for whole string.
+				"tata",
+				{ {0, 4} }
+			},
+			{ // Match in middle of string.
+				"atatat",
+				{ {1, 5} }
+			},
+			{ // Match only first two sequences.
+				"tatata",
+				{ {0, 4} }
+			},
+			{ // Match several sequential sequences.
+				"tatatatatatatata",
+				{ {0, 4}, {4, 8}, {8, 12}, {12, 16} }
+			},
+			{ // Match several separate sequences.
+				"ratatas statata ta tatutataW wtatatata",
+				{ {2, 6}, {9, 13}, {23, 27}, {30, 34}, {34, 38} }
+			},
+		},
+	},
+
+	// Match sequence with size in range.
+	{
+		"f{3,7}",
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // Non-empty string with no matches.
+				"awjw",
+				{}
+			},
+			{ // Wrong case.
+				"FFFFFFFFFF",
+				{}
+			},
+			{ // Not enought symbols.
+				"ff",
+				{}
+			},
+			{ // Minimal match for whole string.
+				"fff",
+				{ {0, 3} }
+			},
+			{ // Maximal match for whole string.
+				"fffffff",
+				{ {0, 7} }
+			},
+			{ // Match sequence up to limit, igore left symbols.
+				"fffffffff",
+				{ {0, 7} }
+			},
+			{ // Two sequential sequences.
+				"fffffffffff",
+				{ {0, 7}, {7, 11} }
+			},
+			{ // Two sequential sequences with size equal to limit.
+				"ffffffffffffff",
+				{ {0, 7}, {7, 14} }
+			},
+			{ // Two sequential sequences with size equal to limit, left small tail.
+				"fffffffffffffff",
+				{ {0, 7}, {7, 14} }
+			},
+			{ // Several sequenses.
+				"wdawdimffwasfawafffawd[o,ffffwdawo[pffffffffffwdwop;fffwl;affffp[pwdwadkmgpfffff",
+				{ {16, 19}, {25, 29}, {36, 43}, {43, 46}, {52, 55}, {59, 63}, {75, 80} }
+			},
+		}
+	},
+
+	// Match sequence with % 3 == 0 elements.
+	{
+		"(s{3})+",
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // Non-empty string with no matches.
+				"awjw",
+				{}
+			},
+			{ // Not enough symbols.
+				"ss",
+				{}
+			},
+			{ // Exact match with minimal size.
+				"sss",
+				{ {0, 3} }
+			},
+			{ // Exact match for beginning of strig, ignore tail elements.
+				"sssss",
+				{ {0, 3} }
+			},
+			{ // Multiple "sss" elements in single match.
+				"ssssssssssss",
+				{ {0, 12} }
+			},
+			{ // Multiple "sss" elements in single match, ignore tail elements.
+				"ssssssssssssss",
+				{ {0, 12} }
+			},
+			{ // Several matches.
+				"wrgsssgrhessswdssssss wa wwwsssssssss bnrklmssSsssss",
+				{ {3, 6}, {10, 13}, {15, 21}, {28, 37}, {47, 50} }
+			},
+		}
+	},
 };
 
 INSTANTIATE_TEST_CASE_P(M, CheckMatchTest, testing::ValuesIn(c_test_data));
