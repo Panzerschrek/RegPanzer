@@ -78,7 +78,6 @@ bool MatchElementImpl(const OneOf& one_of, MatchInput& str)
 	return true;
 }
 
-
 bool MatchElement(const RegexpElementFull::ElementType& element, MatchInput& str)
 {
 	return std::visit([&](const auto& el){ return MatchElementImpl(el, str); }, element);
@@ -149,7 +148,7 @@ MatchResult Match(const RegexpElementsChain& regexp, const std::basic_string_vie
 	{
 		MatchInput range= str.substr(i, str.size() - i);
 		if(MatchChain(regexp, range))
-			return str.substr(i, str.size() - range.size());
+			return str.substr(i, str.size() - range.size() - i);
 	}
 
 	return std::nullopt;
