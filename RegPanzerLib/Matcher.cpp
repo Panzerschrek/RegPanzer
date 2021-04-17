@@ -106,6 +106,14 @@ bool MatchElementFull(
 		std::optional<MatchInput> last_success_pos;
 
 		{
+			if(element.seq.min_elements == 0)
+			{
+				MatchInput range_copy= str;
+				const bool tail_success= tail_begin == tail_end || MatchElementFull(*tail_begin, range_copy, std::next(tail_begin), tail_end);
+				if(tail_success)
+					last_success_pos= range_copy;
+			}
+
 			MatchInput range_copy= str;
 			for(size_t i= 0; i <= element.seq.max_elements; ++i)
 			{

@@ -157,6 +157,49 @@ const TestDataElement c_test_data[]
 			},
 		}
 	},
+
+	// Match sequence of letters with 's' at end.
+	{
+		"[a-z]*s",
+		{
+			{ // Empty string - no matches.
+				"",
+				{},
+			},
+			{ // Non-empty string with no words - no matches.
+				"@6656%%1",
+				{},
+			},
+			{ // Single letter 's' - single match.
+				"s",
+				{ {0, 1} },
+			},
+			{ // Three letters 's' - single word match.
+				"sss",
+				{ {0, 3} },
+			},
+			{ // Single match in middle of string .
+				"az ijs ife",
+				{ {3, 6} },
+			},
+			{ // Two matches.
+				"dawd wtes omngs",
+				{ {5, 9}, {10, 15} }
+			},
+			{ // Word with 's' inside and at end.
+				"this is success",
+				{ {0, 4}, {5, 7}, {8, 15} }
+			},
+			{ // Part of word before 's' + 's' itself.
+				"trswtb",
+				{ {0, 3} }
+			},
+			{ // Words with 's' at beginning - match only first letter.
+				"shrh fe shty j sgh",
+				{ {0, 1}, {8, 9}, {15, 16} }
+			},
+		},
+	}
 };
 
 INSTANTIATE_TEST_CASE_P(M, CheckMatchTest, testing::ValuesIn(c_test_data));
