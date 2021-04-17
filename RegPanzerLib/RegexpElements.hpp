@@ -82,13 +82,15 @@ struct Alternatives
 
 struct RegexpElementFull
 {
-	std::variant<
-		AnySymbol,
-		SpecificSymbol,
-		BracketExpression,
-		Alternatives,
-		OneOf>
-		el;
+	using ElementType =
+		std::variant<
+			AnySymbol,
+			SpecificSymbol,
+			BracketExpression,
+			Alternatives,
+			OneOf>;
+
+	ElementType	el;
 
 	Sequence seq;
 
