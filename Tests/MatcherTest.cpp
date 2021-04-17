@@ -199,7 +199,135 @@ const TestDataElement c_test_data[]
 				{ {0, 1}, {8, 9}, {15, 16} }
 			},
 		},
-	}
+	},
+
+	// Match groups. Grouping symbols are just ignored.
+	{
+		"(b(g(r)t))",
+		{
+			{ // Empty string - no matches.
+				"",
+				{},
+			},
+			{ // Non-empty string with no matches.
+				"@fafthtjtysaxvmkl",
+				{},
+			},
+			{ // Match result is whole string.
+				"bgrt",
+				{ {0, 4} }
+			},
+			{ // Match in middle of string.
+				"awdawda54 bgrtwd 5fa",
+				{ {10, 14} }
+			},
+			{ // Match multiple times.
+				"febgrtwdawbgrt96m ]w wbgrtpok53",
+				{ {2, 6}, {10, 14}, {22, 26} }
+			},
+		}
+	},
+
+	// Match sequence of groups.
+	{
+		"(ZX)+",
+		{
+			{ // Empty string - no matches.
+				"",
+				{},
+			},
+			{ // Non-empty string with no matches.
+				"ZWXXZ",
+				{},
+			},
+			{ // Single match of sequence with one element.
+				"ZX",
+				{ {0, 2} }
+			},
+			{ // Single match of sequence with multiple elements.
+				"RRRZXZXZXGGB",
+				{ {3, 9} }
+			},
+			{ // Multiple matches of sequance with one element.
+				"B ZXq WZX daw wWXZ, ZX",
+				{ {2, 4}, {7, 9}, {20, 22} }
+			},
+			{ // Break long sequence with one symbol.
+				"ZXZXZXXZXZXZX",
+				{ {0, 6}, {7, 13} }
+			},
+		}
+	},
+
+	// Match two sequences - word with decimal number at end.
+	{
+		"[a-z]+[0-9]+",
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // Non-empty string with no matches.
+				"whereismynumber",
+				{}
+			},
+			{ // Non-empty string with no matches.
+				"5672",
+				{}
+			},
+			{ // Single match of whole string.
+				"masyana85",
+				{ {0, 9} }
+			},
+			{ // Single match with shortest length.
+				"da ladno q4 kruto",
+				{ {9, 11} }
+			},
+			{ // Word with number in middle.
+				"  r av75jrtr",
+				{ {4, 8 } }
+			},
+			{ // Word with number in middle and at end.
+				"raz1dva2 - lol?",
+				{ {0, 4}, {4, 8} }
+			},
+			{ // Two separate words with number ad end
+				" f1 ghr9563-",
+				{ {1, 3}, {4, 11} }
+			},
+		}
+	},
+
+	// Match sequence at end after single symobl.
+	{
+		"[a-zA-Z][a-zA-Z0-9]*",
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // Non-empty string with no matches.
+				"_$!",
+				{}
+			},
+			{ // '-' is not a one of elements but special symbol for ranges.
+				"-",
+				{}
+			},
+			{ // Single match of single symbol.
+				" $6 G ",
+				{ {4, 5} }
+			},
+			{ // Multiple matches of single symbol.
+				"a b T R 5 O 44 f",
+				{ {0, 1}, {2, 3}, {4, 5}, {6, 7}, {10, 11}, {15, 16} }
+			},
+			{ // Several different matches.
+				"Q q4 Quake3 r46tR6 04 Zz, Gn4444 S Hnr eeee",
+				{ {0, 1}, {2, 4}, {5, 11}, {12, 18}, {22, 24}, {26, 32}, {33, 34}, {35, 38}, {39, 43} }
+			},
+		}
+	},
 };
 
 INSTANTIATE_TEST_CASE_P(M, CheckMatchTest, testing::ValuesIn(c_test_data));
