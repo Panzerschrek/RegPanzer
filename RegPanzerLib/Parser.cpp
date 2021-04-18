@@ -1,5 +1,7 @@
 #include "Parser.hpp"
+#include "PushDisableLLVMWarnings.hpp"
 #include <llvm/Support/ConvertUTF.h>
+#include "PopLLVMWarnings.hpp"
 
 namespace RegPanzer
 {
@@ -11,7 +13,7 @@ using StrView= std::basic_string_view<CharType>;
 
 std::optional<SpecificSymbol> ParseEscapeSequence(StrView& str)
 {
-	str.remove_prefix(1); // Remove \
+	str.remove_prefix(1); // Remove '\'
 
 	if(str.empty())
 		return std::nullopt;

@@ -1,5 +1,7 @@
 #include "../RegPanzerLib/Parser.hpp"
+#include "../RegPanzerLib/PushDisableLLVMWarnings.hpp"
 #include <gtest/gtest.h>
+#include "../RegPanzerLib/PopLLVMWarnings.hpp"
 
 namespace RegPanzer
 {

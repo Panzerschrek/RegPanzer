@@ -1,6 +1,8 @@
 #include "../RegPanzerLib/Matcher.hpp"
 #include "../RegPanzerLib/Parser.hpp"
+#include "../RegPanzerLib/PushDisableLLVMWarnings.hpp"
 #include <gtest/gtest.h>
+#include "../RegPanzerLib/PopLLVMWarnings.hpp"
 
 namespace RegPanzer
 {
@@ -43,7 +45,7 @@ TEST_P(CheckMatchTest, MatchTest)
 				break;
 
 			result_ranges.emplace_back(size_t(res->data() - c.input_str.data()), size_t(res->data() + res->size() - c.input_str.data()));
-			str= str.substr(res->data() + res->size() - str.data());
+			str= str.substr(size_t(res->data() + res->size() - str.data()));
 		}
 
 		ASSERT_EQ(result_ranges, c.result_ranges);

@@ -47,6 +47,30 @@ endif()
 llvm_map_components_to_libnames(LLVM_LIBS_FOR_REG_PANZER_LIB Core)
 llvm_map_components_to_libnames(LLVM_LIBS_FOR_REG_PANZER_TEST Interpreter)
 
+# Setup our project compiler options.
+
+if(NOT WIN32)
+	add_compile_options( -fPIC )
+endif()
+
+if(MSVC)
+	add_compile_options(/utf-8 /W3 /WX)
+
+	if(NOT LLVM_ENABLE_RTTI)
+		add_compile_options(/GR-)
+	endif()
+else()
+	add_compile_options(-Werror -Wall -Wextra -Wconversion)
+	add_compile_options(-fvisibility=hidden -fvisibility-inlines-hidden)
+
+	if(NOT LLVM_ENABLE_RTTI)
+		add_compile_options(-fno-rtti)
+	endif()
+
+	list(APPEND CMAKE_EXE_LINKER_FLAGS_RELEASE "-s -Wl,--gc-sections")
+	list(APPEND CMAKE_SHARED_LINKER_FLAGS_RELEASE "-s -Wl,--gc-sections")
+endif()
+
 # RegPanzerLib
 
 file(GLOB REG_LIB_SOURCES "RegPanzerLib/*")
