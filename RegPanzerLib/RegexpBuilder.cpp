@@ -129,6 +129,12 @@ std::optional<Sequence> ParseSequence(StrView& str)
 		str.remove_prefix(1);
 		break;
 
+	case '?':
+		seq.min_elements= 0;
+		seq.max_elements= 1;
+		str.remove_prefix(1);
+		break;
+
 	case '{':
 		str.remove_prefix(1); // skip {
 

@@ -212,6 +212,15 @@ const TestDataElement c_test_data[]
 		}
 	},
 
+	// Zero or one quentifier.
+	{
+		"6f?",
+		{
+			{ SpecificSymbol{ '6' }, { 1, 1, false }, },
+			{ SpecificSymbol{ 'f' }, { 0, 1, false }, },
+		}
+	},
+
 	// Specific amount quantifier (range).
 	{
 		"z{354,789}",
