@@ -21,10 +21,12 @@ bool MatchElementImpl(const AnySymbol&, MatchInput& str)
 
 bool MatchElementImpl(const SpecificSymbol& specific_symbol, MatchInput& str)
 {
-	if(str.empty() || str.front() != specific_symbol.code)
+	if(str.empty())
 		return false;
+
+	const CharType code= str.front();
 	str.remove_prefix(1);
-	return true;
+	return code == specific_symbol.code;
 }
 
 bool MatchElementImpl(const BracketExpression& bracket_expression, MatchInput& str)
@@ -51,31 +53,19 @@ bool MatchElementImpl(const OneOf& one_of, MatchInput& str)
 {
 	if(str.empty())
 		return false;
+
 	const CharType code= str.front();
-	bool found= false;
+	str.remove_prefix(1);
 
 	for(const CharType& v : one_of.variants)
-	{
 		if(code == v)
-		{
-			found= true;
-			break;
-		}
-	}
+			return true;
+
 	for(const auto& range : one_of.ranges)
-	{
 		if(code >= range.first && code <= range.second)
-		{
-			found= true;
-			break;
-		}
-	}
+			return true;
 
-	if(!found)
-		return false;
-
-	str.remove_prefix(1);
-	return true;
+	return false;
 }
 
 bool MatchElement(const RegexpElementFull::ElementType& element, MatchInput& str)
@@ -83,33 +73,27 @@ bool MatchElement(const RegexpElementFull::ElementType& element, MatchInput& str
 	return std::visit([&](const auto& el){ return MatchElementImpl(el, str); }, element);
 }
 
-bool MatchElementFull(
-	const RegexpElementFull& element,
-	MatchInput& str,
-	const RegexpIterator tail_begin,
-	const RegexpIterator tail_end)
+bool MatchElementFull(const RegexpIterator begin, const RegexpIterator end, MatchInput& str)
 {
+	if(begin == end)
+		return true;
+	const RegexpElementFull& element= *begin;
+
 	std::optional<MatchInput> last_success_pos;
 
+	for(size_t i= 0; ; ++i)
 	{
-		MatchInput range_copy= str;
-		size_t i= 0;
-		while(true)
+		// Check tail only after reqaching minimum number of elements.
+		if(i >= element.seq.min_elements)
 		{
-			// Check tail only after reqaching minimum number of elements.
-			if(i >= element.seq.min_elements)
-			{
-				MatchInput range_for_tail= range_copy;
-				if(tail_begin == tail_end || MatchElementFull(*tail_begin, range_for_tail, std::next(tail_begin), tail_end))
-					last_success_pos= range_for_tail;
-			}
-
-			if(i == element.seq.max_elements ||
-				!MatchElement(element.el, range_copy))
-				break;
-
-			++i;
+			MatchInput range_copy= str;
+			if(begin == end || MatchElementFull(std::next(begin), end, range_copy))
+				last_success_pos= range_copy;
 		}
+
+		if(i == element.seq.max_elements || // Finish loop after tail check but before sequence element check.
+			!MatchElement(element.el, str))
+			break;
 	}
 
 	if(last_success_pos == std::nullopt)
@@ -121,10 +105,7 @@ bool MatchElementFull(
 
 bool MatchChain(const RegexpElementsChain& chain, MatchInput& str)
 {
-	if(chain.empty())
-		return true;
-
-	return MatchElementFull(chain.front(), str, std::next(chain.begin()), chain.end());
+	return MatchElementFull(chain.begin(), chain.end(), str);
 }
 
 } // namespace
