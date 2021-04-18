@@ -91,29 +91,24 @@ bool MatchElementFull(
 {
 	std::optional<MatchInput> last_success_pos;
 
-	if(element.seq.min_elements == 0)
 	{
 		MatchInput range_copy= str;
-		const bool tail_success= tail_begin == tail_end || MatchElementFull(*tail_begin, range_copy, std::next(tail_begin), tail_end);
-		if(tail_success)
-			last_success_pos= range_copy;
-	}
-	{
-		MatchInput range_copy= str;
-		for(size_t i= 0; i < element.seq.max_elements; ++i)
+		size_t i= 0;
+		while(true)
 		{
-			if(!MatchElement(element.el, range_copy))
+			// Check tail only after reqaching minimum number of elements.
+			if(i >= element.seq.min_elements)
 			{
-				if(i < element.seq.min_elements)
-					return false;
-				else
-					break;
+				MatchInput range_for_tail= range_copy;
+				if(tail_begin == tail_end || MatchElementFull(*tail_begin, range_for_tail, std::next(tail_begin), tail_end))
+					last_success_pos= range_for_tail;
 			}
 
-			MatchInput range_for_tail= range_copy;
-			const bool tail_success= tail_begin == tail_end || MatchElementFull(*tail_begin, range_for_tail, std::next(tail_begin), tail_end);
-			if(tail_success)
-				last_success_pos= range_for_tail;
+			if(i == element.seq.max_elements ||
+				!MatchElement(element.el, range_copy))
+				break;
+
+			++i;
 		}
 	}
 
