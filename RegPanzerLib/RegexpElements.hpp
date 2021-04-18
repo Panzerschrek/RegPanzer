@@ -44,6 +44,8 @@ struct OneOf
 
 struct Sequence
 {
+	static constexpr size_t c_max= std::numeric_limits<size_t>::max();
+
 	// * - min=0 max=uint_max
 	// + - min=1, max=uint_max
 	// {5, 10} - min= 5, max= 10

@@ -172,7 +172,7 @@ const TestDataElement c_test_data[]
 				},
 				{
 					{ SpecificSymbol{ 'z' }, { 1, 1, false }, },
-					{ SpecificSymbol{ 'c' }, { 1, std::numeric_limits<size_t>::max(), false }, },
+					{ SpecificSymbol{ 'c' }, { 1, Sequence::c_max, false }, },
 				},
 				{
 					{
@@ -181,7 +181,7 @@ const TestDataElement c_test_data[]
 							{ SpecificSymbol{ 'V' }, { 1, 1, false }, },
 							{ SpecificSymbol{ 'x' }, { 1, 1, false }, },
 						} },
-						{ 0, std::numeric_limits<size_t>::max(), false },
+						{ 0, Sequence::c_max, false },
 					}
 				},
 				{
@@ -198,7 +198,7 @@ const TestDataElement c_test_data[]
 	{
 		"B*",
 		{
-			{ SpecificSymbol{ 'B' }, { 0, std::numeric_limits<size_t>::max(), false }, },
+			{ SpecificSymbol{ 'B' }, { 0, Sequence::c_max, false }, },
 		}
 	},
 
@@ -208,7 +208,7 @@ const TestDataElement c_test_data[]
 		{
 			{ SpecificSymbol{ 'W' }, { 1, 1, false }, },
 			{ SpecificSymbol{ 'r' }, { 1, 1, false }, },
-			{ SpecificSymbol{ 'V' }, { 1, std::numeric_limits<size_t>::max(), false }, },
+			{ SpecificSymbol{ 'V' }, { 1, Sequence::c_max, false }, },
 		}
 	},
 
@@ -233,7 +233,7 @@ const TestDataElement c_test_data[]
 	{
 		"s{34,}t",
 		{
-			{ SpecificSymbol{ 's' }, { 34, std::numeric_limits<size_t>::max(), false }, },
+			{ SpecificSymbol{ 's' }, { 34, Sequence::c_max, false }, },
 			{ SpecificSymbol{ 't' }, { 1, 1, false }, }
 		}
 	},
@@ -259,7 +259,7 @@ const TestDataElement c_test_data[]
 					{ SpecificSymbol{ 'w' }, { 1, 1, false }, },
 					{ SpecificSymbol{ 'e' }, { 1, 1, false }, },
 				} },
-				{ 1, std::numeric_limits<size_t>::max(), false }
+				{ 1, Sequence::c_max, false }
 			},
 			{ SpecificSymbol{ 'P' }, { 1, 1, false }, },
 		}
