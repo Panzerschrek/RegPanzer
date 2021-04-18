@@ -5,8 +5,8 @@
 namespace RegPanzer
 {
 
-using MatchResult= std::optional<std::basic_string_view<CharType>>;
-
-MatchResult Match(const RegexpElementsChain& regexp, std::basic_string_view<CharType> str);
+// Match UTF-8 string.
+using MatchResult= std::optional<std::string_view>;
+MatchResult Match(const RegexpElementsChain& regexp, std::string_view str);
 
 } // namespace RegPanzer

@@ -6,6 +6,7 @@
 namespace RegPanzer
 {
 
-std::optional<RegexpElementsChain> ParseRegexpString(std::basic_string_view<CharType> str);
+// Parse regexp in UTF-8 format.
+std::optional<RegexpElementsChain> ParseRegexpString(std::string_view str);
 
 } // namespace RegPanzer

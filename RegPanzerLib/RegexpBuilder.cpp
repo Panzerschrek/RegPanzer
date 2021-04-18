@@ -1,4 +1,5 @@
 #include "RegexpBuilder.hpp"
+#include <llvm/Support/ConvertUTF.h>
 
 namespace RegPanzer
 {
@@ -80,7 +81,7 @@ std::optional<RegexpElementsChain> ParseRegexpStringImpl(std::basic_string_view<
 			{
 				// TODO - process escape sequences.
 
-				const CharType c= str.front();
+				const char c= str.front();
 				str.remove_prefix(1);
 				if(str.empty())
 				{
@@ -96,7 +97,7 @@ std::optional<RegexpElementsChain> ParseRegexpStringImpl(std::basic_string_view<
 						// TODO - handle error here
 						return std::nullopt;
 					}
-					const CharType end_c= str.front();
+					const char end_c= str.front();
 					// TODO - validate range
 					one_of.ranges.emplace_back(c, end_c);
 					str.remove_prefix(1);
@@ -202,10 +203,29 @@ std::optional<RegexpElementsChain> ParseRegexpStringImpl(std::basic_string_view<
 
 } // namespace
 
-std::optional<RegexpElementsChain> ParseRegexpString(const std::basic_string_view<CharType> str)
+std::optional<RegexpElementsChain> ParseRegexpString(const std::string_view str)
 {
-	auto range_copy= str;
-	return ParseRegexpStringImpl(range_copy);
+	// Do internal parsing in UTF-32 format (with fixed codepoint size). Convert input string into UTF-32.
+
+	std::u32string str_utf32;
+
+	{
+		str_utf32.resize(str.size()); // utf-8 string always has more elements than utf-32 string with same content.
+		auto src_start= reinterpret_cast<const llvm::UTF8*>(str.data());
+		const auto src_end= src_start + str.size();
+		const auto target_start_initial= reinterpret_cast<llvm::UTF32*>(str_utf32.data());
+		auto target_start= target_start_initial;
+		const auto target_end= target_start + str_utf32.size();
+		const auto res= llvm::ConvertUTF8toUTF32(&src_start, src_end, &target_start, target_end, llvm::strictConversion);
+
+		if(res != llvm::conversionOK)
+			return std::nullopt;
+
+		str_utf32.resize(size_t(target_start - target_start_initial));
+	}
+
+	std::basic_string_view<CharType> s= str_utf32;
+	return ParseRegexpStringImpl(s);
 }
 
 } // namespace RegPanzer

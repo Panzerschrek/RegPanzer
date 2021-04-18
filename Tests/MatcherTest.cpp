@@ -35,7 +35,7 @@ TEST_P(CheckMatchTest, MatchTest)
 	{
 		TestDataElement::Ranges result_ranges;
 
-		std::basic_string_view<CharType> str= c.input_str;
+		std::string_view str= c.input_str;
 		while(true)
 		{
 			const MatchResult res= Match(*regexp, str);
@@ -643,6 +643,33 @@ const TestDataElement c_test_data[]
 				{ {0, 3}, {4, 7}, {8, 11}, {14, 15}, {16, 17}, {18, 19}, {20, 21}, {22, 24}, {27, 34} }
 			},
 		}
+	},
+
+	// Non-ASCII symbols match.
+	{
+		"ё",
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // Non-empty string - no matches
+				"жЖha",
+				{}
+			},
+			{ // Single match for whole string.
+				"ё",
+				{ {0, 2} }
+			},
+			{ // Single match in middle of string.
+				"Аёш",
+				{ {2, 4} }
+			},
+			{ // Multiple matches.
+				"grtё1ё☯ё",
+				{ {3, 5}, {6, 8}, {11, 13} }
+			},
+		},
 	},
 };
 

@@ -264,6 +264,18 @@ const TestDataElement c_test_data[]
 			{ SpecificSymbol{ 'P' }, { 1, 1, false }, },
 		}
 	},
+
+	// Non-ASCII symbols.
+	{
+		"ДёСÜ☭",
+		{
+			{ SpecificSymbol{ U'Д' }, { 1, 1, false }, },
+			{ SpecificSymbol{ U'ё' }, { 1, 1, false }, },
+			{ SpecificSymbol{ U'С' }, { 1, 1, false }, },
+			{ SpecificSymbol{ U'Ü' }, { 1, 1, false }, },
+			{ SpecificSymbol{ U'☭' }, { 1, 1, false }, },
+		}
+	},
 };
 
 INSTANTIATE_TEST_CASE_P(P, CheckParseTest, testing::ValuesIn(c_test_data));

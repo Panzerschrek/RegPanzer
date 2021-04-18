@@ -6,7 +6,7 @@
 namespace RegPanzer
 {
 
-using CharType= char;
+using CharType= char32_t;
 
 struct RegexpElementFull;
 using RegexpElementsChain= std::vector<RegexpElementFull>;

@@ -1,4 +1,5 @@
 #include "Matcher.hpp"
+#include <llvm/Support/ConvertUTF.h>
 
 namespace RegPanzer
 {
@@ -7,26 +8,35 @@ namespace
 {
 
 using RegexpIterator = RegexpElementsChain::const_iterator;
-using MatchInput = std::basic_string_view<CharType>;
+using MatchInput = std::string_view;
+
+std::optional<CharType> ExtractCodePoint(MatchInput& str)
+{
+	llvm::UTF32 code= 0;
+
+	const auto src_start_initial= reinterpret_cast<const llvm::UTF8*>(str.data());
+	auto src_start= src_start_initial;
+	auto target_start= &code;
+
+	const auto res= llvm::ConvertUTF8toUTF32(&src_start, src_start + str.size(), &target_start, target_start + 1, llvm::strictConversion);
+
+	if(target_start != &code + 1 || !(res == llvm::conversionOK || res == llvm::targetExhausted))
+		return std::nullopt;
+
+	str.remove_prefix(size_t(src_start - src_start_initial));
+	return CharType(code);
+}
 
 bool MatchChain(const RegexpElementsChain& chain, MatchInput& str);
 
 bool MatchElementImpl(const AnySymbol&, MatchInput& str)
 {
-	if(str.empty())
-		return false;
-	str.remove_prefix(1);
-	return true;
+	return ExtractCodePoint(str) != std::nullopt;
 }
 
 bool MatchElementImpl(const SpecificSymbol& specific_symbol, MatchInput& str)
 {
-	if(str.empty())
-		return false;
-
-	const CharType code= str.front();
-	str.remove_prefix(1);
-	return code == specific_symbol.code;
+	return ExtractCodePoint(str) == specific_symbol.code;
 }
 
 bool MatchElementImpl(const BracketExpression& bracket_expression, MatchInput& str)
@@ -54,16 +64,16 @@ bool MatchElementImpl(const OneOf& one_of, MatchInput& str)
 	if(str.empty())
 		return false;
 
-	const CharType code= str.front();
-	str.remove_prefix(1);
+	if(const auto code= ExtractCodePoint(str))
+	{
+		for(const CharType& v : one_of.variants)
+			if(*code == v)
+				return true;
 
-	for(const CharType& v : one_of.variants)
-		if(code == v)
-			return true;
-
-	for(const auto& range : one_of.ranges)
-		if(code >= range.first && code <= range.second)
-			return true;
+		for(const auto& range : one_of.ranges)
+			if(*code >= range.first && *code <= range.second)
+				return true;
+	}
 
 	return false;
 }
@@ -110,7 +120,7 @@ bool MatchChain(const RegexpElementsChain& chain, MatchInput& str)
 
 } // namespace
 
-MatchResult Match(const RegexpElementsChain& regexp, const std::basic_string_view<CharType> str)
+MatchResult Match(const RegexpElementsChain& regexp, const std::string_view str)
 {
 	for(size_t i= 0; i < str.size(); ++i)
 	{
