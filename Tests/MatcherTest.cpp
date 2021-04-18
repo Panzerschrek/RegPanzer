@@ -1,5 +1,5 @@
 #include "../RegPanzerLib/Matcher.hpp"
-#include "../RegPanzerLib/RegexpBuilder.hpp"
+#include "../RegPanzerLib/Parser.hpp"
 #include <gtest/gtest.h>
 
 namespace RegPanzer
