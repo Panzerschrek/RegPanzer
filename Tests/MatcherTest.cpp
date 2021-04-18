@@ -83,6 +83,57 @@ const TestDataElement c_test_data[]
 		},
 	},
 
+	// Match any symbol.
+	{
+		"r.wd",
+		{
+			{ // Empty string - no matches.
+				"",
+				{},
+			},
+			{ // Non-empty string - no matches.
+				"rsc wda",
+				{},
+			},
+			{ // Missing "any" symbol - no matches.
+				"rwd",
+				{},
+			},
+			{ // Too many  "any" symbols - no matches.
+				"rz+wd",
+				{},
+			},
+			{ // Match whole string.
+				"rzwd",
+				{ {0, 4} }
+			},
+			{ // Match whole string with different "any" symbol.
+				"rQwd",
+				{ {0, 4} }
+			},
+			{ // Match whole string with non-letter "any" symbol.
+				"r7wd",
+				{ {0, 4} }
+			},
+			{ // Match whole string with special "any" symbol.
+				"r#wd",
+				{ {0, 4} }
+			},
+			{ // Match whole string with space as "any" symbol.
+				"r wd",
+				{ {0, 4} }
+			},
+			{ // Match whole string with non-ascii "any" symbol.
+				"rГwd",
+				{ {0, 5} }
+			},
+			{ // Multiple matches.
+				"warJwddr+wdd br/wadnr wd",
+				{ {2, 6}, {7, 11}, {20, 24} }
+			}
+		},
+	},
+
 	// Match sequence of same symbols.
 	{
 		"Q+",
@@ -327,6 +378,49 @@ const TestDataElement c_test_data[]
 				{ {0, 1}, {2, 4}, {5, 11}, {12, 18}, {22, 24}, {26, 32}, {33, 34}, {35, 38}, {39, 43} }
 			},
 		}
+	},
+
+	{ // Match sequence with complex suffix. Suffix valid as sequence part.
+		"[a-z]*rq",
+		{
+
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // Non-empty string with no matces.
+				"wgvrwdqr",
+				{}
+			},
+			{ // Minimap match.
+				"rq",
+				{ {0, 2} }
+			},
+			{ // Sequence with included end suffix.
+				"abrqwwrq",
+				{ {0, 8} }
+			},
+			{ // Duplicated suffix.
+				"abcrqrq",
+				{ {0, 7} }
+			},
+			{ // Sequence elements matches first suffix element.
+				"rrrrq",
+				{ {0, 5} }
+			},
+			{ // Sequence elements matches second suffix element.
+				"qqqqqqqrq",
+				{ {0, 9} }
+			},
+			{ // Match in middle of string.
+				" qrqr",
+				{ {1, 4} }
+			},
+			{ // Match multiple sequences.
+				"wvbrq-- rqq wtrqrqrqwllrq zqrq dddacrqrq",
+				{ {0, 5}, {8, 10}, {12, 25}, {26, 30}, {31, 40} }
+			},
+		},
 	},
 
 	// Match sequence with exact size.
