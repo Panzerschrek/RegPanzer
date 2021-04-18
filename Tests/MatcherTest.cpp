@@ -492,6 +492,158 @@ const TestDataElement c_test_data[]
 			},
 		}
 	},
+
+	// Simple alternative.
+	{
+		"a|b",
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // Non-empty string with no matches.
+				"crt k",
+				{}
+			},
+			{ // One match for first alternative.
+				"a",
+				{ {0, 1} }
+			},
+			{ // One match for second alternative.
+				"b",
+				{ {0, 1} }
+			},
+			{ // All matches is first alternative.
+				"awwaaca",
+				{ {0, 1}, {3, 4}, {4, 5}, {6, 7} }
+			},
+			{ // All matches is second alternative.
+				"hjtbpoy,k][pkboesfbbb",
+				{ {3, 4}, {13, 14}, {18, 19}, {19, 20}, {20, 21} }
+			},
+			{ // Matches for both alternatives.
+				"bthawdbbwdaaefbawdwaab",
+				{ {0, 1}, {3, 4}, {6, 7}, {7, 8}, {10, 11}, {11, 12}, {14, 15}, {15, 16}, {19, 20}, {20, 21}, {21, 22} }
+			},
+		}
+	},
+
+	// Multiple alternatives with groups.
+	{
+		"Q|(zz)|(wtf)",
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // Non-empty string with no matches.
+				"zwtq",
+				{}
+			},
+			{ // Match single first alternative.
+				"Q",
+				{ {0, 1} },
+			},
+			{ // Match single second alternative.
+				"zz",
+				{ {0, 2} },
+			},
+			{ // Match single third alternative.
+				"wtf",
+				{ {0, 3} },
+			},
+			{ // Match multiple alternatives.
+				"wdwzz w Qwtf awtf zzQ wtfzz",
+				{ {3, 5}, {8, 9}, {9, 12}, {14, 17}, {18, 20}, {20, 21}, {22, 25}, {25, 27} }
+			},
+		}
+	},
+
+	// Multiple alternative sequences.
+	{
+		"[a-z]+|[A-Z]+|[0-9]+", // lowercase word or uppercase word or decimal number.
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // Match single symbol for first alternative.
+				"g",
+				{ {0, 1} }
+			},
+			{ // Match single symbol for second alternative.
+				"O",
+				{ {0, 1} }
+			},
+			{ // Match single symbol for third alternative.
+				"7",
+				{ {0, 1} }
+			},
+			{ // Match first sequence.
+				"hfnueabnt",
+				{ {0, 9} }
+			},
+			{ // Match second sequence.
+				"BTANEI",
+				{ {0, 6} }
+			},
+			{ // Match third sequence.
+				"88005353535",
+				{ {0, 11} }
+			},
+			{ // Match sequence in middle of string.
+				"$^&!@-RGB~~",
+				{ {6, 9} }
+			},
+			{ // Match sequential sequences.
+				"RTGbfcd12",
+				{ {0, 3}, {3, 7}, {7, 9} }
+			},
+			{ // Match all together.
+				"Word wiTH number77s 666 times NONE 3456GG",
+				{ {0, 1}, {1, 4}, {5, 7}, {7, 9}, {10, 16}, {16, 18}, {18, 19}, {20, 23}, {24, 29}, {30, 34}, {35, 39}, {39, 41} }
+			},
+		}
+	},
+
+	// Sequence of alternative elements.
+	{
+		"(0|1)+",
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // Non-empty string - no matches
+				"etssef",
+				{}
+			},
+			{ // Match single symobl from first alternative.
+				"0",
+				{ {0, 1} }
+			},
+			{ // Match single symobl from second alternative.
+				"1",
+				{ {0, 1} }
+			},
+			{ // Match sequence of first alternatives.
+				"w11111GG",
+				{ {1, 6} }
+			},
+			{ // Match sequence of second alternatives.
+				"--00000",
+				{ {2, 7} }
+			},
+			{ // Match sequence with both alternatives.
+				"1110111000101101",
+				{ {0, 16} }
+			},
+			{ // Match several sequences.
+				"001 111 000 ww0z1 1-0*11 = 1010111",
+				{ {0, 3}, {4, 7}, {8, 11}, {14, 15}, {16, 17}, {18, 19}, {20, 21}, {22, 24}, {27, 34} }
+			},
+		}
+	},
 };
 
 INSTANTIATE_TEST_CASE_P(M, CheckMatchTest, testing::ValuesIn(c_test_data));
