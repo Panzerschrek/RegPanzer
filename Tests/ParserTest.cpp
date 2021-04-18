@@ -276,6 +276,22 @@ const TestDataElement c_test_data[]
 			{ SpecificSymbol{ U'☭' }, { 1, 1, false }, },
 		}
 	},
+
+	// Basic escape sequences.
+	{ "\\[", { { SpecificSymbol{ '[' }, { 1, 1, false }, } } },
+	{ "\\]", { { SpecificSymbol{ ']' }, { 1, 1, false }, } } },
+	{ "\\{", { { SpecificSymbol{ '{' }, { 1, 1, false }, } } },
+	{ "\\}", { { SpecificSymbol{ '}' }, { 1, 1, false }, } } },
+	{ "\\(", { { SpecificSymbol{ '(' }, { 1, 1, false }, } } },
+	{ "\\)", { { SpecificSymbol{ ')' }, { 1, 1, false }, } } },
+	{ "\\^", { { SpecificSymbol{ '^' }, { 1, 1, false }, } } },
+	{ "\\$", { { SpecificSymbol{ '$' }, { 1, 1, false }, } } },
+	{ "\\.", { { SpecificSymbol{ '.' }, { 1, 1, false }, } } },
+	{ "\\*", { { SpecificSymbol{ '*' }, { 1, 1, false }, } } },
+	{ "\\+", { { SpecificSymbol{ '+' }, { 1, 1, false }, } } },
+	{ "\\|", { { SpecificSymbol{ '|' }, { 1, 1, false }, } } },
+	{ "\\?", { { SpecificSymbol{ '?' }, { 1, 1, false }, } } },
+	{ "\\\\", { { SpecificSymbol{ '\\' }, { 1, 1, false }, } } },
 };
 
 INSTANTIATE_TEST_CASE_P(P, CheckParseTest, testing::ValuesIn(c_test_data));

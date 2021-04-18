@@ -53,6 +53,48 @@ std::optional<OneOf> ParseOneOf(StrView& str)
 	return one_of;
 }
 
+std::optional<SpecificSymbol> ParseEscapeSequence(StrView& str)
+{
+	str.remove_prefix(1); // Remove \
+
+	if(str.empty())
+		return std::nullopt;
+
+	const CharType c= str.front();
+	str.remove_prefix(1);
+
+	SpecificSymbol symbol;
+
+	switch(c)
+	{
+	case '[':
+	case ']':
+	case '{':
+	case '}':
+	case '(':
+	case ')':
+	case '^':
+	case '$':
+	case '.':
+	case '*':
+	case '+':
+	case '|':
+	case '?':
+	case '\\':
+	symbol.code= c;
+		break;
+
+	case 'p':
+		// TODO - parse special symbol classes here.
+		return std::nullopt;
+
+	default:
+		return std::nullopt;
+	}
+
+	return symbol;
+}
+
 std::optional<Sequence> ParseSequence(StrView& str)
 {
 	Sequence seq;
@@ -204,6 +246,15 @@ std::optional<RegexpElementsChain> ParseRegexpStringImpl(StrView& str)
 			if(one_of == std::nullopt)
 				return std::nullopt;
 			res.el= std::move(*one_of);
+		}
+			break;
+
+		case '\\':
+		{
+			auto symbol= ParseEscapeSequence(str);
+			if(symbol == std::nullopt)
+				return std::nullopt;
+			res.el= std::move(*symbol);
 		}
 			break;
 
