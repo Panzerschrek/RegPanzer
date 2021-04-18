@@ -9,50 +9,6 @@ namespace
 
 using StrView= std::basic_string_view<CharType>;
 
-std::optional<OneOf> ParseOneOf(StrView& str)
-{
-	str.remove_prefix(1); // Remove [
-
-	OneOf one_of;
-	while(!str.empty() && str.front() != ']')
-	{
-		// TODO - process escape sequences.
-
-		const char c= str.front();
-		str.remove_prefix(1);
-		if(str.empty())
-		{
-			// TODO - handle error here
-			return std::nullopt;
-		}
-
-		if(str.front() == '-')
-		{
-			str.remove_prefix(1);
-			if(str.empty())
-			{
-				// TODO - handle error here
-				return std::nullopt;
-			}
-			const char end_c= str.front();
-			// TODO - validate range
-			one_of.ranges.emplace_back(c, end_c);
-			str.remove_prefix(1);
-		}
-		else
-			one_of.variants.push_back(c);
-	}
-
-	if(str.empty() || str.front() != ']')
-	{
-		// TODO - handle error here
-		return std::nullopt;
-	}
-	str.remove_prefix(1);
-
-	return one_of;
-}
-
 std::optional<SpecificSymbol> ParseEscapeSequence(StrView& str)
 {
 	str.remove_prefix(1); // Remove \
@@ -93,6 +49,60 @@ std::optional<SpecificSymbol> ParseEscapeSequence(StrView& str)
 	}
 
 	return symbol;
+}
+
+std::optional<OneOf> ParseOneOf(StrView& str)
+{
+	str.remove_prefix(1); // Remove [
+
+	OneOf one_of;
+	while(!str.empty() && str.front() != ']')
+	{
+		// TODO - process escape sequences.
+
+		CharType c= str.front();
+
+		if(c == '\\')
+		{
+			if(const auto symbol= ParseEscapeSequence(str))
+				c= symbol->code;
+			else
+				return std::nullopt;
+		}
+		else
+			str.remove_prefix(1);
+
+		if(str.empty())
+		{
+			// TODO - handle error here
+			return std::nullopt;
+		}
+
+		if(str.front() == '-')
+		{
+			str.remove_prefix(1);
+			if(str.empty())
+			{
+				// TODO - handle error here
+				return std::nullopt;
+			}
+			const CharType end_c= str.front();
+			// TODO - validate range
+			one_of.ranges.emplace_back(c, end_c);
+			str.remove_prefix(1);
+		}
+		else
+			one_of.variants.push_back(c);
+	}
+
+	if(str.empty() || str.front() != ']')
+	{
+		// TODO - handle error here
+		return std::nullopt;
+	}
+	str.remove_prefix(1);
+
+	return one_of;
 }
 
 std::optional<Sequence> ParseSequence(StrView& str)

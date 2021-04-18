@@ -292,6 +292,22 @@ const TestDataElement c_test_data[]
 	{ "\\|", { { SpecificSymbol{ '|' }, { 1, 1, false }, } } },
 	{ "\\?", { { SpecificSymbol{ '?' }, { 1, 1, false }, } } },
 	{ "\\\\", { { SpecificSymbol{ '\\' }, { 1, 1, false }, } } },
+
+	// Basic escape sequences for "OneOf".
+	{ "[\\[]", { { OneOf{ {'['}, {}, false }, { 1, 1, false }, } } },
+	{ "[\\]]", { { OneOf{ {']'}, {}, false }, { 1, 1, false }, } } },
+	{ "[\\{]", { { OneOf{ {'{'}, {}, false }, { 1, 1, false }, } } },
+	{ "[\\}]", { { OneOf{ {'}'}, {}, false }, { 1, 1, false }, } } },
+	{ "[\\(]", { { OneOf{ {'('}, {}, false }, { 1, 1, false }, } } },
+	{ "[\\)]", { { OneOf{ {')'}, {}, false }, { 1, 1, false }, } } },
+	{ "[\\^]", { { OneOf{ {'^'}, {}, false }, { 1, 1, false }, } } },
+	{ "[\\$]", { { OneOf{ {'$'}, {}, false }, { 1, 1, false }, } } },
+	{ "[\\.]", { { OneOf{ {'.'}, {}, false }, { 1, 1, false }, } } },
+	{ "[\\*]", { { OneOf{ {'*'}, {}, false }, { 1, 1, false }, } } },
+	{ "[\\+]", { { OneOf{ {'+'}, {}, false }, { 1, 1, false }, } } },
+	{ "[\\|]", { { OneOf{ {'|'}, {}, false }, { 1, 1, false }, } } },
+	{ "[\\?]", { { OneOf{ {'?'}, {}, false }, { 1, 1, false }, } } },
+	{ "[\\\\]", { { OneOf{ {'\\'}, {}, false }, { 1, 1, false }, } } },
 };
 
 INSTANTIATE_TEST_CASE_P(P, CheckParseTest, testing::ValuesIn(c_test_data));
