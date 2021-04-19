@@ -1,6 +1,7 @@
 #pragma once
 #include "RegexpElements.hpp"
 #include <optional>
+#include <string_view>
 
 namespace RegPanzer
 {
