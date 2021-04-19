@@ -1,6 +1,7 @@
 #include "../RegPanzerLib/Matcher.hpp"
 #include "../RegPanzerLib/Parser.hpp"
 #include "../RegPanzerLib/PushDisableLLVMWarnings.hpp"
+#include <llvm/Support/Regex.h>
 #include <gtest/gtest.h>
 #include "../RegPanzerLib/PopLLVMWarnings.hpp"
 #include <regex>
@@ -66,6 +67,35 @@ TEST_P(CheckStdRegexpMatchTest, MatchStdRegexpTest)
 
 		for(auto it= std::sregex_iterator(c.input_str.begin(), c.input_str.end(), regex); it != std::sregex_iterator(); ++it)
 			result_ranges.emplace_back(it->position(), it->position() + it->length());
+
+		ASSERT_EQ(result_ranges, c.result_ranges);
+	}
+}
+
+class CheckLlvmRegexpMatchTest : public ::testing::TestWithParam<TestDataElement> {};
+
+TEST_P(CheckLlvmRegexpMatchTest, MatchLlvmRegexpTest)
+{
+	const auto param= GetParam();
+	llvm::Regex regex(param.regexp_str);
+
+	for(const TestDataElement::Case& c : param.cases)
+	{
+		TestDataElement::Ranges result_ranges;
+
+		llvm::StringRef str= c.input_str;
+		while(!str.empty())
+		{
+			llvm::SmallVector<llvm::StringRef, 16> matches;
+			if(!regex.match(str, &matches))
+				break;
+			if(matches.empty())
+				break;
+
+			const llvm::StringRef& match= matches.front();
+			result_ranges.emplace_back(size_t(match.data() - c.input_str.data()), size_t(match.data() + match.size() - c.input_str.data()));
+			str= str.substr(size_t(match.data() + match.size() - str.data()));
+		}
 
 		ASSERT_EQ(result_ranges, c.result_ranges);
 	}
@@ -857,6 +887,8 @@ const TestDataElement c_test_data[]
 INSTANTIATE_TEST_CASE_P(M, CheckMatchTest, testing::ValuesIn(c_test_data));
 
 INSTANTIATE_TEST_CASE_P(M, CheckStdRegexpMatchTest, testing::ValuesIn(c_test_data));
+
+INSTANTIATE_TEST_CASE_P(M, CheckLlvmRegexpMatchTest, testing::ValuesIn(c_test_data));
 
 } // namespace
 
