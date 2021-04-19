@@ -70,11 +70,13 @@ bool MatchElementImpl(const OneOf& one_of, MatchInput& str)
 	{
 		for(const CharType& v : one_of.variants)
 			if(*code == v)
-				return true;
+				return !one_of.inverse_flag;
 
 		for(const auto& range : one_of.ranges)
 			if(*code >= range.first && *code <= range.second)
-				return true;
+				return !one_of.inverse_flag;
+
+		return one_of.inverse_flag;
 	}
 
 	return false;

@@ -136,6 +136,72 @@ const TestDataElement c_test_data[]
 		},
 	},
 
+	// Match inverted "OneOf".
+	{
+		"[^0-9]",
+		{
+			{ // Empty string - no matches.
+				"",
+				{},
+			},
+			{ // Single symbol in range - no matches.
+				"6",
+				{}
+			},
+			{ // Multiple symbols in range - no matches.
+				"68547",
+				{},
+			},
+			{ // Single symbol outside range - one match.
+				"z",
+				{ {0, 1} }
+			},
+			{ // Multiple symbols outside range - multiple matches.
+				"p R-!~\\",
+				{ {0, 1}, {1, 2}, {2, 3}, {3, 4}, {4, 5}, {5, 6}, {6, 7} }
+			},
+			{ // Some symbols in string are forbidden.
+				"w56n 1Z",
+				{ {0, 1}, {3, 4}, {4, 5}, {6, 7} }
+			},
+		}
+	},
+
+	// Match inverted "OneOf" with list of symbols (including '^').
+	{
+		"[^Q^q]",
+		{
+			{ // Empty string - no matches.
+				"",
+				{},
+			},
+			{ // Single symbol in list - no matches.
+				"q",
+				{}
+			},
+			{ // Single symbol in list - no matches.
+				"Q",
+				{}
+			},
+			{ // Single symbol in list - no matches.
+				"^",
+				{}
+			},
+			{ // Single symbol outside list - one match.
+				"F",
+				{ {0, 1} }
+			},
+			{ // Multiple symbols outside list - multiple matches.
+				"aPr $",
+				{ {0, 1}, {1, 2}, {2, 3}, {3, 4}, {4, 5} }
+			},
+			{ // Some symbols in string are forbidden.
+				"aQc^ qz",
+				{ {0, 1}, {2, 3}, {4, 5}, {6, 7} }
+			},
+		}
+	},
+
 	// Match sequence of same symbols.
 	{
 		"Q+",
@@ -171,7 +237,7 @@ const TestDataElement c_test_data[]
 		}
 	},
 
-	// Match sequence of symobl ranges.
+	// Match sequence of symbol ranges.
 	{
 		"[a-z]+",
 		{
@@ -183,11 +249,11 @@ const TestDataElement c_test_data[]
 				"@6656%%1",
 				{},
 			},
-			{ // No matches for symobls outside range.
+			{ // No matches for symbols outside range.
 				"CAPITAL LETTERS",
 				{},
 			},
-			{ // Single match for single symobl in range.
+			{ // Single match for single symbol in range.
 				"f",
 				{ {0, 1}, }
 			},
@@ -351,7 +417,7 @@ const TestDataElement c_test_data[]
 		}
 	},
 
-	// Match sequence at end after single symobl.
+	// Match sequence at end after single symbol.
 	{
 		"[a-zA-Z][a-zA-Z0-9]*",
 		{
@@ -714,11 +780,11 @@ const TestDataElement c_test_data[]
 				"etssef",
 				{}
 			},
-			{ // Match single symobl from first alternative.
+			{ // Match single symbol from first alternative.
 				"0",
 				{ {0, 1} }
 			},
-			{ // Match single symobl from second alternative.
+			{ // Match single symbol from second alternative.
 				"1",
 				{ {0, 1} }
 			},
