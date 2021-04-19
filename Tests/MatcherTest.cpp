@@ -3,6 +3,7 @@
 #include "../RegPanzerLib/PushDisableLLVMWarnings.hpp"
 #include <gtest/gtest.h>
 #include "../RegPanzerLib/PopLLVMWarnings.hpp"
+#include <regex>
 
 namespace RegPanzer
 {
@@ -47,6 +48,24 @@ TEST_P(CheckMatchTest, MatchTest)
 			result_ranges.emplace_back(size_t(res->data() - c.input_str.data()), size_t(res->data() + res->size() - c.input_str.data()));
 			str= str.substr(size_t(res->data() + res->size() - str.data()));
 		}
+
+		ASSERT_EQ(result_ranges, c.result_ranges);
+	}
+}
+
+class CheckStdRegexpMatchTest : public ::testing::TestWithParam<TestDataElement> {};
+
+TEST_P(CheckStdRegexpMatchTest, MatchStdRegexpTest)
+{
+	const auto param= GetParam();
+	std::regex regex(param.regexp_str);
+
+	for(const TestDataElement::Case& c : param.cases)
+	{
+		TestDataElement::Ranges result_ranges;
+
+		for(auto it= std::sregex_iterator(c.input_str.begin(), c.input_str.end(), regex); it != std::sregex_iterator(); ++it)
+			result_ranges.emplace_back(it->position(), it->position() + it->length());
 
 		ASSERT_EQ(result_ranges, c.result_ranges);
 	}
@@ -126,7 +145,7 @@ const TestDataElement c_test_data[]
 				{ {0, 4} }
 			},
 			{ // Match whole string with non-ascii "any" symbol.
-				"rГwd",
+				"rГwd", // This do not works properly with std::regex, it returns two separate ranges (it breaks symbol into bytes).
 				{ {0, 5} }
 			},
 			{ // Multiple matches.
@@ -836,6 +855,8 @@ const TestDataElement c_test_data[]
 };
 
 INSTANTIATE_TEST_CASE_P(M, CheckMatchTest, testing::ValuesIn(c_test_data));
+
+INSTANTIATE_TEST_CASE_P(M, CheckStdRegexpMatchTest, testing::ValuesIn(c_test_data));
 
 } // namespace
 
