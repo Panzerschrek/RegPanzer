@@ -10,9 +10,9 @@ namespace RegPanzer
 namespace
 {
 
-class CheckPcreRegexpMatchTest : public ::testing::TestWithParam<MatcherTestDataElement> {};
+class PcreRegexpMatchTest : public ::testing::TestWithParam<MatcherTestDataElement> {};
 
-TEST_P(CheckPcreRegexpMatchTest, MatchPcreRegexpTest)
+TEST_P(PcreRegexpMatchTest, TestMatch)
 {
 	const auto param= GetParam();
 
@@ -38,7 +38,7 @@ TEST_P(CheckPcreRegexpMatchTest, MatchPcreRegexpTest)
 	}
 }
 
-INSTANTIATE_TEST_CASE_P(M, CheckPcreRegexpMatchTest, testing::ValuesIn(g_matcher_test_data));
+INSTANTIATE_TEST_CASE_P(M, PcreRegexpMatchTest, testing::ValuesIn(g_matcher_test_data));
 
 } // namespace
 

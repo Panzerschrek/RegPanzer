@@ -10,9 +10,9 @@ namespace
 {
 
 using TestDataElement = std::pair<std::string, RegexpElementsChain>;
-class CheckParseTest : public ::testing::TestWithParam<TestDataElement> {};
+class ParseTest : public ::testing::TestWithParam<TestDataElement> {};
 
-TEST_P(CheckParseTest, ParseTest)
+TEST_P(ParseTest, CheckParse)
 {
 	const auto param= GetParam();
 	const auto res = RegPanzer::ParseRegexpString(param.first);
@@ -370,7 +370,7 @@ const TestDataElement c_test_data[]
 	{ "[\\\\]", { { OneOf{ {'\\'}, {}, false }, { 1, 1, false }, } } },
 };
 
-INSTANTIATE_TEST_CASE_P(P, CheckParseTest, testing::ValuesIn(c_test_data));
+INSTANTIATE_TEST_CASE_P(P, ParseTest, testing::ValuesIn(c_test_data));
 
 } // namespace
 
