@@ -4,6 +4,7 @@
 #include <llvm/Support/Regex.h>
 #include <gtest/gtest.h>
 #include "../RegPanzerLib/PopLLVMWarnings.hpp"
+#include <pcrecpp.h>
 #include <regex>
 
 namespace RegPanzer
@@ -95,6 +96,34 @@ TEST_P(CheckLlvmRegexpMatchTest, MatchLlvmRegexpTest)
 			const llvm::StringRef& match= matches.front();
 			result_ranges.emplace_back(size_t(match.data() - c.input_str.data()), size_t(match.data() + match.size() - c.input_str.data()));
 			str= str.substr(size_t(match.data() + match.size() - str.data()));
+		}
+
+		ASSERT_EQ(result_ranges, c.result_ranges);
+	}
+}
+
+class CheckPcreRegexpMatchTest : public ::testing::TestWithParam<TestDataElement> {};
+
+TEST_P(CheckPcreRegexpMatchTest, MatchPcreRegexpTest)
+{
+	const auto param= GetParam();
+
+	pcrecpp::RE_Options options;
+	options.set_utf8(true);
+	pcrecpp::RE r(param.regexp_str, options);
+
+	for(const TestDataElement::Case& c : param.cases)
+	{
+		TestDataElement::Ranges result_ranges;
+
+		pcrecpp::StringPiece str(c.input_str.data());
+		while(!str.empty())
+		{
+			const auto prev_str= str;
+			if(r.Consume(&str))
+				result_ranges.emplace_back(size_t(prev_str.data() - c.input_str.data()), size_t(str.data() - c.input_str.data()));
+			else
+				str.remove_prefix(1);
 		}
 
 		ASSERT_EQ(result_ranges, c.result_ranges);
@@ -889,6 +918,8 @@ INSTANTIATE_TEST_CASE_P(M, CheckMatchTest, testing::ValuesIn(c_test_data));
 INSTANTIATE_TEST_CASE_P(M, CheckStdRegexpMatchTest, testing::ValuesIn(c_test_data));
 
 INSTANTIATE_TEST_CASE_P(M, CheckLlvmRegexpMatchTest, testing::ValuesIn(c_test_data));
+
+INSTANTIATE_TEST_CASE_P(M, CheckPcreRegexpMatchTest, testing::ValuesIn(c_test_data));
 
 } // namespace
 

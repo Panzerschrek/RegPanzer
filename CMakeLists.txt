@@ -84,7 +84,7 @@ target_link_libraries(RegPanzerLib PUBLIC ${LLVM_LIBS_FOR_REG_PANZER_LIB})
 if(DEFINED LLVM_SRC_DIR)
 	file(GLOB REG_PANZER_TEST_SOURCES "Tests/*")
 	add_executable(RegPanzerTest ${REG_PANZER_TEST_SOURCES})
-	target_link_libraries(RegPanzerTest PRIVATE RegPanzerLib gtest gtest_main ${LLVM_LIBS_FOR_REG_PANZER_TEST})
+	target_link_libraries(RegPanzerTest PRIVATE RegPanzerLib gtest gtest_main ${LLVM_LIBS_FOR_REG_PANZER_TEST} pcrecpp)
 	target_include_directories(RegPanzerTest PRIVATE ${LLVM_SRC_DIR}/utils/unittest/googletest/include/)
 	target_compile_definitions(RegPanzerTest PRIVATE -DGTEST_LANG_CXX11=1 -DGTEST_HAS_TR1_TUPLE=0)
 
