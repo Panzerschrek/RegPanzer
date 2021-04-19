@@ -83,10 +83,23 @@ target_link_libraries(RegPanzerLib PUBLIC ${LLVM_LIBS_FOR_REG_PANZER_LIB})
 
 if(DEFINED LLVM_SRC_DIR)
 	file(GLOB REG_PANZER_TEST_SOURCES "Tests/*")
+
+	find_library(PCRE_LIBRARY pcrecpp)
+	if(PCRE_LIBRARY)
+		message("Found PCRE library: ${PCRE_LIBRARY}")
+	else()
+		message("PCRE library not found. Cross-tests with this library will be disabled.")
+		list(REMOVE_ITEM REG_PANZER_TEST_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/Tests/PcreRegexMatcherTest.cpp)
+	endif()
+
 	add_executable(RegPanzerTest ${REG_PANZER_TEST_SOURCES})
-	target_link_libraries(RegPanzerTest PRIVATE RegPanzerLib gtest gtest_main ${LLVM_LIBS_FOR_REG_PANZER_TEST} pcrecpp)
+	target_link_libraries(RegPanzerTest PRIVATE RegPanzerLib gtest gtest_main ${LLVM_LIBS_FOR_REG_PANZER_TEST})
 	target_include_directories(RegPanzerTest PRIVATE ${LLVM_SRC_DIR}/utils/unittest/googletest/include/)
 	target_compile_definitions(RegPanzerTest PRIVATE -DGTEST_LANG_CXX11=1 -DGTEST_HAS_TR1_TUPLE=0)
+
+	if(PCRE_LIBRARY)
+		target_link_libraries(RegPanzerTest PRIVATE ${PCRE_LIBRARY})
+	endif()
 
 	#add_custom_command(TARGET RegPanzerTest POST_BUILD COMMAND RegPanzerTest)
 endif()
