@@ -95,6 +95,55 @@ const TestDataElement c_test_data[]
 		}
 	},
 
+	{ // One of with inverse flag.
+		"[^0-9]",
+		{
+			{
+				OneOf
+				{
+					{},
+					{
+						{ '0', '9' },
+					},
+					true
+				},
+				{ 1, 1, false },
+			},
+		}
+	},
+
+	{ // One of with '^' in middle - should not inverse condition.
+		"[0-9^]",
+		{
+			{
+				OneOf
+				{
+					{ '^' },
+					{
+						{ '0', '9' },
+					},
+					false
+				},
+				{ 1, 1, false },
+			},
+		}
+	},
+
+	{ // One of with inverse flag and '^';
+		"[^abg_^1]",
+		{
+			{
+				OneOf
+				{
+					{ 'a', 'b', 'g', '_', '^', '1' },
+					{},
+					true
+				},
+				{ 1, 1, false },
+			},
+		}
+	},
+
 	// Bracket expression.
 	{
 		"A(bc)ef",

@@ -58,6 +58,13 @@ std::optional<OneOf> ParseOneOf(StrView& str)
 	str.remove_prefix(1); // Remove [
 
 	OneOf one_of;
+
+	if(!str.empty() && str.front() == '^')
+	{
+		str.remove_prefix(1); // Remove ^
+		one_of.inverse_flag= true;
+	}
+
 	while(!str.empty() && str.front() != ']')
 	{
 		// TODO - process escape sequences.
