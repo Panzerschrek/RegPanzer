@@ -13,6 +13,15 @@ namespace RegPanzer
 namespace
 {
 
+bool StringContainsNonASCIISymbols(const std::string& str)
+{
+	for(const char c : str)
+		if((c & 0b10000000) != 0)
+			return true;
+
+	return false;
+}
+
 struct TestDataElement
 {
 	std::string regexp_str;
@@ -60,10 +69,18 @@ class CheckStdRegexpMatchTest : public ::testing::TestWithParam<TestDataElement>
 TEST_P(CheckStdRegexpMatchTest, MatchStdRegexpTest)
 {
 	const auto param= GetParam();
+
+	// Ignore non-ascii regexp and cases, because std::regex does not support UTF-8.
+	if(StringContainsNonASCIISymbols(param.regexp_str))
+		return;
+
 	std::regex regex(param.regexp_str);
 
 	for(const TestDataElement::Case& c : param.cases)
 	{
+		if(StringContainsNonASCIISymbols(c.input_str))
+			continue;
+
 		TestDataElement::Ranges result_ranges;
 
 		for(auto it= std::sregex_iterator(c.input_str.begin(), c.input_str.end(), regex); it != std::sregex_iterator(); ++it)
@@ -78,10 +95,18 @@ class CheckLlvmRegexpMatchTest : public ::testing::TestWithParam<TestDataElement
 TEST_P(CheckLlvmRegexpMatchTest, MatchLlvmRegexpTest)
 {
 	const auto param= GetParam();
+
+	// Ignore non-ascii regexp and cases, because llvm::Regex does not support UTF-8.
+	if(StringContainsNonASCIISymbols(param.regexp_str))
+		return;
+
 	llvm::Regex regex(param.regexp_str);
 
 	for(const TestDataElement::Case& c : param.cases)
 	{
+		if(StringContainsNonASCIISymbols(c.input_str))
+			continue;
+
 		TestDataElement::Ranges result_ranges;
 
 		llvm::StringRef str= c.input_str;
@@ -204,7 +229,7 @@ const TestDataElement c_test_data[]
 				{ {0, 4} }
 			},
 			{ // Match whole string with non-ascii "any" symbol.
-				"rГwd", // This do not works properly with std::regex, it returns two separate ranges (it breaks symbol into bytes).
+				"rГwd",
 				{ {0, 5} }
 			},
 			{ // Multiple matches.
