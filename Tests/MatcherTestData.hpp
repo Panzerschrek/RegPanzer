@@ -170,6 +170,111 @@ inline const MatcherTestDataElement g_matcher_test_data[]
 		}
 	},
 
+	// Match optional element.
+	{
+		"[0-9]+f?",
+		{
+			{ // Empty string - no matches.
+				"",
+				{},
+			},
+			{ // Non-empty string - no matches.
+				"wdadsf",
+				{},
+			},
+			{ // Shortest possible match.
+				"0",
+				{ {0, 1} }
+			},
+			{ // Match with optional element present.
+				"12f",
+				{ {0, 3} }
+			},
+			{ // Match with duplicated optional element - should match only first entry.
+				"3ff",
+				{ {0, 2} }
+			},
+			{ // Several sequential matches.
+				"12f32312f9f724",
+				{ {0, 3}, {3, 9}, {9, 11}, {11, 14} }
+			},
+			{ // Multiple matches.
+				"wdw 454 1 j5f wwd kmn1235 owf f 653235235 44f",
+				{ {4, 7}, {8, 9}, {11, 13}, {21, 25}, {32, 41}, {42, 45} }
+			},
+		}
+	},
+
+	// Match optional group.
+	{
+		"D(dr)?",
+		{
+			{ // Empty string - no matches.
+				"",
+				{},
+			},
+			{ // Non-empty string - no matches.
+				"ddr",
+				{},
+			},
+			{ // Shortest possible match.
+				"D",
+				{ {0, 1} }
+			},
+			{ // Match with optional group present.
+				"Ddr",
+				{ {0, 3} }
+			},
+			{ // Match with optional group repeated.
+				"drDdrdrdr",
+				{ {2, 5} }
+			},
+			{ // Several sequential matches.
+				"DdrDDDdr",
+				{ {0, 3}, {3, 4}, {4, 5}, {5, 8} }
+			},
+			{ // Multiple matches.
+				"56675--Ddr D dqd WDS drdr +Ddr wdwDDdr wxczDdrDdr wxccWDdrDz FDD",
+				{ {7, 10}, {11, 12}, {18, 19}, {27, 30}, {34, 35}, {35, 38}, {43, 46}, {46, 49}, {55, 58}, {58, 59}, {62, 63}, {63, 64} }
+			},
+		}
+	},
+
+	// Match optional sequence.
+	{
+		"Num([0-9]+)?",
+		{
+			{ // Empty string - no matches.
+				"",
+				{},
+			},
+			{ // Non-empty string - no matches.
+				"12354",
+				{},
+			},
+			{ // Shortest possible match.
+				"Num",
+				{ {0, 3} }
+			},
+			{ // Match with optional sequence present.
+				"Num6",
+				{ {0, 4} }
+			},
+			{ // Match with long sequence present.
+				"Num987654321",
+				{ {0, 12} }
+			},
+			{ // Several sequential matches.
+				"NumNum545NumNum12",
+				{ {0, 3}, {3, 9}, {9, 12}, {12, 17} }
+			},
+			{ // Multiple matches.
+				"wdNum1 aNumz Num + Num6124zs - Num5 WRNum12",
+				{ {2, 6}, {8, 11}, {13, 16}, {19, 26}, {31, 35}, {38, 43} }
+			},
+		}
+	},
+
 	// Match sequence of same symbols.
 	{
 		"Q+",
