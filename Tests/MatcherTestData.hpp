@@ -728,6 +728,186 @@ inline const MatcherTestDataElement g_matcher_test_data[]
 		}
 	},
 
+	// Match lazy sequence of single symbol.
+	{
+		"b+?",
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // Non-emtpy string - no matches.
+				"z",
+				{}
+			},
+			{ // Minimal match.
+				"b",
+				{ {0, 1} }
+			},
+			{ // Multiple symbols - should extract only single symbol.
+				"bbbbb",
+				{ {0, 1}, {1, 2}, {2, 3}, {3, 4}, {4, 5} }
+			},
+			{ // Multiple matches in complex string.
+				"wadwbokwb]owbb]wadbbb b awdb bbawd ba",
+				{ {4, 5}, {8, 9}, {12, 13}, {13, 14}, {18, 19}, {19, 20}, {20, 21}, {22, 23}, {27, 28}, {29, 30}, {30, 31}, {35, 36} }
+			},
+		}
+	},
+
+	// Match lazy sequence with terminator present in sequence elements.
+	{
+		"[a-z]+?s",
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // No matches for non-empty string.
+				"a",
+				{}
+			},
+			{ // No matches for non-empty string.
+				"awdawmn",
+				{}
+			},
+			{ // Minimal match.
+				"hs",
+				{ {0, 2} },
+			},
+			{ // Match with sequence longer than 1.
+				"abhheas",
+				{ {0, 7} },
+			},
+			{ // Search should stop on first 's' symbol.
+				"wss",
+				{ {0, 2} }
+			},
+			{ // First 's' included because at least one symbol required in sequence.
+				"ss",
+				{ {0, 2} }
+			},
+			{ // Third 's' is not included.
+				"sss",
+				{ {0, 2} }
+			},
+			{ // Should get 2 matches for 4 's' symbols.
+				"ssss",
+				{ {0, 2}, {2, 4} }
+			},
+			{ // Search should stop on first 's' symbol. Result should have two matches.
+				"abwdsgraews",
+				{ {0, 5}, {5, 11} }
+			},
+			{ // Match in middle of string.
+				"w w  hhwfoksq",
+				{ {5, 12} }
+			},
+			{ // Multiple matches.
+				" aws ssa wwss rrPOs hes, 75is saq apojeeapojtgsps ssssssw hfgassss",
+				{ {1, 4}, {5, 7}, {9, 12}, {20, 23}, {27, 29}, {34, 47}, {47, 49}, {50, 52}, {52, 54}, {54, 56}, {58, 63}, {63, 65} }
+			},
+		}
+	},
+
+	// Match lazy sequence with min/max elements and with terminator present in sequence elements.
+	{
+		"[0-9]{3,7}?0",
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // No matches for non-empty string.
+				"a",
+				{}
+			},
+			{ // Not enough symbols in sequence.
+				"670",
+				{}
+			},
+			{ // No terminal 0.
+				"376",
+				{}
+			},
+			{ // Minimal match.
+				"7430",
+				{ {0, 4} }
+			},
+			{ // Maximal match.
+				"12345670",
+				{ {0, 8} }
+			},
+			{ // Too many symbols in sequence, beginning is ignored.
+				"9876543210",
+				{ {2, 10} }
+			},
+			{ // Take zeroes from sequence up to required count, ignore others.
+				"000000",
+				{ {0, 4} }
+			},
+			{ // Take first minimal match and then second minimal match. Tail is ignored
+				"00000000000",
+				{ {0, 4}, {4, 8} }
+			},
+			{ // Zero in the middle breaks long sequence.
+				"4340320",
+				{ {0, 4} }
+			},
+			{ // Two sequential matches.
+				"5333054343310",
+				{ {0, 5}, {5, 13} }
+			},
+			{ // Sequential matches with zeros inside.
+				"5202100500",
+				{ {0, 6}, {6, 10} }
+			},
+			{ // Multiple matches.
+				"dw a043050dw 1230 wda 66666660wa w0000000wadm r000awdawdwd333awdawd6584272aw aw012334 wadw00wdaw323 0 000 w4~3450123012345510",
+				{ {4, 8}, {13, 17}, {22, 30}, {34, 38}, {109, 113}, {113, 117}, {117, 125} }
+			},
+		}
+	},
+
+	// Match lazy sequence with lower bound and terminator with non-sequence element.
+	{
+		"[a-f]{3,}?n",
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // Non-empty string - no matches.
+				"awhj",
+				{}
+			},
+			{ // No terminator - no match.
+				"abcd",
+				{},
+			},
+			{ // Not enough symbols - no match.
+				"cdn",
+				{},
+			},
+			{ // Minimal match.
+				"fean",
+				{ {0, 4} }
+			},
+			{ // Looooong match.
+				"abcdeffedbcan",
+				{ {0, 13} }
+			},
+			{ // Two sequential matches.
+				" bedanaaaaabccccn",
+				{ {1, 6}, {6, 17} }
+			},
+			{ // Multiple matches.
+				"  !!aaan bcdedddddccan wwwabcn cdddddefnaabbcc ABCn aaaaaN",
+				{ {4, 8}, {9, 22}, {26, 30}, {31, 40} }
+			},
+		}
+	},
+
 	// Simple alternative.
 	{
 		"a|b",

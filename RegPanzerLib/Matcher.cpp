@@ -2,6 +2,7 @@
 #include "PushDisableLLVMWarnings.hpp"
 #include <llvm/Support/ConvertUTF.h>
 #include "PopLLVMWarnings.hpp"
+#include <cassert>
 
 namespace RegPanzer
 {
@@ -93,28 +94,87 @@ bool MatchElementFull(const RegexpIterator begin, const RegexpIterator end, Matc
 		return true;
 	const RegexpElementFull& element= *begin;
 
-	std::optional<MatchInput> last_success_pos;
-
-	for(size_t i= 0; ; ++i)
+	switch(element.seq.mode)
 	{
-		// Check tail only after reqaching minimum number of elements.
-		if(i >= element.seq.min_elements)
+	case SequenceMode::Greedy:
 		{
-			MatchInput range_copy= str;
-			if(begin == end || MatchElementFull(std::next(begin), end, range_copy))
-				last_success_pos= range_copy;
+			std::optional<MatchInput> last_success_pos;
+
+			for(size_t i= 0; ; ++i)
+			{
+				// Check tail only after reaching minimum number of elements.
+				if(i >= element.seq.min_elements)
+				{
+					MatchInput range_copy= str;
+					if(MatchElementFull(std::next(begin), end, range_copy))
+						last_success_pos= range_copy;
+				}
+
+				if(i == element.seq.max_elements || // Finish loop after tail check but before sequence element check.
+					!MatchElement(element.el, str))
+					break;
+			}
+
+			if(last_success_pos == std::nullopt)
+				return false;
+
+			str= *last_success_pos;
+			return true;
 		}
 
-		if(i == element.seq.max_elements || // Finish loop after tail check but before sequence element check.
-			!MatchElement(element.el, str))
-			break;
+	case SequenceMode::Lazy:
+		{
+			for(size_t i= 0; ; ++i)
+			{
+				// Check tail only after reaching minimum number of elements.
+				if(i >= element.seq.min_elements)
+				{
+					MatchInput range_copy= str;
+					if(MatchElementFull(std::next(begin), end, range_copy))
+					{
+						// In lazy mode return on first tail match.
+						str= range_copy;
+						return true;
+					}
+				}
+
+				if(i == element.seq.max_elements) // Finish loop after tail check but before sequence element check.
+					break;
+
+				MatchInput range_copy= str;
+				if(!MatchElement(element.el, range_copy))
+					break;
+				str= range_copy;
+			}
+
+			return false;
+		}
+
+	case SequenceMode::Possessive:
+		{
+			// In possessive mode check only sequence elements itself and check tail later.
+			for(size_t i= 0; i < element.seq.max_elements; ++i)
+			{
+				MatchInput range_copy= str;
+				if(!MatchElement(element.el, range_copy))
+				{
+					if(i < element.seq.min_elements)
+						return false;
+					else
+					{
+						str= range_copy;
+						break;
+					}
+				}
+			}
+
+			// Than match tail.
+			return MatchElementFull(std::next(begin), end, str);
+		}
 	}
 
-	if(last_success_pos == std::nullopt)
-		return false;
-
-	str= *last_success_pos;
-	return true;
+	assert("Unreachable code!");
+	return false;
 }
 
 bool MatchChain(const RegexpElementsChain& chain, MatchInput& str)
