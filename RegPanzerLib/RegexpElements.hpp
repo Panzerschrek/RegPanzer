@@ -42,6 +42,13 @@ struct OneOf
 	bool operator!=(const OneOf& other) const { return !(*this == other); }
 };
 
+enum class SequenceMode : uint8_t
+{
+	Greedy,
+	Lazy,
+	Possessive,
+};
+
 struct Sequence
 {
 	static constexpr size_t c_max= std::numeric_limits<size_t>::max();
@@ -53,14 +60,14 @@ struct Sequence
 	// ? - min=0, max=1
 	size_t min_elements= 0u;
 	size_t max_elements= 0u;
-	bool greedy= false;
+	SequenceMode mode= SequenceMode::Greedy;
 
 	bool operator==(const Sequence& other) const
 	{
 		return
 			this->min_elements == other.min_elements &&
 			this->max_elements == other.max_elements &&
-			this->greedy == other.greedy;
+			this->mode == other.mode;
 	}
 
 	bool operator!=(const Sequence& other) const { return !(*this == other); }

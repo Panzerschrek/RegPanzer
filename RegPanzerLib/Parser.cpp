@@ -114,6 +114,25 @@ std::optional<OneOf> ParseOneOf(StrView& str)
 	return one_of;
 }
 
+SequenceMode ParseSequenceMode(StrView& str)
+{
+	if(str.empty())
+		return SequenceMode::Greedy;
+
+	switch(str.front())
+	{
+	case '?':
+		str.remove_prefix(1);
+		return SequenceMode::Lazy;
+
+	case '+':
+		str.remove_prefix(1);
+		return SequenceMode::Possessive;
+	};
+
+	return SequenceMode::Greedy;
+}
+
 std::optional<Sequence> ParseSequence(StrView& str)
 {
 	Sequence seq;
@@ -130,18 +149,21 @@ std::optional<Sequence> ParseSequence(StrView& str)
 		seq.min_elements= 1;
 		seq.max_elements= std::numeric_limits<decltype(seq.max_elements)>::max();
 		str.remove_prefix(1);
+		seq.mode= ParseSequenceMode(str);
 		break;
 
 	case '*':
 		seq.min_elements= 0;
 		seq.max_elements= std::numeric_limits<decltype(seq.max_elements)>::max();
 		str.remove_prefix(1);
+		seq.mode= ParseSequenceMode(str);
 		break;
 
 	case '?':
 		seq.min_elements= 0;
 		seq.max_elements= 1;
 		str.remove_prefix(1);
+		seq.mode= ParseSequenceMode(str);
 		break;
 
 	case '{':
@@ -188,6 +210,8 @@ std::optional<Sequence> ParseSequence(StrView& str)
 			return std::nullopt;
 		}
 		str.remove_prefix(1); // Skip }
+
+		seq.mode= ParseSequenceMode(str);
 
 		break;
 

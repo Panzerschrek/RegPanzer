@@ -31,7 +31,7 @@ const TestDataElement c_test_data[]
 	{
 		".",
 		{
-			{ AnySymbol(), { 1, 1, false }, },
+			{ AnySymbol(), { 1, 1, SequenceMode::Greedy }, },
 		}
 	},
 
@@ -39,9 +39,9 @@ const TestDataElement c_test_data[]
 	{
 		"QrX",
 		{
-			{ SpecificSymbol{ 'Q' }, { 1, 1, false }, },
-			{ SpecificSymbol{ 'r' }, { 1, 1, false }, },
-			{ SpecificSymbol{ 'X' }, { 1, 1, false }, },
+			{ SpecificSymbol{ 'Q' }, { 1, 1, SequenceMode::Greedy }, },
+			{ SpecificSymbol{ 'r' }, { 1, 1, SequenceMode::Greedy }, },
+			{ SpecificSymbol{ 'X' }, { 1, 1, SequenceMode::Greedy }, },
 		}
 	},
 
@@ -55,7 +55,7 @@ const TestDataElement c_test_data[]
 					{ 'G', 'r', 'T', 'x' },
 					{}
 				},
-				{ 1, 1, false },
+				{ 1, 1, SequenceMode::Greedy },
 			},
 		}
 	},
@@ -72,7 +72,7 @@ const TestDataElement c_test_data[]
 						{ 'a', 'f' },
 					}
 				},
-				{ 1, 1, false },
+				{ 1, 1, SequenceMode::Greedy },
 			},
 		}
 	},
@@ -90,7 +90,7 @@ const TestDataElement c_test_data[]
 						{ '0', '9' },
 					}
 				},
-				{ 1, 1, false },
+				{ 1, 1, SequenceMode::Greedy },
 			},
 		}
 	},
@@ -107,7 +107,7 @@ const TestDataElement c_test_data[]
 					},
 					true
 				},
-				{ 1, 1, false },
+				{ 1, 1, SequenceMode::Greedy },
 			},
 		}
 	},
@@ -124,7 +124,7 @@ const TestDataElement c_test_data[]
 					},
 					false
 				},
-				{ 1, 1, false },
+				{ 1, 1, SequenceMode::Greedy },
 			},
 		}
 	},
@@ -139,7 +139,7 @@ const TestDataElement c_test_data[]
 					{},
 					true
 				},
-				{ 1, 1, false },
+				{ 1, 1, SequenceMode::Greedy },
 			},
 		}
 	},
@@ -148,17 +148,17 @@ const TestDataElement c_test_data[]
 	{
 		"A(bc)ef",
 		{
-			{ SpecificSymbol{ 'A' }, { 1, 1, false }, },
+			{ SpecificSymbol{ 'A' }, { 1, 1, SequenceMode::Greedy }, },
 			{
 				BracketExpression
 				{ {
-					{ SpecificSymbol{ 'b' }, { 1, 1, false }, },
-					{ SpecificSymbol{ 'c' }, { 1, 1, false }, },
+					{ SpecificSymbol{ 'b' }, { 1, 1, SequenceMode::Greedy }, },
+					{ SpecificSymbol{ 'c' }, { 1, 1, SequenceMode::Greedy }, },
 				} },
-				{ 1, 1, false }
+				{ 1, 1, SequenceMode::Greedy }
 			},
-			{ SpecificSymbol{ 'e' }, { 1, 1, false }, },
-			{ SpecificSymbol{ 'f' }, { 1, 1, false }, },
+			{ SpecificSymbol{ 'e' }, { 1, 1, SequenceMode::Greedy }, },
+			{ SpecificSymbol{ 'f' }, { 1, 1, SequenceMode::Greedy }, },
 		}
 	},
 
@@ -166,26 +166,26 @@ const TestDataElement c_test_data[]
 	{
 		"g(bc(RT)Q)ww",
 		{
-			{ SpecificSymbol{ 'g' }, { 1, 1, false }, },
+			{ SpecificSymbol{ 'g' }, { 1, 1, SequenceMode::Greedy }, },
 			{
 				BracketExpression
 				{ {
-					{ SpecificSymbol{ 'b' }, { 1, 1, false }, },
-					{ SpecificSymbol{ 'c' }, { 1, 1, false }, },
+					{ SpecificSymbol{ 'b' }, { 1, 1, SequenceMode::Greedy }, },
+					{ SpecificSymbol{ 'c' }, { 1, 1, SequenceMode::Greedy }, },
 					{
 						BracketExpression
 						{ {
-							{ SpecificSymbol{ 'R' }, { 1, 1, false }, },
-							{ SpecificSymbol{ 'T' }, { 1, 1, false }, },
+							{ SpecificSymbol{ 'R' }, { 1, 1, SequenceMode::Greedy }, },
+							{ SpecificSymbol{ 'T' }, { 1, 1, SequenceMode::Greedy }, },
 						} },
-						{ 1, 1, false }
+						{ 1, 1, SequenceMode::Greedy }
 					},
-					{ SpecificSymbol{ 'Q' }, { 1, 1, false }, },
+					{ SpecificSymbol{ 'Q' }, { 1, 1, SequenceMode::Greedy }, },
 				} },
-				{ 1, 1, false }
+				{ 1, 1, SequenceMode::Greedy }
 			},
-			{ SpecificSymbol{ 'w' }, { 1, 1, false }, },
-			{ SpecificSymbol{ 'w' }, { 1, 1, false }, },
+			{ SpecificSymbol{ 'w' }, { 1, 1, SequenceMode::Greedy }, },
+			{ SpecificSymbol{ 'w' }, { 1, 1, SequenceMode::Greedy }, },
 		}
 	},
 
@@ -196,17 +196,17 @@ const TestDataElement c_test_data[]
 			Alternatives
 			{ {
 				{
-					{ SpecificSymbol{ 'l' }, { 1, 1, false }, },
-					{ SpecificSymbol{ 'o' }, { 1, 1, false }, },
-					{ SpecificSymbol{ 'l' }, { 1, 1, false }, },
+					{ SpecificSymbol{ 'l' }, { 1, 1, SequenceMode::Greedy }, },
+					{ SpecificSymbol{ 'o' }, { 1, 1, SequenceMode::Greedy }, },
+					{ SpecificSymbol{ 'l' }, { 1, 1, SequenceMode::Greedy }, },
 				},
 				{
-					{ SpecificSymbol{ 'w' }, { 1, 1, false }, },
-					{ SpecificSymbol{ 'a' }, { 1, 1, false }, },
-					{ SpecificSymbol{ 't' }, { 1, 1, false }, },
+					{ SpecificSymbol{ 'w' }, { 1, 1, SequenceMode::Greedy }, },
+					{ SpecificSymbol{ 'a' }, { 1, 1, SequenceMode::Greedy }, },
+					{ SpecificSymbol{ 't' }, { 1, 1, SequenceMode::Greedy }, },
 				},
 			} },
-			{ 1, 1, false }
+			{ 1, 1, SequenceMode::Greedy }
 		} }
 	},
 
@@ -217,31 +217,31 @@ const TestDataElement c_test_data[]
 			Alternatives
 			{ {
 				{
-					{ SpecificSymbol{ 'Q' }, { 1, 1, false }, },
-					{ SpecificSymbol{ 'r' }, { 1, 1, false }, },
-					{ SpecificSymbol{ 'f' }, { 1, 1, false }, },
+					{ SpecificSymbol{ 'Q' }, { 1, 1, SequenceMode::Greedy }, },
+					{ SpecificSymbol{ 'r' }, { 1, 1, SequenceMode::Greedy }, },
+					{ SpecificSymbol{ 'f' }, { 1, 1, SequenceMode::Greedy }, },
 				},
 				{
-					{ SpecificSymbol{ 'z' }, { 1, 1, false }, },
-					{ SpecificSymbol{ 'c' }, { 1, Sequence::c_max, false }, },
+					{ SpecificSymbol{ 'z' }, { 1, 1, SequenceMode::Greedy }, },
+					{ SpecificSymbol{ 'c' }, { 1, Sequence::c_max, SequenceMode::Greedy }, },
 				},
 				{
 					{
 						BracketExpression
 						{ {
-							{ SpecificSymbol{ 'V' }, { 1, 1, false }, },
-							{ SpecificSymbol{ 'x' }, { 1, 1, false }, },
+							{ SpecificSymbol{ 'V' }, { 1, 1, SequenceMode::Greedy }, },
+							{ SpecificSymbol{ 'x' }, { 1, 1, SequenceMode::Greedy }, },
 						} },
-						{ 0, Sequence::c_max, false },
+						{ 0, Sequence::c_max, SequenceMode::Greedy },
 					}
 				},
 				{
-					{ SpecificSymbol{ 's' }, { 1, 1, false }, },
-					{ SpecificSymbol{ 'v' }, { 1, 1, false }, },
-					{ SpecificSymbol{ 't' }, { 1, 1, false }, },
+					{ SpecificSymbol{ 's' }, { 1, 1, SequenceMode::Greedy }, },
+					{ SpecificSymbol{ 'v' }, { 1, 1, SequenceMode::Greedy }, },
+					{ SpecificSymbol{ 't' }, { 1, 1, SequenceMode::Greedy }, },
 				}
 			} },
-			{ 1, 1, false }
+			{ 1, 1, SequenceMode::Greedy }
 		} }
 	},
 
@@ -249,7 +249,7 @@ const TestDataElement c_test_data[]
 	{
 		"B*",
 		{
-			{ SpecificSymbol{ 'B' }, { 0, Sequence::c_max, false }, },
+			{ SpecificSymbol{ 'B' }, { 0, Sequence::c_max, SequenceMode::Greedy }, },
 		}
 	},
 
@@ -257,9 +257,9 @@ const TestDataElement c_test_data[]
 	{
 		"WrV+",
 		{
-			{ SpecificSymbol{ 'W' }, { 1, 1, false }, },
-			{ SpecificSymbol{ 'r' }, { 1, 1, false }, },
-			{ SpecificSymbol{ 'V' }, { 1, Sequence::c_max, false }, },
+			{ SpecificSymbol{ 'W' }, { 1, 1, SequenceMode::Greedy }, },
+			{ SpecificSymbol{ 'r' }, { 1, 1, SequenceMode::Greedy }, },
+			{ SpecificSymbol{ 'V' }, { 1, Sequence::c_max, SequenceMode::Greedy }, },
 		}
 	},
 
@@ -267,8 +267,8 @@ const TestDataElement c_test_data[]
 	{
 		"6f?",
 		{
-			{ SpecificSymbol{ '6' }, { 1, 1, false }, },
-			{ SpecificSymbol{ 'f' }, { 0, 1, false }, },
+			{ SpecificSymbol{ '6' }, { 1, 1, SequenceMode::Greedy }, },
+			{ SpecificSymbol{ 'f' }, { 0, 1, SequenceMode::Greedy }, },
 		}
 	},
 
@@ -276,7 +276,7 @@ const TestDataElement c_test_data[]
 	{
 		"z{354,789}",
 		{
-			{ SpecificSymbol{ 'z' }, { 354, 789, false }, },
+			{ SpecificSymbol{ 'z' }, { 354, 789, SequenceMode::Greedy }, },
 		}
 	},
 
@@ -284,8 +284,8 @@ const TestDataElement c_test_data[]
 	{
 		"Q{1234}W",
 		{
-			{ SpecificSymbol{ 'Q' }, { 1234, 1234, false }, },
-			{ SpecificSymbol{ 'W' }, { 1, 1, false }, }
+			{ SpecificSymbol{ 'Q' }, { 1234, 1234, SequenceMode::Greedy }, },
+			{ SpecificSymbol{ 'W' }, { 1, 1, SequenceMode::Greedy }, }
 		}
 	},
 
@@ -293,8 +293,8 @@ const TestDataElement c_test_data[]
 	{
 		"s{34,}t",
 		{
-			{ SpecificSymbol{ 's' }, { 34, Sequence::c_max, false }, },
-			{ SpecificSymbol{ 't' }, { 1, 1, false }, }
+			{ SpecificSymbol{ 's' }, { 34, Sequence::c_max, SequenceMode::Greedy }, },
+			{ SpecificSymbol{ 't' }, { 1, 1, SequenceMode::Greedy }, }
 		}
 	},
 
@@ -302,8 +302,8 @@ const TestDataElement c_test_data[]
 	{
 		"J{,786}_",
 		{
-			{ SpecificSymbol{ 'J' }, { 0, 786, false }, },
-			{ SpecificSymbol{ '_' }, { 1, 1, false }, }
+			{ SpecificSymbol{ 'J' }, { 0, 786, SequenceMode::Greedy }, },
+			{ SpecificSymbol{ '_' }, { 1, 1, SequenceMode::Greedy }, }
 		}
 	},
 
@@ -311,63 +311,81 @@ const TestDataElement c_test_data[]
 	{
 		"l(Qwe)+P",
 		{
-			{ SpecificSymbol{ 'l' }, { 1, 1, false }, },
+			{ SpecificSymbol{ 'l' }, { 1, 1, SequenceMode::Greedy }, },
 			{
 				BracketExpression
 				{ {
-					{ SpecificSymbol{ 'Q' }, { 1, 1, false }, },
-					{ SpecificSymbol{ 'w' }, { 1, 1, false }, },
-					{ SpecificSymbol{ 'e' }, { 1, 1, false }, },
+					{ SpecificSymbol{ 'Q' }, { 1, 1, SequenceMode::Greedy }, },
+					{ SpecificSymbol{ 'w' }, { 1, 1, SequenceMode::Greedy }, },
+					{ SpecificSymbol{ 'e' }, { 1, 1, SequenceMode::Greedy }, },
 				} },
-				{ 1, Sequence::c_max, false }
+				{ 1, Sequence::c_max, SequenceMode::Greedy }
 			},
-			{ SpecificSymbol{ 'P' }, { 1, 1, false }, },
+			{ SpecificSymbol{ 'P' }, { 1, 1, SequenceMode::Greedy }, },
 		}
 	},
+
+	// Quantifier mode - possessive.
+	{ "S?+", { { SpecificSymbol{ 'S' }, { 0, 1, SequenceMode::Possessive } } } },
+	{ "@*+", { { SpecificSymbol{ '@' }, { 0, Sequence::c_max, SequenceMode::Possessive } } } },
+	{ "g++", { { SpecificSymbol{ 'g' }, { 1, Sequence::c_max, SequenceMode::Possessive } } } },
+	{ "_{7,12}+", { { SpecificSymbol{ '_' }, { 7, 12, SequenceMode::Possessive } } } },
+	{ "F{345}+", { { SpecificSymbol{ 'F' }, { 345, 345, SequenceMode::Possessive } } } },
+	{ "%{17,}+", { { SpecificSymbol{ '%' }, { 17, Sequence::c_max, SequenceMode::Possessive } } } },
+	{ "K{,20}+", { { SpecificSymbol{ 'K' }, { 0, 20, SequenceMode::Possessive } } } },
+
+	// Quantifier mode - lzy.
+	{ "S??", { { SpecificSymbol{ 'S' }, { 0, 1, SequenceMode::Lazy } } } },
+	{ "@*?", { { SpecificSymbol{ '@' }, { 0, Sequence::c_max, SequenceMode::Lazy } } } },
+	{ "g+?", { { SpecificSymbol{ 'g' }, { 1, Sequence::c_max, SequenceMode::Lazy } } } },
+	{ "_{7,12}?", { { SpecificSymbol{ '_' }, { 7, 12, SequenceMode::Lazy } } } },
+	{ "F{345}?", { { SpecificSymbol{ 'F' }, { 345, 345, SequenceMode::Lazy } } } },
+	{ "%{17,}?", { { SpecificSymbol{ '%' }, { 17, Sequence::c_max, SequenceMode::Lazy } } } },
+	{ "K{,20}?", { { SpecificSymbol{ 'K' }, { 0, 20, SequenceMode::Lazy } } } },
 
 	// Non-ASCII symbols.
 	{
 		"ДёСÜ☭",
 		{
-			{ SpecificSymbol{ U'Д' }, { 1, 1, false }, },
-			{ SpecificSymbol{ U'ё' }, { 1, 1, false }, },
-			{ SpecificSymbol{ U'С' }, { 1, 1, false }, },
-			{ SpecificSymbol{ U'Ü' }, { 1, 1, false }, },
-			{ SpecificSymbol{ U'☭' }, { 1, 1, false }, },
+			{ SpecificSymbol{ U'Д' }, { 1, 1, SequenceMode::Greedy }, },
+			{ SpecificSymbol{ U'ё' }, { 1, 1, SequenceMode::Greedy }, },
+			{ SpecificSymbol{ U'С' }, { 1, 1, SequenceMode::Greedy }, },
+			{ SpecificSymbol{ U'Ü' }, { 1, 1, SequenceMode::Greedy }, },
+			{ SpecificSymbol{ U'☭' }, { 1, 1, SequenceMode::Greedy }, },
 		}
 	},
 
 	// Basic escape sequences.
-	{ "\\[", { { SpecificSymbol{ '[' }, { 1, 1, false }, } } },
-	{ "\\]", { { SpecificSymbol{ ']' }, { 1, 1, false }, } } },
-	{ "\\{", { { SpecificSymbol{ '{' }, { 1, 1, false }, } } },
-	{ "\\}", { { SpecificSymbol{ '}' }, { 1, 1, false }, } } },
-	{ "\\(", { { SpecificSymbol{ '(' }, { 1, 1, false }, } } },
-	{ "\\)", { { SpecificSymbol{ ')' }, { 1, 1, false }, } } },
-	{ "\\^", { { SpecificSymbol{ '^' }, { 1, 1, false }, } } },
-	{ "\\$", { { SpecificSymbol{ '$' }, { 1, 1, false }, } } },
-	{ "\\.", { { SpecificSymbol{ '.' }, { 1, 1, false }, } } },
-	{ "\\*", { { SpecificSymbol{ '*' }, { 1, 1, false }, } } },
-	{ "\\+", { { SpecificSymbol{ '+' }, { 1, 1, false }, } } },
-	{ "\\|", { { SpecificSymbol{ '|' }, { 1, 1, false }, } } },
-	{ "\\?", { { SpecificSymbol{ '?' }, { 1, 1, false }, } } },
-	{ "\\\\", { { SpecificSymbol{ '\\' }, { 1, 1, false }, } } },
+	{ "\\[", { { SpecificSymbol{ '[' }, { 1, 1, SequenceMode::Greedy }, } } },
+	{ "\\]", { { SpecificSymbol{ ']' }, { 1, 1, SequenceMode::Greedy }, } } },
+	{ "\\{", { { SpecificSymbol{ '{' }, { 1, 1, SequenceMode::Greedy }, } } },
+	{ "\\}", { { SpecificSymbol{ '}' }, { 1, 1, SequenceMode::Greedy }, } } },
+	{ "\\(", { { SpecificSymbol{ '(' }, { 1, 1, SequenceMode::Greedy }, } } },
+	{ "\\)", { { SpecificSymbol{ ')' }, { 1, 1, SequenceMode::Greedy }, } } },
+	{ "\\^", { { SpecificSymbol{ '^' }, { 1, 1, SequenceMode::Greedy }, } } },
+	{ "\\$", { { SpecificSymbol{ '$' }, { 1, 1, SequenceMode::Greedy }, } } },
+	{ "\\.", { { SpecificSymbol{ '.' }, { 1, 1, SequenceMode::Greedy }, } } },
+	{ "\\*", { { SpecificSymbol{ '*' }, { 1, 1, SequenceMode::Greedy }, } } },
+	{ "\\+", { { SpecificSymbol{ '+' }, { 1, 1, SequenceMode::Greedy }, } } },
+	{ "\\|", { { SpecificSymbol{ '|' }, { 1, 1, SequenceMode::Greedy }, } } },
+	{ "\\?", { { SpecificSymbol{ '?' }, { 1, 1, SequenceMode::Greedy }, } } },
+	{ "\\\\", { { SpecificSymbol{ '\\' }, { 1, 1, SequenceMode::Greedy }, } } },
 
 	// Basic escape sequences for "OneOf".
-	{ "[\\[]", { { OneOf{ {'['}, {}, false }, { 1, 1, false }, } } },
-	{ "[\\]]", { { OneOf{ {']'}, {}, false }, { 1, 1, false }, } } },
-	{ "[\\{]", { { OneOf{ {'{'}, {}, false }, { 1, 1, false }, } } },
-	{ "[\\}]", { { OneOf{ {'}'}, {}, false }, { 1, 1, false }, } } },
-	{ "[\\(]", { { OneOf{ {'('}, {}, false }, { 1, 1, false }, } } },
-	{ "[\\)]", { { OneOf{ {')'}, {}, false }, { 1, 1, false }, } } },
-	{ "[\\^]", { { OneOf{ {'^'}, {}, false }, { 1, 1, false }, } } },
-	{ "[\\$]", { { OneOf{ {'$'}, {}, false }, { 1, 1, false }, } } },
-	{ "[\\.]", { { OneOf{ {'.'}, {}, false }, { 1, 1, false }, } } },
-	{ "[\\*]", { { OneOf{ {'*'}, {}, false }, { 1, 1, false }, } } },
-	{ "[\\+]", { { OneOf{ {'+'}, {}, false }, { 1, 1, false }, } } },
-	{ "[\\|]", { { OneOf{ {'|'}, {}, false }, { 1, 1, false }, } } },
-	{ "[\\?]", { { OneOf{ {'?'}, {}, false }, { 1, 1, false }, } } },
-	{ "[\\\\]", { { OneOf{ {'\\'}, {}, false }, { 1, 1, false }, } } },
+	{ "[\\[]", { { OneOf{ {'['}, {}, false }, { 1, 1, SequenceMode::Greedy }, } } },
+	{ "[\\]]", { { OneOf{ {']'}, {}, false }, { 1, 1, SequenceMode::Greedy }, } } },
+	{ "[\\{]", { { OneOf{ {'{'}, {}, false }, { 1, 1, SequenceMode::Greedy }, } } },
+	{ "[\\}]", { { OneOf{ {'}'}, {}, false }, { 1, 1, SequenceMode::Greedy }, } } },
+	{ "[\\(]", { { OneOf{ {'('}, {}, false }, { 1, 1, SequenceMode::Greedy }, } } },
+	{ "[\\)]", { { OneOf{ {')'}, {}, false }, { 1, 1, SequenceMode::Greedy }, } } },
+	{ "[\\^]", { { OneOf{ {'^'}, {}, false }, { 1, 1, SequenceMode::Greedy }, } } },
+	{ "[\\$]", { { OneOf{ {'$'}, {}, false }, { 1, 1, SequenceMode::Greedy }, } } },
+	{ "[\\.]", { { OneOf{ {'.'}, {}, false }, { 1, 1, SequenceMode::Greedy }, } } },
+	{ "[\\*]", { { OneOf{ {'*'}, {}, false }, { 1, 1, SequenceMode::Greedy }, } } },
+	{ "[\\+]", { { OneOf{ {'+'}, {}, false }, { 1, 1, SequenceMode::Greedy }, } } },
+	{ "[\\|]", { { OneOf{ {'|'}, {}, false }, { 1, 1, SequenceMode::Greedy }, } } },
+	{ "[\\?]", { { OneOf{ {'?'}, {}, false }, { 1, 1, SequenceMode::Greedy }, } } },
+	{ "[\\\\]", { { OneOf{ {'\\'}, {}, false }, { 1, 1, SequenceMode::Greedy }, } } },
 };
 
 INSTANTIATE_TEST_CASE_P(P, ParseTest, testing::ValuesIn(c_test_data));
