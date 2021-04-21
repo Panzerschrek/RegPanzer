@@ -32,7 +32,7 @@ TEST_P(StdRegexpMatchTest, TestMatch)
 		for(auto it= std::sregex_iterator(c.input_str.begin(), c.input_str.end(), regex); it != std::sregex_iterator(); ++it)
 			result_ranges.emplace_back(it->position(), it->position() + it->length());
 
-		ASSERT_EQ(result_ranges, c.result_ranges);
+		EXPECT_EQ(result_ranges, c.result_ranges);
 	}
 }
 

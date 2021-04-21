@@ -43,7 +43,7 @@ TEST_P(LlvmRegexpMatchTest, TestMatch)
 			str= str.substr(size_t(match.data() + match.size() - str.data()));
 		}
 
-		ASSERT_EQ(result_ranges, c.result_ranges);
+		EXPECT_EQ(result_ranges, c.result_ranges);
 	}
 }
 

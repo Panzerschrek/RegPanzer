@@ -34,7 +34,7 @@ TEST_P(MatchTest, TestMatch)
 			str= str.substr(size_t(res->data() + res->size() - str.data()));
 		}
 
-		ASSERT_EQ(result_ranges, c.result_ranges);
+		EXPECT_EQ(result_ranges, c.result_ranges);
 	}
 }
 

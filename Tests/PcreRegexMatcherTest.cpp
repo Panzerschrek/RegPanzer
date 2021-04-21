@@ -34,7 +34,7 @@ TEST_P(PcreRegexpMatchTest, TestMatch)
 				str.remove_prefix(1);
 		}
 
-		ASSERT_EQ(result_ranges, c.result_ranges);
+		EXPECT_EQ(result_ranges, c.result_ranges);
 	}
 }
 
