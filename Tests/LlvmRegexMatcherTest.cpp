@@ -22,6 +22,9 @@ TEST_P(LlvmRegexpMatchTest, TestMatch)
 
 	llvm::Regex regex(param.regexp_str);
 
+	std::string error_str;
+	ASSERT_TRUE(regex.isValid(error_str));
+
 	for(const MatcherTestDataElement::Case& c : param.cases)
 	{
 		if(StringContainsNonASCIISymbols(c.input_str))

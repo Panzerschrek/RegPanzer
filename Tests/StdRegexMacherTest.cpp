@@ -20,19 +20,26 @@ TEST_P(StdRegexpMatchTest, TestMatch)
 	if(StringContainsNonASCIISymbols(param.regexp_str))
 		return;
 
-	std::regex regex(param.regexp_str);
-
-	for(const MatcherTestDataElement::Case& c : param.cases)
+	try
 	{
-		if(StringContainsNonASCIISymbols(c.input_str))
-			continue;
+		std::regex regex(param.regexp_str);
 
-		MatcherTestDataElement::Ranges result_ranges;
+		for(const MatcherTestDataElement::Case& c : param.cases)
+		{
+			if(StringContainsNonASCIISymbols(c.input_str))
+				continue;
 
-		for(auto it= std::sregex_iterator(c.input_str.begin(), c.input_str.end(), regex); it != std::sregex_iterator(); ++it)
-			result_ranges.emplace_back(it->position(), it->position() + it->length());
+			MatcherTestDataElement::Ranges result_ranges;
 
-		EXPECT_EQ(result_ranges, c.result_ranges);
+			for(auto it= std::sregex_iterator(c.input_str.begin(), c.input_str.end(), regex); it != std::sregex_iterator(); ++it)
+				result_ranges.emplace_back(it->position(), it->position() + it->length());
+
+			EXPECT_EQ(result_ranges, c.result_ranges);
+		}
+	}
+	catch(const std::regex_error&)
+	{
+		ASSERT_TRUE(false);
 	}
 }
 
