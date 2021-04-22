@@ -161,11 +161,9 @@ bool MatchElementFull(const RegexpIterator begin, const RegexpIterator end, Matc
 					if(i < element.seq.min_elements)
 						return false;
 					else
-					{
-						str= range_copy;
 						break;
-					}
 				}
+				str= range_copy;
 			}
 
 			// Than match tail.
@@ -173,7 +171,7 @@ bool MatchElementFull(const RegexpIterator begin, const RegexpIterator end, Matc
 		}
 	}
 
-	assert("Unreachable code!");
+	assert(false && "Unreachable code!");
 	return false;
 }
 

@@ -908,6 +908,73 @@ inline const MatcherTestDataElement g_matcher_test_data[]
 		}
 	},
 
+	// Match possessive sequence.
+	{
+		// There is no way to match this regex, because possessive sequence will always extract 'q' symbol.
+		"[a-z]++q",
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // Non-empty string - no matches
+				"764!",
+				{}
+			},
+			{ // No matches for letter sequence with 'q' at end - because of possessive mode.
+				"ghfq",
+				{}
+			},
+			{
+				"qq",
+				{}
+			},
+		}
+	},
+
+	// Match possessive sequence with length in range.
+	{
+		"[0-9]{2,5}+7",
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // Non-empty string - no matches
+				"daw",
+				{}
+			},
+			{ // Not enough symbols - no match.
+				"17",
+				{}
+			},
+			{ // No match for this sequence because of possessive mode - '7' will be extracted.
+				"547",
+				{}
+			},
+			{ // Sequence finished after reqching maximum numbers of elements. After that '7' symbol may be captured.
+				"012347",
+				{ {0, 6} }
+			},
+			{ // First two symbols are ignored because there is no way to finish sequence with '7' starting from them.
+				"22222227",
+				{ {2, 8} }
+			},
+			{ // Two sequential sequences.
+				"777777777777",
+				{ {0, 6}, {6, 12} }
+			},
+			{ // Finish first sequence and left second sequence unifished (because of possessive mode).
+				"66666733337",
+				{ {0, 6} }
+			},
+			{ // Single match for string, instead of two matches in lazy mode.
+				"127127",
+				{ {0, 6 } }
+			},
+		}
+	},
+
 	// Simple alternative.
 	{
 		"a|b",
