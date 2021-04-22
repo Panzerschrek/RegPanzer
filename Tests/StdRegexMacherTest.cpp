@@ -1,4 +1,5 @@
 #include "MatcherTestData.hpp"
+#include "Utils.hpp"
 #include "../RegPanzerLib/PushDisableLLVMWarnings.hpp"
 #include <gtest/gtest.h>
 #include "../RegPanzerLib/PopLLVMWarnings.hpp"
@@ -20,9 +21,13 @@ TEST_P(StdRegexpMatchTest, TestMatch)
 	if(StringContainsNonASCIISymbols(param.regexp_str))
 		return;
 
+	// ECMAScript regex has no support of possessive sequences.
+	if(RegexContainsPossessiveSequences(param.regexp_str))
+		return;
+
 	try
 	{
-		std::regex regex(param.regexp_str);
+		std::regex regex(param.regexp_str, std::regex_constants::ECMAScript);
 
 		for(const MatcherTestDataElement::Case& c : param.cases)
 		{

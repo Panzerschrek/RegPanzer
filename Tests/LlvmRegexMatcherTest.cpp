@@ -1,4 +1,5 @@
 #include "MatcherTestData.hpp"
+#include "Utils.hpp"
 #include "../RegPanzerLib/PushDisableLLVMWarnings.hpp"
 #include <gtest/gtest.h>
 #include <llvm/Support/Regex.h>
@@ -18,6 +19,10 @@ TEST_P(LlvmRegexpMatchTest, TestMatch)
 
 	// Ignore non-ascii regexp and cases, because llvm::Regex does not support UTF-8.
 	if(StringContainsNonASCIISymbols(param.regexp_str))
+		return;
+
+	// llvm::Regex does not support lazy and possesive sequences.
+	if(RegexContainsLazySequences(param.regexp_str) || RegexContainsPossessiveSequences(param.regexp_str))
 		return;
 
 	llvm::Regex regex(param.regexp_str);

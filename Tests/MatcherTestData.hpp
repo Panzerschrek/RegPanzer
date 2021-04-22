@@ -1155,13 +1155,4 @@ inline const MatcherTestDataElement g_matcher_test_data[]
 	},
 };
 
-inline bool StringContainsNonASCIISymbols(const std::string& str)
-{
-	for(const char c : str)
-		if((c & 0b10000000) != 0)
-			return true;
-
-	return false;
-}
-
 } // namespace RegPanzer
