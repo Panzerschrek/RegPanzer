@@ -12,7 +12,7 @@ using ModesSet= std::unordered_set<SequenceMode>;
 
 void GetSequeneModes(const RegexpElementsChain& chain, ModesSet& modes);
 
-template<typename T> void GetSequeneModesForElement(const T& t, ModesSet&){}
+template<typename T> void GetSequeneModesForElement(const T&, ModesSet&){}
 
 void GetSequeneModesForElement(const BracketExpression& bracket_expression, ModesSet& modes)
 {
