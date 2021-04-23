@@ -1127,6 +1127,208 @@ inline const MatcherTestDataElement g_matcher_test_data[]
 		}
 	},
 
+	// Simple positive lookahead.
+	{
+		"w(?=Q)",
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // Non-empty string - no matches.
+				"zva",
+				{}
+			},
+			{ // No match in lookahed - no matches.
+				"w",
+				{}
+			},
+			{ // Minimap match. Symbol in lookahed is not captured.
+				"wQ",
+				{ {0, 1} }
+			},
+			{ // Match in middle of string.
+				" 12wQf_",
+				{ {3, 4} }
+			},
+			{ // Two sequential matches.
+				"wQwQ",
+				{ {0, 1}, {2, 3} }
+			},
+		}
+	},
+
+	{ // Simple negative lookahead.
+		"[a-z]+(?![0-9])",
+		{
+
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // Non-empty string - no matches.
+				"6! ",
+				{}
+			},
+			{ // Minimal match with no negative element at end.
+				"j",
+				{ {0, 1} }
+			},
+			{ // No match because of negative element at end.
+				"b5",
+				{}
+			},
+			{ // Last element in sequence not captured because of negative match.
+				"word6",
+				{ {0, 3} }
+			},
+			{ // No negative element - full match of sequence.
+				"#ratata ?",
+				{ {1, 7} }
+			},
+			{ // Multiple matches.
+				"bntde!e 65awd1 wdawjk htokth7 b1 nhy!",
+				{ {0, 5}, {6, 7}, {10, 12}, {15, 21}, {22, 27}, {33, 36} }
+			},
+		}
+	},
+
+	{  // Negative lookahead for possessive sequence.
+		"[a-z]++(?!\\.)", // This regex extracts all words but ignore whole words with '.' at end.
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // Non-empty string - no matches.
+				"6! ",
+				{}
+			},
+			{ // Minimal possible match.
+				"k",
+				{ {0, 1} }
+			},
+			{ // No negative element - have match.
+				"yththjt",
+				{ {0, 7} }
+			},
+			{ // Have negative element - skip all match (because of possessive sequence mode).
+				"ghjewwa.",
+				{}
+			},
+			{ // Multiple matches.
+				"wdawd, htht htp]z e. rhnna. .awdwad yy aa. .. gh_wz.q",
+				{ {0, 5}, {7, 11}, {12, 15}, {16, 17}, {29, 35}, {36, 38}, {46, 48}, {52, 53} }
+			},
+		}
+	},
+
+	{ // Negative lookahead in middle of regex.
+		"Q(?!jb)[a-z]+",
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // Non-empty string - no matches.
+				"wzq",
+				{}
+			},
+			{ // No match - empty sequence.
+				"Q",
+				{}
+			},
+			{ // Minimal possible match.
+				"Qb",
+				{ {0, 2} }
+			},
+			{ // No match because of lookahead condition.
+				"Qjbge",
+				{}
+			},
+			{ // Have match - lookahead condition is true.
+				"Qjzge",
+				{ {0, 5} }
+			},
+			{ // Have match - lookahead sequence is too short.
+				"zz Qf",
+				{ {3, 5} }
+			},
+			{ // Several sequential matches.
+				"QvwwQhyjyujawQobQcQngg",
+				{ {0, 4}, {4, 13}, {13, 16}, {16, 18}, {18, 22} }
+			},
+		},
+	},
+
+	{ // Positive lookahead in start of regex with condition inside.
+		"(?=p|TU)[a-zA-Z]+",
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // Non-empty string - no matches.
+				"!5.",
+				{}
+			},
+			{ // false lookahead condition - no match.
+				"z",
+				{}
+			},
+			{ // Minimal match with first variant of lookahead condition.
+				"p",
+				{ {0, 1} }
+			},
+			{ // Minimal match with second variant of lookahead condition.
+				"TU",
+				{ {0, 2} }
+			},
+			{ // Long match with condition.
+				"TUrawcbtpawdAz",
+				{ {0, 14} }
+			},
+			{ // Match starts in middle of string because of lookahead condition.
+				"wdwapzbv",
+				{ {4, 8} }
+			},
+			{ // Multiple matches.
+				"wbvon pasv ehrhp bbTUa TUz, TU avnTUp sp-p TTU",
+				{ {6, 10}, {15, 16}, {19, 22}, {23, 26}, {28, 30}, {34, 37}, {39, 40}, {41, 42}, {44, 46} }
+			},
+		}
+	},
+
+	{ // Two lookaheads - positive and negative.
+		"c(?=[0-9])(?!00)",
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // Non-empty string - no matches.
+				"76",
+				{}
+			},
+			{ // No match because of positive lookahead condition.
+				"c",
+				{}
+			},
+			{ // Simpliest possible match.
+				"c7",
+				{ {0, 1} }
+			},
+			{ // No match because of negative lookahead condition.
+				"c00",
+				{}
+			},
+			{ // Have matches because of true positive and negative conditions.
+				"c05c10",
+				{ {0, 1}, {3, 4} }
+			},
+		}
+	},
+
 	// Non-ASCII symbols match.
 	{
 		"ё",

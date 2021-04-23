@@ -83,12 +83,19 @@ bool MatchElementImpl(const OneOf& one_of, MatchInput& str)
 	return false;
 }
 
-bool MatchElementImpl(const Look& look, MatchInput& str)
+bool MatchElementImpl(const Look& look, const MatchInput str)
 {
-	// TODO
-	(void)look;
-	(void)str;
-	return false;
+	if(look.forward)
+	{
+		MatchInput range_copy= str;
+		return (!look.positive) ^ MatchChain(look.elements, range_copy);
+	}
+	else
+	{
+		// TODO
+		assert(false && "not implemented yet!");
+		return false;
+	}
 }
 
 
