@@ -17,12 +17,12 @@ TEST_P(LlvmRegexMatchTest, TestMatch)
 {
 	const auto param= GetParam();
 
-	// Ignore non-ascii regex and cases, because llvm::Regex does not support UTF-8.
-	if(StringContainsNonASCIISymbols(param.regex_str))
-		return;
-
-	// llvm::Regex does not support lazy and possesive sequences.
-	if(RegexContainsLazySequences(param.regex_str) || RegexContainsPossessiveSequences(param.regex_str))
+	// Ignore unsupported features.
+	if((GetRegexFeatures(param.regex_str) & (
+			RegexFeatureFlag::UTF8 |
+			RegexFeatureFlag::LazySequences |
+			RegexFeatureFlag::PossessiveSequences |
+			RegexFeatureFlag::Look)) != 0)
 		return;
 
 	llvm::Regex regex(param.regex_str);

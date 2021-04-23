@@ -17,12 +17,8 @@ TEST_P(StdRegexMatchTest, TestMatch)
 {
 	const auto param= GetParam();
 
-	// Ignore non-ascii regex and cases, because std::regex does not support UTF-8.
-	if(StringContainsNonASCIISymbols(param.regex_str))
-		return;
-
-	// ECMAScript regex has no support of possessive sequences.
-	if(RegexContainsPossessiveSequences(param.regex_str))
+	// Ignore unsupported features.
+	if((GetRegexFeatures(param.regex_str) & (RegexFeatureFlag::UTF8 | RegexFeatureFlag::PossessiveSequences)) != 0)
 		return;
 
 	try

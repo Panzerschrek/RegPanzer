@@ -4,8 +4,20 @@
 namespace RegPanzer
 {
 
+struct RegexFeatureFlag
+{
+	enum
+	{
+		UTF8= 1 << 0,
+		LazySequences= 1 << 1,
+		PossessiveSequences= 1 << 2,
+		Look= 1 << 3,
+	};
+};
+
+using RegexFeatureFlags= size_t;
+
+RegexFeatureFlags GetRegexFeatures(const std::string& regex_str);
 bool StringContainsNonASCIISymbols(const std::string& str);
-bool RegexContainsLazySequences(const std::string& regex_str);
-bool RegexContainsPossessiveSequences(const std::string& regex_str);
 
 } // namespace RegPanzer

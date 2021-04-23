@@ -1,6 +1,5 @@
 #include "../RegPanzerLib/Parser.hpp"
 #include "Utils.hpp"
-#include <unordered_set>
 
 namespace RegPanzer
 {
@@ -8,33 +7,56 @@ namespace RegPanzer
 namespace
 {
 
-using ModesSet= std::unordered_set<SequenceMode>;
+RegexFeatureFlags GetSequeneFeatures(const RegexElementsChain& chain);
 
-void GetSequeneModes(const RegexElementsChain& chain, ModesSet& modes);
+template<typename T> RegexFeatureFlags GetSequeneFeaturesForElement(const T&){ return 0; }
 
-template<typename T> void GetSequeneModesForElement(const T&, ModesSet&){}
-
-void GetSequeneModesForElement(const BracketExpression& bracket_expression, ModesSet& modes)
+RegexFeatureFlags GetSequeneFeaturesForElement(const Look&)
 {
-	GetSequeneModes(bracket_expression.elements, modes);
+	return RegexFeatureFlag::Look;
 }
 
-void GetSequeneModesForElement(const Alternatives& alternatives, ModesSet& modes)
+RegexFeatureFlags GetSequeneFeaturesForElement(const BracketExpression& bracket_expression)
 {
+	return GetSequeneFeatures(bracket_expression.elements);
+}
+
+RegexFeatureFlags GetSequeneFeaturesForElement(const Alternatives& alternatives)
+{
+	RegexFeatureFlags flags= 0;
 	for(const auto& alternative : alternatives.alternatives)
-		GetSequeneModes(alternative, modes);
+		flags|= GetSequeneFeatures(alternative);
+	return flags;
 }
 
-void GetSequeneModes(const RegexElementsChain& chain, ModesSet& modes)
+RegexFeatureFlags GetSequeneFeatures(const RegexElementsChain& chain)
 {
+	RegexFeatureFlags flags= 0;
 	for(const RegexElementFull& element : chain)
 	{
-		std::visit([&](const auto& el){ GetSequeneModesForElement(el, modes); }, element.el);
-		modes.insert(element.seq.mode);
+		flags|= std::visit([&](const auto& el){ return GetSequeneFeaturesForElement(el); }, element.el);
+
+		if(element.seq.mode == SequenceMode::Lazy)
+			flags|= RegexFeatureFlag::LazySequences;
+		if(element.seq.mode == SequenceMode::Possessive)
+			flags|= RegexFeatureFlag::PossessiveSequences;
 	}
+	return flags;
 }
 
 } // namespace
+
+RegexFeatureFlags GetRegexFeatures(const std::string& regex_str)
+{
+	RegexFeatureFlags flags= 0;
+	if(StringContainsNonASCIISymbols(regex_str))
+		flags|= RegexFeatureFlag::UTF8;
+
+	if(const auto res= ParseRegexString(regex_str))
+		flags|= GetSequeneFeatures(*res);
+
+	return flags;
+}
 
 bool StringContainsNonASCIISymbols(const std::string& str)
 {
@@ -43,28 +65,6 @@ bool StringContainsNonASCIISymbols(const std::string& str)
 			return true;
 
 	return false;
-}
-
-bool RegexContainsLazySequences(const std::string& regex_str)
-{
-	const auto res= ParseRegexString(regex_str);
-	if(res == std::nullopt)
-		return false;
-
-	ModesSet modes;
-	GetSequeneModes(*res, modes);
-	return modes.count(SequenceMode::Lazy) > 0;
-}
-
-bool RegexContainsPossessiveSequences(const std::string& regex_str)
-{
-	const auto res= ParseRegexString(regex_str);
-	if(res == std::nullopt)
-		return false;
-
-	ModesSet modes;
-	GetSequeneModes(*res, modes);
-	return modes.count(SequenceMode::Possessive) > 0;
 }
 
 } // namespace RegPanzer
