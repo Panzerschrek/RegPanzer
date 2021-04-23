@@ -223,7 +223,7 @@ std::optional<Sequence> ParseSequence(StrView& str)
 }
 
 // Work in progress!
-std::optional<RegexElementsChain> ParseRegexStringImpl(StrView& str)
+std::optional<RegexElementsChain> ParseRegexStringImpl(size_t& next_group_index, StrView& str)
 {
 	RegexElementsChain chain;
 
@@ -239,7 +239,7 @@ std::optional<RegexElementsChain> ParseRegexStringImpl(StrView& str)
 		{
 			str.remove_prefix(1);
 
-			auto remaining_expression= ParseRegexStringImpl(str);
+			auto remaining_expression= ParseRegexStringImpl(next_group_index, str);
 			if(remaining_expression == std::nullopt)
 				return std::nullopt;
 
@@ -299,7 +299,7 @@ std::optional<RegexElementsChain> ParseRegexStringImpl(StrView& str)
 				}
 				str.remove_prefix(1);
 
-				auto sub_elements= ParseRegexStringImpl(str);
+				auto sub_elements= ParseRegexStringImpl(next_group_index, str);
 				if(sub_elements == std::nullopt)
 					return std::nullopt;
 
@@ -312,7 +312,10 @@ std::optional<RegexElementsChain> ParseRegexStringImpl(StrView& str)
 			}
 			else
 			{
-				auto sub_elements= ParseRegexStringImpl(str);
+				const size_t current_group_index= next_group_index;
+				++next_group_index;
+
+				auto sub_elements= ParseRegexStringImpl(next_group_index, str);
 				if(sub_elements == std::nullopt)
 					return std::nullopt;
 
@@ -323,7 +326,7 @@ std::optional<RegexElementsChain> ParseRegexStringImpl(StrView& str)
 				}
 				str.remove_prefix(1);
 
-				res.el= BracketExpression{ std::move(*sub_elements) };
+				res.el= Group{ current_group_index, std::move(*sub_elements) };
 			}
 			break;
 
@@ -394,7 +397,8 @@ std::optional<RegexElementsChain> ParseRegexString(const std::string_view str)
 	}
 
 	StrView s= str_utf32;
-	return ParseRegexStringImpl(s);
+	size_t next_group_index= 1;
+	return ParseRegexStringImpl(next_group_index, s);
 }
 
 } // namespace RegPanzer

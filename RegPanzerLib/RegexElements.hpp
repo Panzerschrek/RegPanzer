@@ -90,12 +90,13 @@ struct Sequence
 	bool operator!=(const Sequence& other) const { return !(*this == other); }
 };
 
-struct BracketExpression
+struct Group
 {
+	size_t index= std::numeric_limits<size_t>::max(); // Started from 1.
 	RegexElementsChain elements;
 
-	bool operator==(const BracketExpression& other) const { return elements == other.elements; }
-	bool operator!=(const BracketExpression& other) const { return !(*this == other); }
+	bool operator==(const Group& other) const { return this->index == other.index && this->elements == other.elements; }
+	bool operator!=(const Group& other) const { return !(*this == other); }
 };
 
 struct Alternatives
@@ -112,7 +113,7 @@ struct RegexElementFull
 		std::variant<
 			AnySymbol,
 			SpecificSymbol,
-			BracketExpression,
+			Group,
 			Alternatives,
 			OneOf,
 			Look>;

@@ -42,9 +42,9 @@ bool MatchElementImpl(const SpecificSymbol& specific_symbol, MatchInput& str)
 	return ExtractCodePoint(str) == specific_symbol.code;
 }
 
-bool MatchElementImpl(const BracketExpression& bracket_expression, MatchInput& str)
+bool MatchElementImpl(const Group& group, MatchInput& str)
 {
-	return MatchChain(bracket_expression.elements, str);
+	return MatchChain(group.elements, str);
 }
 
 bool MatchElementImpl(const Alternatives& alternatives, MatchInput& str)

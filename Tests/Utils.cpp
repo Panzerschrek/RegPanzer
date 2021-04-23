@@ -16,9 +16,9 @@ RegexFeatureFlags GetSequeneFeaturesForElement(const Look&)
 	return RegexFeatureFlag::Look;
 }
 
-RegexFeatureFlags GetSequeneFeaturesForElement(const BracketExpression& bracket_expression)
+RegexFeatureFlags GetSequeneFeaturesForElement(const Group& group)
 {
-	return GetSequeneFeatures(bracket_expression.elements);
+	return GetSequeneFeatures(group.elements);
 }
 
 RegexFeatureFlags GetSequeneFeaturesForElement(const Alternatives& alternatives)

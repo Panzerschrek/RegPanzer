@@ -144,17 +144,20 @@ const TestDataElement c_test_data[]
 		}
 	},
 
-	// Bracket expression.
+	// Group.
 	{
 		"A(bc)ef",
 		{
 			{ SpecificSymbol{ 'A' }, { 1, 1, SequenceMode::Greedy }, },
 			{
-				BracketExpression
-				{ {
-					{ SpecificSymbol{ 'b' }, { 1, 1, SequenceMode::Greedy }, },
-					{ SpecificSymbol{ 'c' }, { 1, 1, SequenceMode::Greedy }, },
-				} },
+				Group
+				{
+					1,
+					{
+						{ SpecificSymbol{ 'b' }, { 1, 1, SequenceMode::Greedy }, },
+						{ SpecificSymbol{ 'c' }, { 1, 1, SequenceMode::Greedy }, },
+					}
+				},
 				{ 1, 1, SequenceMode::Greedy }
 			},
 			{ SpecificSymbol{ 'e' }, { 1, 1, SequenceMode::Greedy }, },
@@ -162,30 +165,115 @@ const TestDataElement c_test_data[]
 		}
 	},
 
-	// Bracket expression inside bracket expression.
+	// Group inside group.
 	{
 		"g(bc(RT)Q)ww",
 		{
 			{ SpecificSymbol{ 'g' }, { 1, 1, SequenceMode::Greedy }, },
 			{
-				BracketExpression
-				{ {
-					{ SpecificSymbol{ 'b' }, { 1, 1, SequenceMode::Greedy }, },
-					{ SpecificSymbol{ 'c' }, { 1, 1, SequenceMode::Greedy }, },
+				Group
+				{
+					1,
 					{
-						BracketExpression
-						{ {
-							{ SpecificSymbol{ 'R' }, { 1, 1, SequenceMode::Greedy }, },
-							{ SpecificSymbol{ 'T' }, { 1, 1, SequenceMode::Greedy }, },
-						} },
-						{ 1, 1, SequenceMode::Greedy }
-					},
-					{ SpecificSymbol{ 'Q' }, { 1, 1, SequenceMode::Greedy }, },
-				} },
+						{ SpecificSymbol{ 'b' }, { 1, 1, SequenceMode::Greedy }, },
+						{ SpecificSymbol{ 'c' }, { 1, 1, SequenceMode::Greedy }, },
+						{
+							Group
+							{
+								2,
+								{
+									{ SpecificSymbol{ 'R' }, { 1, 1, SequenceMode::Greedy }, },
+									{ SpecificSymbol{ 'T' }, { 1, 1, SequenceMode::Greedy }, },
+								}
+							},
+							{ 1, 1, SequenceMode::Greedy }
+						},
+						{ SpecificSymbol{ 'Q' }, { 1, 1, SequenceMode::Greedy }, },
+					}
+				},
 				{ 1, 1, SequenceMode::Greedy }
 			},
 			{ SpecificSymbol{ 'w' }, { 1, 1, SequenceMode::Greedy }, },
 			{ SpecificSymbol{ 'w' }, { 1, 1, SequenceMode::Greedy }, },
+		}
+	},
+
+	// Several groups - sequential and nested.
+	{
+		"(vb)(C(D)(E))+(.(F(G)H))",
+		{
+			{
+				Group
+				{
+					1,
+					{
+						{ SpecificSymbol{ 'v' }, { 1, 1, SequenceMode::Greedy } },
+						{ SpecificSymbol{ 'b' }, { 1, 1, SequenceMode::Greedy } },
+					}
+				},
+				{ 1, 1, SequenceMode::Greedy }
+			},
+			{
+				Group
+				{
+					2,
+					{
+						{ SpecificSymbol{ 'C' }, { 1, 1, SequenceMode::Greedy } },
+						{
+							Group
+							{
+								3,
+								{
+									{ SpecificSymbol{ 'D' }, { 1, 1, SequenceMode::Greedy } }
+								}
+							},
+							{ 1, 1, SequenceMode::Greedy }
+						},
+						{
+							Group
+							{
+								4,
+								{
+									{ SpecificSymbol{ 'E' }, { 1, 1, SequenceMode::Greedy } }
+								}
+							},
+							{ 1, 1, SequenceMode::Greedy }
+						},
+					}
+				},
+				{ 1, Sequence::c_max, SequenceMode::Greedy }
+			},
+			{
+				Group
+				{
+					5,
+					{
+						{ AnySymbol{}, { 1, 1, SequenceMode::Greedy } },
+						{
+							Group
+							{
+								6,
+								{
+									{ SpecificSymbol{ 'F' }, { 1, 1, SequenceMode::Greedy } },
+									{
+										Group
+										{
+											7,
+											{
+												{ SpecificSymbol{ 'G' }, { 1, 1, SequenceMode::Greedy } }
+											}
+										},
+										{ 1, 1, SequenceMode::Greedy }
+									},
+									{ SpecificSymbol{ 'H' }, { 1, 1, SequenceMode::Greedy } },
+								}
+							},
+							{ 1, 1, SequenceMode::Greedy }
+						},
+					}
+				},
+				{ 1, 1, SequenceMode::Greedy }
+			},
 		}
 	},
 
@@ -227,11 +315,14 @@ const TestDataElement c_test_data[]
 				},
 				{
 					{
-						BracketExpression
-						{ {
-							{ SpecificSymbol{ 'V' }, { 1, 1, SequenceMode::Greedy }, },
-							{ SpecificSymbol{ 'x' }, { 1, 1, SequenceMode::Greedy }, },
-						} },
+						Group
+						{
+							1,
+							{
+								{ SpecificSymbol{ 'V' }, { 1, 1, SequenceMode::Greedy }, },
+								{ SpecificSymbol{ 'x' }, { 1, 1, SequenceMode::Greedy }, },
+							}
+						},
 						{ 0, Sequence::c_max, SequenceMode::Greedy },
 					}
 				},
@@ -313,12 +404,15 @@ const TestDataElement c_test_data[]
 		{
 			{ SpecificSymbol{ 'l' }, { 1, 1, SequenceMode::Greedy }, },
 			{
-				BracketExpression
-				{ {
-					{ SpecificSymbol{ 'Q' }, { 1, 1, SequenceMode::Greedy }, },
-					{ SpecificSymbol{ 'w' }, { 1, 1, SequenceMode::Greedy }, },
-					{ SpecificSymbol{ 'e' }, { 1, 1, SequenceMode::Greedy }, },
-				} },
+				Group
+				{
+					1,
+					{
+						{ SpecificSymbol{ 'Q' }, { 1, 1, SequenceMode::Greedy }, },
+						{ SpecificSymbol{ 'w' }, { 1, 1, SequenceMode::Greedy }, },
+						{ SpecificSymbol{ 'e' }, { 1, 1, SequenceMode::Greedy }, },
+					}
+				},
 				{ 1, Sequence::c_max, SequenceMode::Greedy }
 			},
 			{ SpecificSymbol{ 'P' }, { 1, 1, SequenceMode::Greedy }, },
