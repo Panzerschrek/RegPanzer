@@ -9,19 +9,19 @@ namespace RegPanzer
 namespace
 {
 
-using TestDataElement = std::pair<std::string, RegexpElementsChain>;
+using TestDataElement = std::pair<std::string, RegexElementsChain>;
 class ParseTest : public ::testing::TestWithParam<TestDataElement> {};
 
 TEST_P(ParseTest, CheckParse)
 {
 	const auto param= GetParam();
-	const auto res = RegPanzer::ParseRegexpString(param.first);
+	const auto res = RegPanzer::ParseRegexString(param.first);
 	ASSERT_EQ(res, param.second);
 }
 
 const TestDataElement c_test_data[]
 {
-	// Empty result for empty regexp.
+	// Empty result for empty regex.
 	{
 		"",
 		{},

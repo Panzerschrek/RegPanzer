@@ -8,8 +8,8 @@ namespace RegPanzer
 
 using CharType= char32_t;
 
-struct RegexpElementFull;
-using RegexpElementsChain= std::vector<RegexpElementFull>;
+struct RegexElementFull;
+using RegexElementsChain= std::vector<RegexElementFull>;
 
 struct AnySymbol
 {
@@ -75,7 +75,7 @@ struct Sequence
 
 struct BracketExpression
 {
-	RegexpElementsChain elements;
+	RegexElementsChain elements;
 
 	bool operator==(const BracketExpression& other) const { return elements == other.elements; }
 	bool operator!=(const BracketExpression& other) const { return !(*this == other); }
@@ -83,13 +83,13 @@ struct BracketExpression
 
 struct Alternatives
 {
-	std::vector<RegexpElementsChain> alternatives;
+	std::vector<RegexElementsChain> alternatives;
 
 	bool operator==(const Alternatives& other) const { return alternatives == other.alternatives; }
 	bool operator!=(const Alternatives& other) const { return !(*this == other); }
 };
 
-struct RegexpElementFull
+struct RegexElementFull
 {
 	using ElementType =
 		std::variant<
@@ -103,8 +103,8 @@ struct RegexpElementFull
 
 	Sequence seq;
 
-	bool operator==(const RegexpElementFull& other) const { return el == other.el && seq == other.seq; }
-	bool operator!=(const RegexpElementFull& other) const { return !(*this == other); }
+	bool operator==(const RegexElementFull& other) const { return el == other.el && seq == other.seq; }
+	bool operator!=(const RegexElementFull& other) const { return !(*this == other); }
 };
 
 } // namespace RegPanzer

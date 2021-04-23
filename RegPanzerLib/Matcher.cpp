@@ -10,7 +10,7 @@ namespace RegPanzer
 namespace
 {
 
-using RegexpIterator = RegexpElementsChain::const_iterator;
+using RegexIterator = RegexElementsChain::const_iterator;
 using MatchInput = std::string_view;
 
 std::optional<CharType> ExtractCodePoint(MatchInput& str)
@@ -30,7 +30,7 @@ std::optional<CharType> ExtractCodePoint(MatchInput& str)
 	return CharType(code);
 }
 
-bool MatchChain(const RegexpElementsChain& chain, MatchInput& str);
+bool MatchChain(const RegexElementsChain& chain, MatchInput& str);
 
 bool MatchElementImpl(const AnySymbol&, MatchInput& str)
 {
@@ -49,7 +49,7 @@ bool MatchElementImpl(const BracketExpression& bracket_expression, MatchInput& s
 
 bool MatchElementImpl(const Alternatives& alternatives, MatchInput& str)
 {
-	for(const RegexpElementsChain& chain : alternatives.alternatives)
+	for(const RegexElementsChain& chain : alternatives.alternatives)
 	{
 		MatchInput range_copy= str;
 		if(MatchChain(chain, range_copy))
@@ -83,16 +83,16 @@ bool MatchElementImpl(const OneOf& one_of, MatchInput& str)
 	return false;
 }
 
-bool MatchElement(const RegexpElementFull::ElementType& element, MatchInput& str)
+bool MatchElement(const RegexElementFull::ElementType& element, MatchInput& str)
 {
 	return std::visit([&](const auto& el){ return MatchElementImpl(el, str); }, element);
 }
 
-bool MatchElementFull(const RegexpIterator begin, const RegexpIterator end, MatchInput& str)
+bool MatchElementFull(const RegexIterator begin, const RegexIterator end, MatchInput& str)
 {
 	if(begin == end)
 		return true;
-	const RegexpElementFull& element= *begin;
+	const RegexElementFull& element= *begin;
 
 	switch(element.seq.mode)
 	{
@@ -175,19 +175,19 @@ bool MatchElementFull(const RegexpIterator begin, const RegexpIterator end, Matc
 	return false;
 }
 
-bool MatchChain(const RegexpElementsChain& chain, MatchInput& str)
+bool MatchChain(const RegexElementsChain& chain, MatchInput& str)
 {
 	return MatchElementFull(chain.begin(), chain.end(), str);
 }
 
 } // namespace
 
-MatchResult Match(const RegexpElementsChain& regexp, const std::string_view str)
+MatchResult Match(const RegexElementsChain& regex, const std::string_view str)
 {
 	for(size_t i= 0; i < str.size(); ++i)
 	{
 		MatchInput range= str.substr(i, str.size() - i);
-		if(MatchChain(regexp, range))
+		if(MatchChain(regex, range))
 			return str.substr(i, str.size() - range.size() - i);
 	}
 

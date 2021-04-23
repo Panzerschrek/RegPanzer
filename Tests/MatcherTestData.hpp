@@ -7,7 +7,7 @@ namespace RegPanzer
 
 struct MatcherTestDataElement
 {
-	std::string regexp_str;
+	std::string regex_str;
 
 	using Range= std::pair<size_t, size_t>; // begin/end
 	using Ranges= std::vector<Range>;
@@ -34,7 +34,7 @@ inline const MatcherTestDataElement g_matcher_test_data[]
 				"wdawf 4654 aawgabC cba bbac",
 				{},
 			},
-			{ // String is equal to regexp.
+			{ // String is equal to regex.
 				"abc",
 				{ { 0, 3 }, },
 			},

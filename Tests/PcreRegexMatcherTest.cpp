@@ -10,15 +10,15 @@ namespace RegPanzer
 namespace
 {
 
-class PcreRegexpMatchTest : public ::testing::TestWithParam<MatcherTestDataElement> {};
+class PcreRegexMatchTest : public ::testing::TestWithParam<MatcherTestDataElement> {};
 
-TEST_P(PcreRegexpMatchTest, TestMatch)
+TEST_P(PcreRegexMatchTest, TestMatch)
 {
 	const auto param= GetParam();
 
 	pcrecpp::RE_Options options;
 	options.set_utf8(true);
-	pcrecpp::RE r(param.regexp_str, options);
+	pcrecpp::RE r(param.regex_str, options);
 
 	for(const MatcherTestDataElement::Case& c : param.cases)
 	{
@@ -38,7 +38,7 @@ TEST_P(PcreRegexpMatchTest, TestMatch)
 	}
 }
 
-INSTANTIATE_TEST_CASE_P(M, PcreRegexpMatchTest, testing::ValuesIn(g_matcher_test_data));
+INSTANTIATE_TEST_CASE_P(M, PcreRegexMatchTest, testing::ValuesIn(g_matcher_test_data));
 
 } // namespace
 

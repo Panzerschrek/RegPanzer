@@ -11,23 +11,23 @@ namespace RegPanzer
 namespace
 {
 
-class StdRegexpMatchTest : public ::testing::TestWithParam<MatcherTestDataElement> {};
+class StdRegexMatchTest : public ::testing::TestWithParam<MatcherTestDataElement> {};
 
-TEST_P(StdRegexpMatchTest, TestMatch)
+TEST_P(StdRegexMatchTest, TestMatch)
 {
 	const auto param= GetParam();
 
-	// Ignore non-ascii regexp and cases, because std::regex does not support UTF-8.
-	if(StringContainsNonASCIISymbols(param.regexp_str))
+	// Ignore non-ascii regex and cases, because std::regex does not support UTF-8.
+	if(StringContainsNonASCIISymbols(param.regex_str))
 		return;
 
 	// ECMAScript regex has no support of possessive sequences.
-	if(RegexContainsPossessiveSequences(param.regexp_str))
+	if(RegexContainsPossessiveSequences(param.regex_str))
 		return;
 
 	try
 	{
-		std::regex regex(param.regexp_str, std::regex_constants::ECMAScript);
+		std::regex regex(param.regex_str, std::regex_constants::ECMAScript);
 
 		for(const MatcherTestDataElement::Case& c : param.cases)
 		{
@@ -48,7 +48,7 @@ TEST_P(StdRegexpMatchTest, TestMatch)
 	}
 }
 
-INSTANTIATE_TEST_CASE_P(M, StdRegexpMatchTest, testing::ValuesIn(g_matcher_test_data));
+INSTANTIATE_TEST_CASE_P(M, StdRegexMatchTest, testing::ValuesIn(g_matcher_test_data));
 
 } // namespace
 

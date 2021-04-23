@@ -223,13 +223,13 @@ std::optional<Sequence> ParseSequence(StrView& str)
 }
 
 // Work in progress!
-std::optional<RegexpElementsChain> ParseRegexpStringImpl(StrView& str)
+std::optional<RegexElementsChain> ParseRegexStringImpl(StrView& str)
 {
-	RegexpElementsChain chain;
+	RegexElementsChain chain;
 
 	while(!str.empty())
 	{
-		RegexpElementFull res;
+		RegexElementFull res;
 
 		// Extract element.
 		// TODO - porcess escape sequences.
@@ -239,7 +239,7 @@ std::optional<RegexpElementsChain> ParseRegexpStringImpl(StrView& str)
 		{
 			str.remove_prefix(1);
 
-			auto remaining_expression= ParseRegexpStringImpl(str);
+			auto remaining_expression= ParseRegexStringImpl(str);
 			if(remaining_expression == std::nullopt)
 				return std::nullopt;
 
@@ -260,13 +260,13 @@ std::optional<RegexpElementsChain> ParseRegexpStringImpl(StrView& str)
 			res.seq.min_elements= 1;
 			res.seq.max_elements= 1;
 
-			return RegexpElementsChain{ std::move(res) };
+			return RegexElementsChain{ std::move(res) };
 		}
 
 		case '(':
 		{
 			str.remove_prefix(1);
-			auto sub_elements= ParseRegexpStringImpl(str);
+			auto sub_elements= ParseRegexStringImpl(str);
 			if(sub_elements == std::nullopt)
 				return std::nullopt;
 
@@ -326,7 +326,7 @@ std::optional<RegexpElementsChain> ParseRegexpStringImpl(StrView& str)
 
 } // namespace
 
-std::optional<RegexpElementsChain> ParseRegexpString(const std::string_view str)
+std::optional<RegexElementsChain> ParseRegexString(const std::string_view str)
 {
 	// Do internal parsing in UTF-32 format (with fixed codepoint size). Convert input string into UTF-32.
 
@@ -348,7 +348,7 @@ std::optional<RegexpElementsChain> ParseRegexpString(const std::string_view str)
 	}
 
 	StrView s= str_utf32;
-	return ParseRegexpStringImpl(s);
+	return ParseRegexStringImpl(s);
 }
 
 } // namespace RegPanzer

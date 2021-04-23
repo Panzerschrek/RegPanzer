@@ -10,7 +10,7 @@ namespace
 
 using ModesSet= std::unordered_set<SequenceMode>;
 
-void GetSequeneModes(const RegexpElementsChain& chain, ModesSet& modes);
+void GetSequeneModes(const RegexElementsChain& chain, ModesSet& modes);
 
 template<typename T> void GetSequeneModesForElement(const T&, ModesSet&){}
 
@@ -25,9 +25,9 @@ void GetSequeneModesForElement(const Alternatives& alternatives, ModesSet& modes
 		GetSequeneModes(alternative, modes);
 }
 
-void GetSequeneModes(const RegexpElementsChain& chain, ModesSet& modes)
+void GetSequeneModes(const RegexElementsChain& chain, ModesSet& modes)
 {
-	for(const RegexpElementFull& element : chain)
+	for(const RegexElementFull& element : chain)
 	{
 		std::visit([&](const auto& el){ GetSequeneModesForElement(el, modes); }, element.el);
 		modes.insert(element.seq.mode);
@@ -47,7 +47,7 @@ bool StringContainsNonASCIISymbols(const std::string& str)
 
 bool RegexContainsLazySequences(const std::string& regex_str)
 {
-	const auto res= ParseRegexpString(regex_str);
+	const auto res= ParseRegexString(regex_str);
 	if(res == std::nullopt)
 		return false;
 
@@ -58,7 +58,7 @@ bool RegexContainsLazySequences(const std::string& regex_str)
 
 bool RegexContainsPossessiveSequences(const std::string& regex_str)
 {
-	const auto res= ParseRegexpString(regex_str);
+	const auto res= ParseRegexString(regex_str);
 	if(res == std::nullopt)
 		return false;
 

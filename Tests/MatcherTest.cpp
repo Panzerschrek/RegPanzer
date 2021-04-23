@@ -16,8 +16,8 @@ class MatchTest : public ::testing::TestWithParam<MatcherTestDataElement> {};
 TEST_P(MatchTest, TestMatch)
 {
 	const auto param= GetParam();
-	const auto regexp= RegPanzer::ParseRegexpString(param.regexp_str);
-	ASSERT_NE(regexp, std::nullopt);
+	const auto regex= RegPanzer::ParseRegexString(param.regex_str);
+	ASSERT_NE(regex, std::nullopt);
 
 	for(const MatcherTestDataElement::Case& c : param.cases)
 	{
@@ -26,7 +26,7 @@ TEST_P(MatchTest, TestMatch)
 		std::string_view str= c.input_str;
 		while(true)
 		{
-			const MatchResult res= Match(*regexp, str);
+			const MatchResult res= Match(*regex, str);
 			if(res == std::nullopt)
 				break;
 

@@ -11,21 +11,21 @@ namespace RegPanzer
 namespace
 {
 
-class LlvmRegexpMatchTest : public ::testing::TestWithParam<MatcherTestDataElement> {};
+class LlvmRegexMatchTest : public ::testing::TestWithParam<MatcherTestDataElement> {};
 
-TEST_P(LlvmRegexpMatchTest, TestMatch)
+TEST_P(LlvmRegexMatchTest, TestMatch)
 {
 	const auto param= GetParam();
 
-	// Ignore non-ascii regexp and cases, because llvm::Regex does not support UTF-8.
-	if(StringContainsNonASCIISymbols(param.regexp_str))
+	// Ignore non-ascii regex and cases, because llvm::Regex does not support UTF-8.
+	if(StringContainsNonASCIISymbols(param.regex_str))
 		return;
 
 	// llvm::Regex does not support lazy and possesive sequences.
-	if(RegexContainsLazySequences(param.regexp_str) || RegexContainsPossessiveSequences(param.regexp_str))
+	if(RegexContainsLazySequences(param.regex_str) || RegexContainsPossessiveSequences(param.regex_str))
 		return;
 
-	llvm::Regex regex(param.regexp_str);
+	llvm::Regex regex(param.regex_str);
 
 	std::string error_str;
 	ASSERT_TRUE(regex.isValid(error_str));
@@ -55,7 +55,7 @@ TEST_P(LlvmRegexpMatchTest, TestMatch)
 	}
 }
 
-INSTANTIATE_TEST_CASE_P(M, LlvmRegexpMatchTest, testing::ValuesIn(g_matcher_test_data));
+INSTANTIATE_TEST_CASE_P(M, LlvmRegexMatchTest, testing::ValuesIn(g_matcher_test_data));
 
 } // namespace
 
