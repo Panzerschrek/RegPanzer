@@ -83,6 +83,15 @@ bool MatchElementImpl(const OneOf& one_of, MatchInput& str)
 	return false;
 }
 
+bool MatchElementImpl(const Look& look, MatchInput& str)
+{
+	// TODO
+	(void)look;
+	(void)str;
+	return false;
+}
+
+
 bool MatchElement(const RegexElementFull::ElementType& element, MatchInput& str)
 {
 	return std::visit([&](const auto& el){ return MatchElementImpl(el, str); }, element);

@@ -334,7 +334,7 @@ const TestDataElement c_test_data[]
 	{ "%{17,}+", { { SpecificSymbol{ '%' }, { 17, Sequence::c_max, SequenceMode::Possessive } } } },
 	{ "K{,20}+", { { SpecificSymbol{ 'K' }, { 0, 20, SequenceMode::Possessive } } } },
 
-	// Quantifier mode - lzy.
+	// Quantifier mode - lazy.
 	{ "S??", { { SpecificSymbol{ 'S' }, { 0, 1, SequenceMode::Lazy } } } },
 	{ "@*?", { { SpecificSymbol{ '@' }, { 0, Sequence::c_max, SequenceMode::Lazy } } } },
 	{ "g+?", { { SpecificSymbol{ 'g' }, { 1, Sequence::c_max, SequenceMode::Lazy } } } },
@@ -342,6 +342,212 @@ const TestDataElement c_test_data[]
 	{ "F{345}?", { { SpecificSymbol{ 'F' }, { 345, 345, SequenceMode::Lazy } } } },
 	{ "%{17,}?", { { SpecificSymbol{ '%' }, { 17, Sequence::c_max, SequenceMode::Lazy } } } },
 	{ "K{,20}?", { { SpecificSymbol{ 'K' }, { 0, 20, SequenceMode::Lazy } } } },
+
+	{ // Simple lookahead.
+		"(?=F)",
+		{
+			{
+				Look
+				{
+					true,
+					true,
+					{
+						{ SpecificSymbol{ 'F' }, { 1, 1, SequenceMode::Greedy } }
+					}
+				},
+				{ 1, 1, SequenceMode::Greedy }
+			}
+		}
+	},
+
+	{ // Negative lookahead with several elements inside.
+		"(?!zGr)",
+		{
+			{
+				Look
+				{
+					true,
+					false,
+					{
+						{ SpecificSymbol{ 'z' }, { 1, 1, SequenceMode::Greedy } },
+						{ SpecificSymbol{ 'G' }, { 1, 1, SequenceMode::Greedy } },
+						{ SpecificSymbol{ 'r' }, { 1, 1, SequenceMode::Greedy } },
+					}
+				},
+				{ 1, 1, SequenceMode::Greedy }
+			}
+		}
+	},
+
+	{ // Lookahead after element.
+		"Q(?!u)",
+		{
+			{ SpecificSymbol{ 'Q' }, { 1, 1, SequenceMode::Greedy } },
+			{
+				Look
+				{
+					true,
+					false,
+					{
+						{ SpecificSymbol{ 'u' }, { 1, 1, SequenceMode::Greedy } },
+					}
+				},
+				{ 1, 1, SequenceMode::Greedy }
+			},
+		}
+	},
+
+	{ // Two lookaheads.
+		"F(?=[0-9])(?!7)",
+		{
+			{ SpecificSymbol{ 'F' }, { 1, 1, SequenceMode::Greedy } },
+			{
+				Look
+				{
+					true,
+					true,
+					{
+						{ OneOf{ {}, { {'0', '9'} }, false }, { 1, 1, SequenceMode::Greedy } },
+					}
+				},
+				{ 1, 1, SequenceMode::Greedy }
+			},
+			{
+				Look
+				{
+					true,
+					false,
+					{
+						{ SpecificSymbol{ '7' }, { 1, 1, SequenceMode::Greedy } },
+					}
+				},
+				{ 1, 1, SequenceMode::Greedy }
+			},
+		}
+	},
+
+	{ // Lookahead and alternatives.
+		"W(?=d)|s",
+		{
+			{
+				Alternatives
+				{ {
+					{
+						{ SpecificSymbol{ 'W' }, { 1, 1, SequenceMode::Greedy } },
+						{
+							Look
+							{
+								true,
+								true,
+								{
+									{ SpecificSymbol{ 'd' }, { 1, 1, SequenceMode::Greedy } },
+								}
+							},
+							{ 1, 1, SequenceMode::Greedy }
+						}
+					},
+					{
+						{ SpecificSymbol{ 's' }, { 1, 1, SequenceMode::Greedy } },
+					},
+				} },
+				{ 1, 1, SequenceMode::Greedy }
+			}
+		}
+	},
+
+	{ // Lookahead and alternatives.
+		"Z|4(?=0{3})",
+		{
+			{
+				Alternatives
+				{ {
+					{
+						{ SpecificSymbol{ 'Z' }, { 1, 1, SequenceMode::Greedy } },
+					},
+					{
+						{ SpecificSymbol{ '4' }, { 1, 1, SequenceMode::Greedy } },
+						{
+							Look
+							{
+								true,
+								true,
+								{
+									{ SpecificSymbol{ '0' }, { 3, 3, SequenceMode::Greedy } },
+								}
+							},
+							{ 1, 1, SequenceMode::Greedy }
+						}
+					},
+				} },
+				{ 1, 1, SequenceMode::Greedy }
+			}
+		}
+	},
+
+	{ // Alternatives inside lookahead.
+		"n(?=0|1)",
+		{
+			{ SpecificSymbol{ 'n' }, { 1, 1, SequenceMode::Greedy } },
+			{
+				Look
+				{
+					true,
+					true,
+					{
+						{
+							Alternatives
+							{ {
+								{
+									{ SpecificSymbol{ '0' }, { 1, 1, SequenceMode::Greedy } }
+								},
+								{
+									{ SpecificSymbol{ '1' }, { 1, 1, SequenceMode::Greedy } }
+								},
+							} },
+							{ 1, 1, SequenceMode::Greedy }
+						},
+					}
+				},
+				{ 1, 1, SequenceMode::Greedy }
+			}
+		}
+	},
+
+	{ // Lookbehind (negative).
+		"[a-z]+(?<!n)",
+		{
+			{ OneOf{ {}, { {'a', 'z'} }, false }, { 1, Sequence::c_max, SequenceMode::Greedy } },
+			{
+				Look
+				{
+					false,
+					false,
+					{
+						{ SpecificSymbol{ 'n' }, { 1, 1, SequenceMode::Greedy } }
+					}
+				},
+				{ 1, 1, SequenceMode::Greedy }
+			}
+		}
+	},
+
+	{ // Lookbehind (positive).
+		"(?<=q)S",
+		{
+			{
+				Look
+				{
+					false,
+					true,
+					{
+						{ SpecificSymbol{ 'q' }, { 1, 1, SequenceMode::Greedy } }
+					}
+				},
+				{ 1, 1, SequenceMode::Greedy }
+			},
+			{ SpecificSymbol{ 'S' }, { 1, 1, SequenceMode::Greedy } }
+		}
+	},
 
 	// Non-ASCII symbols.
 	{

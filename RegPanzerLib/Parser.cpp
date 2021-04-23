@@ -264,21 +264,67 @@ std::optional<RegexElementsChain> ParseRegexStringImpl(StrView& str)
 		}
 
 		case '(':
-		{
 			str.remove_prefix(1);
-			auto sub_elements= ParseRegexStringImpl(str);
-			if(sub_elements == std::nullopt)
+
+			if(str.empty())
 				return std::nullopt;
 
-			if(str.empty() || str.front() != ')')
+			if(str.front() == '?')
 			{
-				// TODO - handle error here
-				return std::nullopt;
-			}
-			str.remove_prefix(1);
+				str.remove_prefix(1);
+				if(str.empty())
+					return std::nullopt;
 
-			res.el= BracketExpression{ std::move(*sub_elements) };
-		}
+				Look look;
+
+				if(str.front() == '<')
+				{
+					str.remove_prefix(1);
+					look.forward= false;
+				}
+				else
+					look.forward= true;
+
+				if(str.empty())
+					return std::nullopt;
+
+				if(str.front() == '=')
+					look.positive= true;
+				else if(str.front() == '!')
+					look.positive= false;
+				else
+				{
+					// TODO - handle error here
+					return std::nullopt;
+				}
+				str.remove_prefix(1);
+
+				auto sub_elements= ParseRegexStringImpl(str);
+				if(sub_elements == std::nullopt)
+					return std::nullopt;
+
+				if(str.empty() || str.front() != ')')
+					return std::nullopt;
+				str.remove_prefix(1);
+
+				look.elements= std::move(*sub_elements);
+				res.el= std::move(look);
+			}
+			else
+			{
+				auto sub_elements= ParseRegexStringImpl(str);
+				if(sub_elements == std::nullopt)
+					return std::nullopt;
+
+				if(str.empty() || str.front() != ')')
+				{
+					// TODO - handle error here
+					return std::nullopt;
+				}
+				str.remove_prefix(1);
+
+				res.el= BracketExpression{ std::move(*sub_elements) };
+			}
 			break;
 
 		case ')':

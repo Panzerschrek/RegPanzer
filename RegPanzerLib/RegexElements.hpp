@@ -42,6 +42,23 @@ struct OneOf
 	bool operator!=(const OneOf& other) const { return !(*this == other); }
 };
 
+struct Look
+{
+	bool forward= true;
+	bool positive= true;
+	RegexElementsChain elements;
+
+	bool operator==(const Look& other) const
+	{
+		return
+			this->forward == other.forward &&
+			this->positive == other.positive &&
+			this->elements == other.elements;
+	}
+
+	bool operator!=(const Look& other) const { return !(*this == other); }
+};
+
 enum class SequenceMode : uint8_t
 {
 	Greedy,
@@ -97,7 +114,8 @@ struct RegexElementFull
 			SpecificSymbol,
 			BracketExpression,
 			Alternatives,
-			OneOf>;
+			OneOf,
+			Look>;
 
 	ElementType	el;
 
