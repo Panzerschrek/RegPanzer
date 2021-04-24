@@ -658,6 +658,34 @@ const TestDataElement c_test_data[]
 		}
 	},
 
+	{ // Atomic group.
+		"(?>a|bc|x)",
+		{
+			{
+				AtomicGroup
+				{ {
+					{
+						Alternatives
+						{ {
+							{
+								{ SpecificSymbol{ 'a' }, { 1, 1, SequenceMode::Greedy } },
+							},
+							{
+								{ SpecificSymbol{ 'b' }, { 1, 1, SequenceMode::Greedy } },
+								{ SpecificSymbol{ 'c' }, { 1, 1, SequenceMode::Greedy } },
+							},
+							{
+								{ SpecificSymbol{ 'x' }, { 1, 1, SequenceMode::Greedy } },
+							},
+						} },
+						{ 1, 1, SequenceMode::Greedy }
+					},
+				} },
+				{ 1, 1, SequenceMode::Greedy }
+			}
+		}
+	},
+
 	{ // Simplest backreference.
 		"(wa)\\1",
 		{

@@ -105,6 +105,14 @@ bool MatchElementImpl(const NonCapturingGroup& non_capturing_group, State& state
 	return MatchChain(non_capturing_group.elements, state);
 }
 
+bool MatchElementImpl(const AtomicGroup& atomic_group, State& state)
+{
+	// TODO
+	(void)atomic_group;
+	(void)state;
+	return false;
+}
+
 bool MatchElementImpl(const Alternatives& alternatives, State& state)
 {
 	for(const RegexElementsChain& chain : alternatives.alternatives)

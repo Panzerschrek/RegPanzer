@@ -67,6 +67,14 @@ struct NonCapturingGroup
 	bool operator!=(const NonCapturingGroup& other) const { return !(*this == other); }
 };
 
+struct AtomicGroup
+{
+	RegexElementsChain elements;
+
+	bool operator==(const AtomicGroup& other) const { return this->elements == other.elements; }
+	bool operator!=(const AtomicGroup& other) const { return !(*this == other); }
+};
+
 struct Alternatives
 {
 	std::vector<RegexElementsChain> alternatives;
@@ -133,6 +141,7 @@ struct RegexElementFull
 			Group,
 			BackReference,
 			NonCapturingGroup,
+			AtomicGroup,
 			Alternatives,
 			Look>;
 

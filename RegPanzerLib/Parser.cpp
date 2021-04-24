@@ -299,6 +299,20 @@ std::optional<RegexElementsChain> ParseRegexStringImpl(size_t& next_group_index,
 
 					res.el= NonCapturingGroup{ std::move(*sub_elements) };
 				}
+				else if(str.front() == '>')
+				{
+					str.remove_prefix(1);
+
+					auto sub_elements= ParseRegexStringImpl(next_group_index, str);
+					if(sub_elements == std::nullopt)
+						return std::nullopt;
+
+					if(str.empty() || str.front() != ')')
+						return std::nullopt;
+					str.remove_prefix(1);
+
+					res.el= AtomicGroup{ std::move(*sub_elements) };
+				}
 				else
 				{
 					Look look;
