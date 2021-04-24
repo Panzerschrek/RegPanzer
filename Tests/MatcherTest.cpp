@@ -1,6 +1,8 @@
 #include "MatcherTestData.hpp"
 #include "../RegPanzerLib/Matcher.hpp"
 #include "../RegPanzerLib/Parser.hpp"
+#include "../RegPanzerLib/RegexGraph.hpp"
+#include "../RegPanzerLib/RegexGraphMatcher.hpp"
 #include "../RegPanzerLib/PushDisableLLVMWarnings.hpp"
 #include <gtest/gtest.h>
 #include "../RegPanzerLib/PopLLVMWarnings.hpp"
@@ -16,8 +18,10 @@ class MatchTest : public ::testing::TestWithParam<MatcherTestDataElement> {};
 TEST_P(MatchTest, TestMatch)
 {
 	const auto param= GetParam();
-	const auto regex= RegPanzer::ParseRegexString(param.regex_str);
-	ASSERT_NE(regex, std::nullopt);
+	const auto regex_chain= RegPanzer::ParseRegexString(param.regex_str);
+	ASSERT_NE(regex_chain, std::nullopt);
+
+	const auto regex_graph= BuildRegexGraph(*regex_chain);
 
 	for(const MatcherTestDataElement::Case& c : param.cases)
 	{
@@ -26,7 +30,7 @@ TEST_P(MatchTest, TestMatch)
 		std::string_view str= c.input_str;
 		while(true)
 		{
-			const MatchResult res= Match(*regex, str);
+			const MatchResult res= Match(regex_graph, str);
 			if(res == std::nullopt)
 				break;
 
