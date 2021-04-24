@@ -13,8 +13,18 @@ namespace
 using RegexIterator = RegexElementsChain::const_iterator;
 using MatchInput = std::string_view;
 
-std::optional<CharType> ExtractCodePoint(MatchInput& str)
+constexpr size_t c_max_group= 9;
+
+struct State
 {
+	MatchInput str;
+	MatchInput groups[1 + c_max_group]; // Actually used 1-9
+};
+
+std::optional<CharType> ExtractCodePoint(State& state)
+{
+	MatchInput& str= state.str;
+
 	llvm::UTF32 code= 0;
 
 	const auto src_start_initial= reinterpret_cast<const llvm::UTF8*>(str.data());
@@ -30,21 +40,21 @@ std::optional<CharType> ExtractCodePoint(MatchInput& str)
 	return CharType(code);
 }
 
-bool MatchChain(const RegexElementsChain& chain, MatchInput& str);
+bool MatchChain(const RegexElementsChain& chain, State& state);
 
-bool MatchElementImpl(const AnySymbol&, MatchInput& str)
+bool MatchElementImpl(const AnySymbol&, State& state)
 {
-	return ExtractCodePoint(str) != std::nullopt;
+	return ExtractCodePoint(state) != std::nullopt;
 }
 
-bool MatchElementImpl(const SpecificSymbol& specific_symbol, MatchInput& str)
+bool MatchElementImpl(const SpecificSymbol& specific_symbol, State& state)
 {
-	return ExtractCodePoint(str) == specific_symbol.code;
+	return ExtractCodePoint(state) == specific_symbol.code;
 }
 
-bool MatchElementImpl(const OneOf& one_of, MatchInput& str)
+bool MatchElementImpl(const OneOf& one_of, State& state)
 {
-	if(const auto code= ExtractCodePoint(str))
+	if(const auto code= ExtractCodePoint(state))
 	{
 		for(const CharType& v : one_of.variants)
 			if(*code == v)
@@ -60,27 +70,44 @@ bool MatchElementImpl(const OneOf& one_of, MatchInput& str)
 	return false;
 }
 
-bool MatchElementImpl(const Group& group, MatchInput& str)
+bool MatchElementImpl(const Group& group, State& state)
 {
-	return MatchChain(group.elements, str);
-}
-
-bool MatchElementImpl(const BackReference& back_reference, MatchInput& str)
-{
-	// TODO
-	(void)back_reference;
-	(void)str;
+	const char* const start= state.str.data();
+	if(MatchChain(group.elements, state))
+	{
+		if(group.index >= 1 && group.index <= c_max_group)
+		{
+			const char* const end= state.str.data();
+			state.groups[group.index]= MatchInput(start, size_t(end - start));
+		}
+		return true;
+	}
 	return false;
 }
 
-bool MatchElementImpl(const Alternatives& alternatives, MatchInput& str)
+bool MatchElementImpl(const BackReference& back_reference, State& state)
+{
+	if(!(back_reference.index >= 0 && back_reference.index <= c_max_group))
+		return false;
+
+	const MatchInput prev_group= state.groups[back_reference.index];
+	if(state.str.size() >= prev_group.size() && prev_group == state.str.substr(0, prev_group.size()))
+	{
+		state.str.remove_prefix(prev_group.size());
+		return true;
+	}
+
+	return false;
+}
+
+bool MatchElementImpl(const Alternatives& alternatives, State& state)
 {
 	for(const RegexElementsChain& chain : alternatives.alternatives)
 	{
-		MatchInput range_copy= str;
-		if(MatchChain(chain, range_copy))
+		State state_copy= state;
+		if(MatchChain(chain, state_copy))
 		{
-			str= range_copy;
+			state= state_copy;
 			return true;
 		}
 	}
@@ -88,12 +115,12 @@ bool MatchElementImpl(const Alternatives& alternatives, MatchInput& str)
 	return false;
 }
 
-bool MatchElementImpl(const Look& look, const MatchInput str)
+bool MatchElementImpl(const Look& look, const State& state)
 {
 	if(look.forward)
 	{
-		MatchInput range_copy= str;
-		return (!look.positive) ^ MatchChain(look.elements, range_copy);
+		State state_copy= state;
+		return (!look.positive) ^ MatchChain(look.elements, state_copy);
 	}
 	else
 	{
@@ -103,13 +130,12 @@ bool MatchElementImpl(const Look& look, const MatchInput str)
 	}
 }
 
-
-bool MatchElement(const RegexElementFull::ElementType& element, MatchInput& str)
+bool MatchElement(const RegexElementFull::ElementType& element, State& state)
 {
-	return std::visit([&](const auto& el){ return MatchElementImpl(el, str); }, element);
+	return std::visit([&](const auto& el){ return MatchElementImpl(el, state); }, element);
 }
 
-bool MatchElementFull(const RegexIterator begin, const RegexIterator end, MatchInput& str)
+bool MatchElementFull(const RegexIterator begin, const RegexIterator end, State& state)
 {
 	if(begin == end)
 		return true;
@@ -119,27 +145,27 @@ bool MatchElementFull(const RegexIterator begin, const RegexIterator end, MatchI
 	{
 	case SequenceMode::Greedy:
 		{
-			std::optional<MatchInput> last_success_pos;
+			std::optional<State> last_success_state;
 
 			for(size_t i= 0; ; ++i)
 			{
 				// Check tail only after reaching minimum number of elements.
 				if(i >= element.seq.min_elements)
 				{
-					MatchInput range_copy= str;
-					if(MatchElementFull(std::next(begin), end, range_copy))
-						last_success_pos= range_copy;
+					State state_copy= state;
+					if(MatchElementFull(std::next(begin), end, state_copy))
+						last_success_state= state_copy;
 				}
 
 				if(i == element.seq.max_elements || // Finish loop after tail check but before sequence element check.
-					!MatchElement(element.el, str))
+					!MatchElement(element.el, state))
 					break;
 			}
 
-			if(last_success_pos == std::nullopt)
+			if(last_success_state == std::nullopt)
 				return false;
 
-			str= *last_success_pos;
+			state= *last_success_state;
 			return true;
 		}
 
@@ -150,11 +176,11 @@ bool MatchElementFull(const RegexIterator begin, const RegexIterator end, MatchI
 				// Check tail only after reaching minimum number of elements.
 				if(i >= element.seq.min_elements)
 				{
-					MatchInput range_copy= str;
-					if(MatchElementFull(std::next(begin), end, range_copy))
+					State state_copy= state;
+					if(MatchElementFull(std::next(begin), end, state_copy))
 					{
 						// In lazy mode return on first tail match.
-						str= range_copy;
+						state= state_copy;
 						return true;
 					}
 				}
@@ -162,10 +188,10 @@ bool MatchElementFull(const RegexIterator begin, const RegexIterator end, MatchI
 				if(i == element.seq.max_elements) // Finish loop after tail check but before sequence element check.
 					break;
 
-				MatchInput range_copy= str;
-				if(!MatchElement(element.el, range_copy))
+				State state_copy= state;
+				if(!MatchElement(element.el, state_copy))
 					break;
-				str= range_copy;
+				state= state_copy;
 			}
 
 			return false;
@@ -176,19 +202,19 @@ bool MatchElementFull(const RegexIterator begin, const RegexIterator end, MatchI
 			// In possessive mode check only sequence elements itself and check tail later.
 			for(size_t i= 0; i < element.seq.max_elements; ++i)
 			{
-				MatchInput range_copy= str;
-				if(!MatchElement(element.el, range_copy))
+				State state_copy= state;
+				if(!MatchElement(element.el, state_copy))
 				{
 					if(i < element.seq.min_elements)
 						return false;
 					else
 						break;
 				}
-				str= range_copy;
+				state= state_copy;
 			}
 
 			// Than match tail.
-			return MatchElementFull(std::next(begin), end, str);
+			return MatchElementFull(std::next(begin), end, state);
 		}
 	}
 
@@ -196,9 +222,9 @@ bool MatchElementFull(const RegexIterator begin, const RegexIterator end, MatchI
 	return false;
 }
 
-bool MatchChain(const RegexElementsChain& chain, MatchInput& str)
+bool MatchChain(const RegexElementsChain& chain, State& state)
 {
-	return MatchElementFull(chain.begin(), chain.end(), str);
+	return MatchElementFull(chain.begin(), chain.end(), state);
 }
 
 } // namespace
@@ -207,9 +233,10 @@ MatchResult Match(const RegexElementsChain& regex, const std::string_view str)
 {
 	for(size_t i= 0; i < str.size(); ++i)
 	{
-		MatchInput range= str.substr(i, str.size() - i);
-		if(MatchChain(regex, range))
-			return str.substr(i, str.size() - range.size() - i);
+		State state;
+		state.str= str.substr(i, str.size() - i);
+		if(MatchChain(regex, state))
+			return str.substr(i, str.size() - state.str.size() - i);
 	}
 
 	return std::nullopt;

@@ -1314,7 +1314,7 @@ inline const MatcherTestDataElement g_matcher_test_data[]
 				"c",
 				{}
 			},
-			{ // Simpliest possible match.
+			{ // Simplest possible match.
 				"c7",
 				{ {0, 1} }
 			},
@@ -1328,6 +1328,258 @@ inline const MatcherTestDataElement g_matcher_test_data[]
 			},
 		}
 	},
+
+	{ // Simplest backreference.
+		"(w)\\1",
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // Non-empty string - no matches.
+				"z1N",
+				{}
+			},
+			{ // No match - not enough symbols.
+				"w",
+				{}
+			},
+			{ // Simplest possible match.
+				"ww",
+				{ {0, 2} }
+			},
+			{ // Two sequential matches.
+				"wwww",
+				{ {0, 2}, {2, 4} }
+			},
+			{ // Several matches.
+				"wdaww wwaq Baww ww zwwwwww",
+				{ {3, 5}, {6, 8}, {13, 15}, {16, 18}, {20, 22}, {22, 24}, {24, 26} }
+			},
+		}
+	},
+
+	{ // Backreference to OneOf.
+		"([a-z])\\1",
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // Non-empty string - no matches.
+				"z1N",
+				{}
+			},
+			{ // Fist and seconds symbols are different - no match.
+				"hr",
+				{}
+			},
+			{ // Simplest match.
+				"hh",
+				{ {0, 2} }
+			},
+			{ // Two sequential matches with same symbol.
+				"mmmm",
+				{ {0, 2}, {2, 4} }
+			},
+			{ // Two sequential matches with different symbols.
+				"ssoo",
+				{ {0, 2}, {2, 4} }
+			},
+			{ // Several matches.
+				"bbreuu awwzz ggg abcc oons hh rss",
+				{ {0, 2}, {4, 6}, {8, 10}, {10, 12}, {13, 15}, {19, 21}, {22, 24}, {27, 29}, {31, 33} }
+			},
+		}
+	},
+
+	{ // Backreference to sequence.
+		"([a-f]+)2\\1",
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // Non-empty string - no matches.
+				"Q5/",
+				{}
+			},
+			{ // No match because sequences are different.
+				"aab2dac",
+				{}
+			},
+			{ // Simplest match.
+				"e2e",
+				{ {0, 3} }
+			},
+			{ // Match with long sequence.
+				"aabcaddeadcbb2aabcaddeadcbb",
+				{ {0, 27} }
+			},
+			{ // No match - second sequence is truncated.
+				"bac2ba",
+				{}
+			},
+			{ // Have match. Remaining symbols are ignored.
+				"accbe2accbeab",
+				{ {0, 11} }
+			},
+			{ // Different parts of same sequence are ignored.
+				"bdacea2ceaaccb",
+				{ {3, 10} }
+			},
+			{ // Different parts of same sequence are ignored.
+				"aedbeec2cbav1",
+				{ {6, 9} }
+			},
+		}
+	},
+
+	{ // Backreference inside sequence.
+		"(([a-z])\\2)+",
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // No match - symbols are different.
+				"nt",
+				{}
+			},
+			{ // Simplest possible match.
+				"aa",
+				{ {0, 2} }
+			},
+			{ // Match with several same sequence elemens.
+				"bbbbbbbb",
+				{ {0, 8} }
+			},
+			{ // Match with several different sequence elemens.
+				"ggmmoottrr",
+				{ {0, 10} }
+			},
+			{ // Single non-paired symbol breaks sequence into parts.
+				"hhtteechhuuooppzzzwwhhttgggg",
+				{ {0, 6}, {7, 17}, {18, 28} }
+			},
+		}
+	},
+
+	{ // Backreference to group with backreference inside.
+		"(([0-9])\\2+f)\\1",
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // No matches - different symbols in inner group.
+				"56f56f",
+				{}
+			},
+			{ // Simplest match.
+				"33f33f",
+				{ {0, 6} }
+			},
+			{ // Match with long sequence.
+				"22222f22222f",
+				{ {0, 12} }
+			},
+			{ // No match - second sequence is longer than first sequence.
+				"777f7777f",
+				{}
+			},
+			{ // First sequence is longer than second - it is truncated"
+				"99999999f999f",
+				{ {5, 13} }
+			},
+		}
+	},
+
+	{ // Backreference inside alternative.
+		"(Q)|(([0-7])\\3)",
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // Match first alternative.
+				"Q",
+				{ {0, 1} }
+			},
+			{ // Match second alternative.
+				"33",
+				{ {0, 2} }
+			},
+			{ // Several sequential matches.
+				"Q226655QQQ22Q336677",
+				{ {0, 1}, {1, 3}, {3, 5}, {5, 7}, {7, 8}, {8, 9}, {9, 10}, {10, 12}, {12, 13}, {13, 15}, {15, 17}, {17, 19} }
+			},
+		}
+	},
+
+	{ // Backreference in middle of expression.
+		"U([w-z])\\1V",
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // Simplest match.
+				"UyyV",
+				{ {0, 4} },
+			},
+			{ // No match - different symbols.
+				"UzwV",
+				{}
+			},
+			{ //multiple matches.
+				"UzzV waz!UzxV UxxVUwwV zzzzUzzV",
+				{ {0, 4}, {14, 18}, {18, 22}, {27, 31} }
+			},
+		}
+	},
+
+	{ // Look ahead with backreference.
+		"([a-z])[a-z]*(?=\\1)",
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // Simplest match.
+				"aa",
+				{ {0, 1} }
+			},
+			{ // No match - all symbols are different.
+				"hjtsw",
+				{}
+			},
+			{ // Macth long word ended with start symbol, but non including them.
+				"htrwach",
+				{ {0, 6} }
+			},
+			{ // Match starts in middle of string.
+				"zhtegawdg",
+				{ {4, 8} }
+			},
+			{ // Match ends in middle of word.
+				"bcdtrlebghi",
+				{ {0, 7} }
+			},
+		}
+	},
+
+	/*
+	{ // Use backreference to previous loop iteration. This works properly for PCRE expressions but not for ECMAScript.
+		"((([a-z])|G)\\3?1)+",
+		{
+			{
+				"g1Gg1",
+				{ {0, 5} }
+			},
+		}
+	},
+	*/
 
 	// Non-ASCII symbols match.
 	{
