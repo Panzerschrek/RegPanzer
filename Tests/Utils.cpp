@@ -21,6 +21,11 @@ RegexFeatureFlags GetSequeneFeaturesForElement(const Group& group)
 	return GetSequeneFeatures(group.elements);
 }
 
+RegexFeatureFlags GetSequeneFeaturesForElement(const NonCapturingGroup& noncapturing_group)
+{
+	return RegexFeatureFlag::NoncapturingGroups | GetSequeneFeatures(noncapturing_group.elements);
+}
+
 RegexFeatureFlags GetSequeneFeaturesForElement(const Alternatives& alternatives)
 {
 	RegexFeatureFlags flags= 0;

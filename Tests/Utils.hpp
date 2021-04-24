@@ -12,6 +12,7 @@ struct RegexFeatureFlag
 		LazySequences= 1 << 1,
 		PossessiveSequences= 1 << 2,
 		Look= 1 << 3,
+		NoncapturingGroups= 1 << 4,
 	};
 };
 

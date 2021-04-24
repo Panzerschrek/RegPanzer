@@ -1581,6 +1581,62 @@ inline const MatcherTestDataElement g_matcher_test_data[]
 	},
 	*/
 
+	{ // Non-capturing group groups symbols.
+		"(?:zbv)+",
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // Not enough symbols.
+				"zb",
+				{}
+			},
+			{ // Shortest possible match.
+				"zbv",
+				{ {0, 3} }
+			},
+			{ // Long match.
+				"zbvzbvzbvzbv",
+				{ {0, 12} }
+			},
+			{ // Several matches.
+				"hwawzbv zbv zbvefef wzbvzbvzbvf zbvzbv!zbvzbvzbv#",
+				{ {4, 7}, {8, 11}, {12, 15}, {21, 30}, {32, 38}, {39, 48} }
+			},
+		}
+	},
+
+	{ // Non-capturing group does not caputure.
+		"(?:ta)+([0-9])\\1",  // \1 referes to ([0-9]) group, not to (?:ta).
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // Not enough symbols.
+				"ta1",
+				{}
+			},
+			{ // Simplest match.
+				"ta22",
+				{ {0, 4} }
+			},
+			{ // Match with long sequence.
+				"tatatata99",
+				{ {0, 10} }
+			},
+			{ // Two sequential matches.
+				"tata44tatata11",
+				{ {0, 6}, {6, 14} }
+			},
+			{ // Several matches.
+				"hjtta66-- ta33 rtatata88 tatata55taq",
+				{ {3, 7}, {10, 14}, {16, 24}, {25, 33} }
+			},
+		}
+	},
+
 	// Non-ASCII symbols match.
 	{
 		"ё",
