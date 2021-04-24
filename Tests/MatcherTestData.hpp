@@ -451,6 +451,16 @@ inline const MatcherTestDataElement g_matcher_test_data[]
 		}
 	},
 
+	{ // Match group with alternatives inside.
+		"a(bc|b|x)cc",
+		{
+			{
+				"abcc", // Should capture "bc" first, than found nothing return and capture "b" instead.
+				{ {0, 4} }
+			}
+		}
+	},
+
 	// Match two sequences - word with decimal number at end.
 	{
 		"[a-z]+[0-9]+",
