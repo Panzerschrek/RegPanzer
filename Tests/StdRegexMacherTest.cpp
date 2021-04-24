@@ -38,8 +38,9 @@ TEST_P(StdRegexMatchTest, TestMatch)
 			EXPECT_EQ(result_ranges, c.result_ranges);
 		}
 	}
-	catch(const std::regex_error&)
+	catch(const std::regex_error& e)
 	{
+		std::cout << "std::regex error: " << e.what() << std::endl;
 		ASSERT_TRUE(false);
 	}
 }
