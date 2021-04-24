@@ -643,6 +643,41 @@ const TestDataElement c_test_data[]
 		}
 	},
 
+	{ // Simplest backreference.
+		"(wa)\\1",
+		{
+			{
+				Group
+				{
+					1,
+					{
+						{ SpecificSymbol{ 'w' }, { 1, 1, SequenceMode::Greedy } },
+						{ SpecificSymbol{ 'a' }, { 1, 1, SequenceMode::Greedy } }
+					}
+				},
+				{ 1, 1, SequenceMode::Greedy }
+			},
+			{
+				BackReference{ 1 },
+				{ 1, 1, SequenceMode::Greedy }
+			},
+		}
+	},
+
+	{ // Some backreferences (should parse successfully, but regex itself is not valid).
+		"a\\1?b\\5{7,12}c\\9+d\\4*",
+		{
+			{ SpecificSymbol{ 'a' }, { 1, 1, SequenceMode::Greedy } },
+			{ BackReference{ 1 }, { 0, 1, SequenceMode::Greedy } },
+			{ SpecificSymbol{ 'b' }, { 1, 1, SequenceMode::Greedy } },
+			{ BackReference{ 5 }, { 7, 12, SequenceMode::Greedy } },
+			{ SpecificSymbol{ 'c' }, { 1, 1, SequenceMode::Greedy } },
+			{ BackReference{ 9 }, { 1, Sequence::c_max, SequenceMode::Greedy } },
+			{ SpecificSymbol{ 'd' }, { 1, 1, SequenceMode::Greedy } },
+			{ BackReference{ 4 }, { 0, Sequence::c_max, SequenceMode::Greedy } },
+		}
+	},
+
 	// Non-ASCII symbols.
 	{
 		"ДёСÜ☭",

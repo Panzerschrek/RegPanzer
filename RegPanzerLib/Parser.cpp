@@ -11,7 +11,7 @@ namespace
 
 using StrView= std::basic_string_view<CharType>;
 
-std::optional<SpecificSymbol> ParseEscapeSequence(StrView& str)
+std::optional<RegexElementFull::ElementType> ParseEscapeSequence(StrView& str)
 {
 	str.remove_prefix(1); // Remove '\'
 
@@ -20,8 +20,6 @@ std::optional<SpecificSymbol> ParseEscapeSequence(StrView& str)
 
 	const CharType c= str.front();
 	str.remove_prefix(1);
-
-	SpecificSymbol symbol;
 
 	switch(c)
 	{
@@ -39,18 +37,25 @@ std::optional<SpecificSymbol> ParseEscapeSequence(StrView& str)
 	case '|':
 	case '?':
 	case '\\':
-	symbol.code= c;
-		break;
+		return SpecificSymbol{ c };
+
+	case '1':
+	case '2':
+	case '3':
+	case '4':
+	case '5':
+	case '6':
+	case '7':
+	case '8':
+	case '9':
+		return BackReference{ size_t( c - '0' ) };
 
 	case 'p':
 		// TODO - parse special symbol classes here.
 		return std::nullopt;
-
-	default:
-		return std::nullopt;
 	}
 
-	return symbol;
+	return std::nullopt;
 }
 
 std::optional<OneOf> ParseOneOf(StrView& str)
@@ -73,8 +78,13 @@ std::optional<OneOf> ParseOneOf(StrView& str)
 
 		if(c == '\\')
 		{
-			if(const auto symbol= ParseEscapeSequence(str))
-				c= symbol->code;
+			if(const auto el= ParseEscapeSequence(str))
+			{
+				if(const auto specific_symbol= std::get_if<SpecificSymbol>(&*el))
+					c= specific_symbol->code;
+				else
+					return std::nullopt;
+			}
 			else
 				return std::nullopt;
 		}

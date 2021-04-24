@@ -42,9 +42,35 @@ bool MatchElementImpl(const SpecificSymbol& specific_symbol, MatchInput& str)
 	return ExtractCodePoint(str) == specific_symbol.code;
 }
 
+bool MatchElementImpl(const OneOf& one_of, MatchInput& str)
+{
+	if(const auto code= ExtractCodePoint(str))
+	{
+		for(const CharType& v : one_of.variants)
+			if(*code == v)
+				return !one_of.inverse_flag;
+
+		for(const auto& range : one_of.ranges)
+			if(*code >= range.first && *code <= range.second)
+				return !one_of.inverse_flag;
+
+		return one_of.inverse_flag;
+	}
+
+	return false;
+}
+
 bool MatchElementImpl(const Group& group, MatchInput& str)
 {
 	return MatchChain(group.elements, str);
+}
+
+bool MatchElementImpl(const BackReference& back_reference, MatchInput& str)
+{
+	// TODO
+	(void)back_reference;
+	(void)str;
+	return false;
 }
 
 bool MatchElementImpl(const Alternatives& alternatives, MatchInput& str)
@@ -57,27 +83,6 @@ bool MatchElementImpl(const Alternatives& alternatives, MatchInput& str)
 			str= range_copy;
 			return true;
 		}
-	}
-
-	return false;
-}
-
-bool MatchElementImpl(const OneOf& one_of, MatchInput& str)
-{
-	if(str.empty())
-		return false;
-
-	if(const auto code= ExtractCodePoint(str))
-	{
-		for(const CharType& v : one_of.variants)
-			if(*code == v)
-				return !one_of.inverse_flag;
-
-		for(const auto& range : one_of.ranges)
-			if(*code >= range.first && *code <= range.second)
-				return !one_of.inverse_flag;
-
-		return one_of.inverse_flag;
 	}
 
 	return false;

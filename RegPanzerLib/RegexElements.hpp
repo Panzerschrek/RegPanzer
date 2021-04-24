@@ -42,6 +42,31 @@ struct OneOf
 	bool operator!=(const OneOf& other) const { return !(*this == other); }
 };
 
+struct Group
+{
+	size_t index= std::numeric_limits<size_t>::max(); // Started from 1.
+	RegexElementsChain elements;
+
+	bool operator==(const Group& other) const { return this->index == other.index && this->elements == other.elements; }
+	bool operator!=(const Group& other) const { return !(*this == other); }
+};
+
+struct BackReference
+{
+	size_t index= std::numeric_limits<size_t>::max(); // Started from 1.
+
+	bool operator==(const BackReference& other) const { return this->index == other.index; }
+	bool operator!=(const BackReference& other) const { return !(*this == other); }
+};
+
+struct Alternatives
+{
+	std::vector<RegexElementsChain> alternatives;
+
+	bool operator==(const Alternatives& other) const { return alternatives == other.alternatives; }
+	bool operator!=(const Alternatives& other) const { return !(*this == other); }
+};
+
 struct Look
 {
 	bool forward= true;
@@ -90,32 +115,16 @@ struct Sequence
 	bool operator!=(const Sequence& other) const { return !(*this == other); }
 };
 
-struct Group
-{
-	size_t index= std::numeric_limits<size_t>::max(); // Started from 1.
-	RegexElementsChain elements;
-
-	bool operator==(const Group& other) const { return this->index == other.index && this->elements == other.elements; }
-	bool operator!=(const Group& other) const { return !(*this == other); }
-};
-
-struct Alternatives
-{
-	std::vector<RegexElementsChain> alternatives;
-
-	bool operator==(const Alternatives& other) const { return alternatives == other.alternatives; }
-	bool operator!=(const Alternatives& other) const { return !(*this == other); }
-};
-
 struct RegexElementFull
 {
 	using ElementType =
 		std::variant<
 			AnySymbol,
 			SpecificSymbol,
-			Group,
-			Alternatives,
 			OneOf,
+			Group,
+			BackReference,
+			Alternatives,
 			Look>;
 
 	ElementType	el;
