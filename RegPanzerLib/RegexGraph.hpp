@@ -88,7 +88,8 @@ struct LoopEnter
 
 struct LoopCounterBlock
 {
-	NodePtr::weak_type next_iteration;
+	// TODO - fix strong loop here!
+	NodePtr next_iteration;
 	NodePtr next_loop_end;
 	LoopId id= nullptr;
 	size_t min_elements= 0u;

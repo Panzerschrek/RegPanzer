@@ -31,7 +31,7 @@ TEST_P(MatchTest, TestMatch)
 		while(true)
 		{
 			const MatchResult res= Match(regex_graph, str);
-			if(res == std::nullopt)
+			if(res == std::nullopt || res->empty())
 				break;
 
 			result_ranges.emplace_back(size_t(res->data() - c.input_str.data()), size_t(res->data() + res->size() - c.input_str.data()));

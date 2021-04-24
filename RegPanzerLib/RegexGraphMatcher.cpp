@@ -2,6 +2,7 @@
 #include "PushDisableLLVMWarnings.hpp"
 #include <llvm/Support/ConvertUTF.h>
 #include "PopLLVMWarnings.hpp"
+#include <cassert>
 #include <unordered_map>
 
 namespace RegPanzer
@@ -124,18 +125,31 @@ bool MatchNodeImpl(const GraphElements::LoopCounterBlock& node, State& state)
 {
 	size_t& loop_counter= state.loop_counters[node.id];
 
+	bool res= false;
+
+	const auto next_iteration= node.next_iteration;
+	assert(next_iteration != nullptr);
+
 	if(loop_counter < node.min_elements)
-		return MatchNode(node.next_iteration.lock(), state);
+	{
+		++loop_counter;
+		res= MatchNode(next_iteration, state);
+		--loop_counter;
+	}
 	else if(loop_counter >= node.max_elements)
-		return MatchNode(node.next_loop_end, state);
+	{
+		++loop_counter;
+		res= MatchNode(node.next_loop_end, state);
+		--loop_counter;
+	}
 	else
 	{
 		++loop_counter;
+
 		State state_copy= state;
-		bool res= false;
 		if(node.greedy)
 		{
-			if(MatchNode(node.next_iteration.lock(), state_copy))
+			if(MatchNode(next_iteration, state_copy))
 			{
 				state= state_copy;
 				res= true;
@@ -151,12 +165,13 @@ bool MatchNodeImpl(const GraphElements::LoopCounterBlock& node, State& state)
 				res= true;
 			}
 			else
-				res= MatchNode(node.next_iteration.lock(), state);
+				res= MatchNode(next_iteration, state);
 		}
 
 		--loop_counter;
-		return res;
 	}
+
+	return res;
 }
 
 bool MatchNode(const GraphElements::NodePtr& node, State& state)

@@ -450,7 +450,7 @@ inline const MatcherTestDataElement g_matcher_test_data[]
 			},
 		}
 	},
-
+#if 0
 	{ // Match group with alternatives inside.
 		"a(bc|b|x)cc",
 		{
@@ -460,7 +460,7 @@ inline const MatcherTestDataElement g_matcher_test_data[]
 			}
 		}
 	},
-
+#endif
 	// Match two sequences - word with decimal number at end.
 	{
 		"[a-z]+[0-9]+",
@@ -917,7 +917,7 @@ inline const MatcherTestDataElement g_matcher_test_data[]
 			},
 		}
 	},
-
+#if 0
 	// Match possessive sequence.
 	{
 		// There is no way to match this regex, because possessive sequence will always extract 'q' symbol.
@@ -1578,7 +1578,7 @@ inline const MatcherTestDataElement g_matcher_test_data[]
 			},
 		}
 	},
-
+#endif
 	/*
 	{ // Use backreference to previous loop iteration. This works properly for PCRE expressions but not for ECMAScript.
 		"((([a-z])|G)\\3?1)+",
@@ -1673,6 +1673,7 @@ inline const MatcherTestDataElement g_matcher_test_data[]
 			},
 		},
 	},
+
 };
 
 } // namespace RegPanzer
