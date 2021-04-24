@@ -643,6 +643,21 @@ const TestDataElement c_test_data[]
 		}
 	},
 
+	{ // Noncapturing group.
+		"(?:gf+d){44,}",
+		{
+			{
+				NonCapturingGroup
+				{{
+					{ SpecificSymbol{ 'g' }, { 1, 1, SequenceMode::Greedy } },
+					{ SpecificSymbol{ 'f' }, { 1, Sequence::c_max, SequenceMode::Greedy } },
+					{ SpecificSymbol{ 'd' }, { 1, 1, SequenceMode::Greedy } },
+				}},
+				{ 44, Sequence::c_max, SequenceMode::Greedy }
+			}
+		}
+	},
+
 	{ // Simplest backreference.
 		"(wa)\\1",
 		{

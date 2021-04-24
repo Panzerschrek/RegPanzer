@@ -100,6 +100,11 @@ bool MatchElementImpl(const BackReference& back_reference, State& state)
 	return false;
 }
 
+bool MatchElementImpl(const NonCapturingGroup& non_capturing_group, State& state)
+{
+	return MatchChain(non_capturing_group.elements, state);
+}
+
 bool MatchElementImpl(const Alternatives& alternatives, State& state)
 {
 	for(const RegexElementsChain& chain : alternatives.alternatives)

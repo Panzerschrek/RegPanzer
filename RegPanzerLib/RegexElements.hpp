@@ -59,6 +59,14 @@ struct BackReference
 	bool operator!=(const BackReference& other) const { return !(*this == other); }
 };
 
+struct NonCapturingGroup
+{
+	RegexElementsChain elements;
+
+	bool operator==(const NonCapturingGroup& other) const { return this->elements == other.elements; }
+	bool operator!=(const NonCapturingGroup& other) const { return !(*this == other); }
+};
+
 struct Alternatives
 {
 	std::vector<RegexElementsChain> alternatives;
@@ -124,6 +132,7 @@ struct RegexElementFull
 			OneOf,
 			Group,
 			BackReference,
+			NonCapturingGroup,
 			Alternatives,
 			Look>;
 
