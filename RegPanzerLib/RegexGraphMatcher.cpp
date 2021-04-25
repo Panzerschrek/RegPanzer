@@ -108,7 +108,10 @@ bool MatchNodeImpl(const GraphElements::BackReference& node, State& state)
 	{
 		const std::string_view prev_value= state.groups[node.index];
 		if(state.str.size() >= prev_value.size() && state.str.substr(0, prev_value.size()) == prev_value)
+		{
+			state.str.remove_prefix(prev_value.size());
 			return MatchNode(node.next, state);
+		}
 	}
 
 	return false;

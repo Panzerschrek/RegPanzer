@@ -1338,7 +1338,7 @@ inline const MatcherTestDataElement g_matcher_test_data[]
 			},
 		}
 	},
-
+#endif
 	{ // Simplest backreference.
 		"(w)\\1",
 		{
@@ -1548,7 +1548,7 @@ inline const MatcherTestDataElement g_matcher_test_data[]
 			},
 		}
 	},
-
+#if 0
 	{ // Look ahead with backreference.
 		"([a-z])[a-z]*(?=\\1)",
 		{
