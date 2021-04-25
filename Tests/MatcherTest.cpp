@@ -1,5 +1,4 @@
 #include "MatcherTestData.hpp"
-#include "../RegPanzerLib/Matcher.hpp"
 #include "../RegPanzerLib/Parser.hpp"
 #include "../RegPanzerLib/RegexGraph.hpp"
 #include "../RegPanzerLib/RegexGraphMatcher.hpp"
