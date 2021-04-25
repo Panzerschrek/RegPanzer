@@ -1673,7 +1673,6 @@ inline const MatcherTestDataElement g_matcher_test_data[]
 			},
 		},
 	},
-
 };
 
 } // namespace RegPanzer

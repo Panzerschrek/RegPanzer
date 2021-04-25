@@ -95,13 +95,13 @@ using LoopId= const void*;
 struct LoopEnter
 {
 	NodePtr next; // To loop counter block.
+	NodePtr loop_iteration_node; // Used only to hold strong shared_pointer to it.
 	LoopId id= nullptr;
 };
 
 struct LoopCounterBlock
 {
-	// TODO - fix strong loop here!
-	NodePtr next_iteration;
+	NodePtr::weak_type next_iteration;
 	NodePtr next_loop_end;
 	LoopId id= nullptr;
 	size_t min_elements= 0u;

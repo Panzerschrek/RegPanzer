@@ -56,9 +56,9 @@ bool MatchNodeImpl(const GraphElements::OneOf& node, State& state)
 		return false;
 
 	bool found= false;
-		for(const CharType& v : node.variants)
-			if(*code == v)
-				found= true;
+	for(const CharType& v : node.variants)
+		if(*code == v)
+			found= true;
 
 	for(const auto& range : node.ranges)
 		if(*code >= range.first && *code <= range.second)
@@ -142,7 +142,7 @@ bool MatchNodeImpl(const GraphElements::LoopCounterBlock& node, State& state)
 	const size_t loop_counter= state.loop_counters[node.id];
 	++state.loop_counters[node.id];
 
-	const auto next_iteration= node.next_iteration;
+	const auto next_iteration= node.next_iteration.lock();
 	assert(next_iteration != nullptr);
 
 	if(loop_counter < node.min_elements)
@@ -151,7 +151,6 @@ bool MatchNodeImpl(const GraphElements::LoopCounterBlock& node, State& state)
 		return MatchNode(node.next_loop_end, state);
 	else
 	{
-
 		State state_copy= state;
 		if(node.greedy)
 		{

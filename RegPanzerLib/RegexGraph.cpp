@@ -162,7 +162,7 @@ GraphElements::NodePtr BuildRegexGraphImpl(const RegexChainIterator begin, const
 					});
 
 		SetMostRightNext(*node, loop_counter_block);
-		return std::make_shared<GraphElements::Node>(GraphElements::LoopEnter{loop_counter_block, id});
+		return std::make_shared<GraphElements::Node>(GraphElements::LoopEnter{loop_counter_block, node, id});
 	}
 }
 
