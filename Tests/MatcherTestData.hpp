@@ -917,7 +917,7 @@ inline const MatcherTestDataElement g_matcher_test_data[]
 			},
 		}
 	},
-#if 0
+
 	// Match possessive sequence.
 	{
 		// There is no way to match this regex, because possessive sequence will always extract 'q' symbol.
@@ -984,7 +984,7 @@ inline const MatcherTestDataElement g_matcher_test_data[]
 			},
 		}
 	},
-#endif
+
 	// Simple alternative.
 	{
 		"a|b",
@@ -1202,7 +1202,7 @@ inline const MatcherTestDataElement g_matcher_test_data[]
 			},
 		}
 	},
-#if 0
+
 	{  // Negative lookahead for possessive sequence.
 		"[a-z]++(?!\\.)", // This regex extracts all words but ignore whole words with '.' at end.
 		{
@@ -1232,7 +1232,7 @@ inline const MatcherTestDataElement g_matcher_test_data[]
 			},
 		}
 	},
-#endif
+
 	{ // Negative lookahead in middle of regex.
 		"Q(?!jb)[a-z]+",
 		{
@@ -1548,7 +1548,7 @@ inline const MatcherTestDataElement g_matcher_test_data[]
 			},
 		}
 	},
-#if 0
+
 	{ // Look ahead with backreference.
 		"([a-z])[a-z]*(?=\\1)",
 		{
@@ -1578,7 +1578,7 @@ inline const MatcherTestDataElement g_matcher_test_data[]
 			},
 		}
 	},
-#endif
+
 	/*
 	{ // Use backreference to previous loop iteration. This works properly for PCRE expressions but not for ECMAScript.
 		"((([a-z])|G)\\3?1)+",

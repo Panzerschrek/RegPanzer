@@ -135,6 +135,17 @@ GraphElements::NodePtr BuildRegexGraphImpl(const RegexChainIterator begin, const
 		SetMostRightNext(*node, next_node);
 		return node;
 	}
+	else if(element.seq.mode == SequenceMode::Possessive)
+	{
+		return
+			std::make_shared<GraphElements::Node>(
+				GraphElements::PossessiveSequence{
+					next_node,
+					node,
+					element.seq.min_elements,
+					element.seq.max_elements,
+					});
+	}
 	else
 	{
 		const GraphElements::LoopId id= &element;

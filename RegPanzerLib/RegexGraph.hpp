@@ -22,6 +22,7 @@ struct BackReference;
 struct Look;
 struct LoopEnter;
 struct LoopCounterBlock;
+struct PossessiveSequence;
 
 using Node= std::variant<
 	AnySymbol,
@@ -33,7 +34,8 @@ using Node= std::variant<
 	BackReference,
 	Look,
 	LoopEnter,
-	LoopCounterBlock>;
+	LoopCounterBlock,
+	PossessiveSequence>;
 
 using NodePtr= std::shared_ptr<Node>;
 
@@ -105,6 +107,14 @@ struct LoopCounterBlock
 	size_t min_elements= 0u;
 	size_t max_elements= 0u;
 	bool greedy= true;
+};
+
+struct PossessiveSequence
+{
+	NodePtr next;
+	NodePtr sequence_element;
+	size_t min_elements= 0u;
+	size_t max_elements= 0u;
 };
 
 } // GraphElements

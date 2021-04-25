@@ -176,6 +176,23 @@ bool MatchNodeImpl(const GraphElements::LoopCounterBlock& node, State& state)
 	}
 }
 
+bool MatchNodeImpl(const GraphElements::PossessiveSequence& node, State& state)
+{
+	for(size_t i= 0; i < node.max_elements; ++i)
+	{
+		State state_copy= state;
+		if(!MatchNode(node.sequence_element, state_copy))
+		{
+			if(i < node.min_elements)
+				return false;
+			break;
+		}
+		state= state_copy;
+	}
+
+	return MatchNode(node.next, state);
+}
+
 bool MatchNode(const GraphElements::NodePtr& node, State& state)
 {
 	if(node == nullptr)
