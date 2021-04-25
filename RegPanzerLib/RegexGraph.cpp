@@ -42,6 +42,9 @@ void SetMostRightNextImpl(GraphElements::LoopCounterBlock& node, const GraphElem
 
 void SetMostRightNext(GraphElements::Node& node, const GraphElements::NodePtr& next)
 {
+	if(&node == next.get())
+		return; // Hack for alternatives.
+
 	std::visit([&](auto& el){ return SetMostRightNextImpl(el, next); }, node);
 }
 

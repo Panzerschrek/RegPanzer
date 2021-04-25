@@ -450,7 +450,7 @@ inline const MatcherTestDataElement g_matcher_test_data[]
 			},
 		}
 	},
-#if 0
+
 	{ // Match group with alternatives inside.
 		"a(bc|b|x)cc",
 		{
@@ -460,7 +460,7 @@ inline const MatcherTestDataElement g_matcher_test_data[]
 			}
 		}
 	},
-#endif
+
 	// Match two sequences - word with decimal number at end.
 	{
 		"[a-z]+[0-9]+",
@@ -984,7 +984,7 @@ inline const MatcherTestDataElement g_matcher_test_data[]
 			},
 		}
 	},
-
+#endif
 	// Simple alternative.
 	{
 		"a|b",
@@ -1136,7 +1136,7 @@ inline const MatcherTestDataElement g_matcher_test_data[]
 			},
 		}
 	},
-
+#if 0
 	// Simple positive lookahead.
 	{
 		"w(?=Q)",
