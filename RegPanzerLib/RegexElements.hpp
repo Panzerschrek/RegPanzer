@@ -100,6 +100,15 @@ struct Look
 	bool operator!=(const Look& other) const { return !(*this == other); }
 };
 
+struct ConditionalElement
+{
+	Look look;
+	Alternatives alternatives; // Expected exactly 2 alternatives.
+
+	bool operator==(const ConditionalElement& other) const { return look == other.look && alternatives == other.alternatives; }
+	bool operator!=(const ConditionalElement& other) const { return !(*this == other); }
+};
+
 enum class SequenceMode : uint8_t
 {
 	Greedy,
@@ -143,7 +152,8 @@ struct RegexElementFull
 			NonCapturingGroup,
 			AtomicGroup,
 			Alternatives,
-			Look>;
+			Look,
+			ConditionalElement>;
 
 	ElementType	el;
 

@@ -11,6 +11,8 @@ namespace
 
 using StrView= std::basic_string_view<CharType>;
 
+std::optional<RegexElementsChain> ParseRegexStringImpl(size_t& next_group_index, StrView& str);
+
 std::optional<RegexElementFull::ElementType> ParseEscapeSequence(StrView& str)
 {
 	str.remove_prefix(1); // Remove '\'
@@ -232,7 +234,45 @@ std::optional<Sequence> ParseSequence(StrView& str)
 	return seq;
 }
 
-// Work in progress!
+std::optional<Look> ParseLook(size_t& next_group_index, StrView& str)
+{
+	Look look;
+
+	if(str.empty())
+		return std::nullopt;
+
+	if(str.front() == '<')
+	{
+		str.remove_prefix(1);
+		look.forward= false;
+	}
+	else
+		look.forward= true;
+
+	if(str.empty())
+		return std::nullopt;
+
+	if(str.front() == '=')
+		look.positive= true;
+	else if(str.front() == '!')
+		look.positive= false;
+	else
+		return std::nullopt;
+
+	str.remove_prefix(1);
+
+	auto sub_elements= ParseRegexStringImpl(next_group_index, str);
+	if(sub_elements == std::nullopt)
+		return std::nullopt;
+
+	if(str.empty() || str.front() != ')')
+		return std::nullopt;
+	str.remove_prefix(1);
+
+	look.elements= std::move(*sub_elements);
+	return look;
+}
+
 std::optional<RegexElementsChain> ParseRegexStringImpl(size_t& next_group_index, StrView& str)
 {
 	RegexElementsChain chain;
@@ -313,42 +353,37 @@ std::optional<RegexElementsChain> ParseRegexStringImpl(size_t& next_group_index,
 
 					res.el= AtomicGroup{ std::move(*sub_elements) };
 				}
-				else
+				else if(str.size() >= 2 && str[0] == '(' && str[1] == '?')
 				{
-					Look look;
-
-					if(str.front() == '<')
-					{
-						str.remove_prefix(1);
-						look.forward= false;
-					}
-					else
-						look.forward= true;
-
-					if(str.empty())
+					str.remove_prefix(2);
+					auto look= ParseLook(next_group_index, str);
+					if(look == std::nullopt)
 						return std::nullopt;
-
-					if(str.front() == '=')
-						look.positive= true;
-					else if(str.front() == '!')
-						look.positive= false;
-					else
-					{
-						// TODO - handle error here
-						return std::nullopt;
-					}
-					str.remove_prefix(1);
 
 					auto sub_elements= ParseRegexStringImpl(next_group_index, str);
-					if(sub_elements == std::nullopt)
-						return std::nullopt;
-
 					if(str.empty() || str.front() != ')')
 						return std::nullopt;
 					str.remove_prefix(1);
 
-					look.elements= std::move(*sub_elements);
-					res.el= std::move(look);
+					if(sub_elements == std::nullopt || sub_elements->size() != 1)
+						return std::nullopt;
+					auto* const alternatives= std::get_if<Alternatives>(&sub_elements->front().el);
+					if(alternatives == nullptr || alternatives->alternatives.size() != 2)
+						return std::nullopt;
+
+					ConditionalElement conditional_element;
+					conditional_element.look= *look;
+					conditional_element.alternatives= std::move(*alternatives);
+
+					res.el= std::move(conditional_element);
+				}
+				else
+				{
+					auto look= ParseLook(next_group_index, str);
+					if(look == std::nullopt)
+						return std::nullopt;
+
+					res.el= std::move(*look);
 				}
 			}
 			else

@@ -686,6 +686,33 @@ const TestDataElement c_test_data[]
 		}
 	},
 
+	{ // Conditional element.
+		"(?(?=0)[0-9]+|[a-z]+)",
+		{
+			{
+				ConditionalElement
+				{
+					{
+						true,
+						true,
+						{
+							{ SpecificSymbol{ '0' }, { 1, 1, SequenceMode::Greedy } }
+						}
+					},
+					{ {
+						{
+							{ OneOf{ {}, { {'0', '9'} }, false }, { 1, Sequence::c_max, SequenceMode::Greedy } }
+						},
+						{
+							{ OneOf{ {}, { {'a', 'z'} }, false }, { 1, Sequence::c_max, SequenceMode::Greedy } }
+						}
+					} }
+				},
+				{ 1, 1, SequenceMode::Greedy }
+			}
+		}
+	},
+
 	{ // Simplest backreference.
 		"(wa)\\1",
 		{
