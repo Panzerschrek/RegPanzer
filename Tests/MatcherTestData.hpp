@@ -1647,6 +1647,42 @@ inline const MatcherTestDataElement g_matcher_test_data[]
 		}
 	},
 
+	{ // Atomic group.
+		"a(?>bc|b|x)cc",
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // There is no way back after alternative "ab" selected.
+				"abcc",
+				{}
+			},
+			{ // Ok, alternative "x" selected.
+				"axcc",
+				{ {0, 4} }
+			},
+			{ // After variant "abcc" found, there is no way back, so match fails for "abcc", but succeeded for "axcc".
+				"abccaxcc",
+				{ {4, 8} }
+			},
+		}
+	},
+
+	{ // Atomic group.
+		"(?>x*)xa",
+		{
+			{ // There is no way back after all "x" extracted inside atomic group.
+				"xxxa",
+				{}
+			},
+			{
+				"xa",
+				{}
+			},
+		}
+	},
+
 	// Non-ASCII symbols match.
 	{
 		"ё",

@@ -90,10 +90,11 @@ GraphElements::NodePtr BuildRegexGraphNodeImpl(const NonCapturingGroup& non_capt
 
 GraphElements::NodePtr BuildRegexGraphNodeImpl(const AtomicGroup& atomic_group)
 {
-	// TODO
-	(void)atomic_group;
-	assert(false);
-	return nullptr;
+	return
+		std::make_shared<GraphElements::Node>(
+			GraphElements::AtomicGroup{
+				nullptr,
+				BuildRegexGraphImpl(atomic_group.elements.begin(), atomic_group.elements.end())});
 }
 
 GraphElements::NodePtr BuildRegexGraphNodeImpl(const Alternatives& alternatives)

@@ -18,7 +18,10 @@ TEST_P(StdRegexMatchTest, TestMatch)
 	const auto param= GetParam();
 
 	// Ignore unsupported features.
-	if((GetRegexFeatures(param.regex_str) & (RegexFeatureFlag::UTF8 | RegexFeatureFlag::PossessiveSequences)) != 0)
+	if((GetRegexFeatures(param.regex_str) & (
+			RegexFeatureFlag::UTF8 |
+			RegexFeatureFlag::PossessiveSequences |
+			RegexFeatureFlag::AtomicGroups)) != 0)
 		return;
 
 	try

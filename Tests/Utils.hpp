@@ -13,6 +13,7 @@ struct RegexFeatureFlag
 		PossessiveSequences= 1 << 2,
 		Look= 1 << 3,
 		NoncapturingGroups= 1 << 4,
+		AtomicGroups= 1 << 5,
 	};
 };
 

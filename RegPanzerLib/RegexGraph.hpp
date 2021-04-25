@@ -23,6 +23,7 @@ struct Look;
 struct LoopEnter;
 struct LoopCounterBlock;
 struct PossessiveSequence;
+struct AtomicGroup;
 
 using Node= std::variant<
 	AnySymbol,
@@ -35,7 +36,8 @@ using Node= std::variant<
 	Look,
 	LoopEnter,
 	LoopCounterBlock,
-	PossessiveSequence>;
+	PossessiveSequence,
+	AtomicGroup>;
 
 using NodePtr= std::shared_ptr<Node>;
 
@@ -115,6 +117,12 @@ struct PossessiveSequence
 	NodePtr sequence_element;
 	size_t min_elements= 0u;
 	size_t max_elements= 0u;
+};
+
+struct AtomicGroup
+{
+	NodePtr next;
+	NodePtr group_element;
 };
 
 } // GraphElements

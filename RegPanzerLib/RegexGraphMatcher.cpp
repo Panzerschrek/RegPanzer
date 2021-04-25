@@ -192,6 +192,18 @@ bool MatchNodeImpl(const GraphElements::PossessiveSequence& node, State& state)
 	return MatchNode(node.next, state);
 }
 
+bool MatchNodeImpl(const GraphElements::AtomicGroup& node, State& state)
+{
+	State state_copy= state;
+	if(MatchNode(node.group_element, state_copy))
+	{
+		state= state_copy;
+		return MatchNode(node.next, state);
+	}
+
+	return false;
+}
+
 bool MatchNode(const GraphElements::NodePtr& node, State& state)
 {
 	if(node == nullptr)
