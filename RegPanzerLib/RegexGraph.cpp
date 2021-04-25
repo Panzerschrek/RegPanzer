@@ -87,6 +87,13 @@ GraphElements::NodePtr BuildRegexGraphNodeImpl(const ConditionalElement& conditi
 	return std::make_shared<GraphElements::Node>(std::move(out_node));
 }
 
+GraphElements::NodePtr BuildRegexGraphNodeImpl(const RecursionGroup& atomic_recursion_group, const GraphElements::NodePtr& next)
+{
+	// TODO
+	(void)atomic_recursion_group;
+	return next;
+}
+
 GraphElements::NodePtr BuildRegexGraphNode(const RegexElementFull::ElementType& element, const GraphElements::NodePtr& next)
 {
 	return std::visit([&](const auto& el){ return BuildRegexGraphNodeImpl(el, next); }, element);

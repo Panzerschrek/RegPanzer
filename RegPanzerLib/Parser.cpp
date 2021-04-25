@@ -325,7 +325,28 @@ std::optional<RegexElementsChain> ParseRegexStringImpl(size_t& next_group_index,
 				if(str.empty())
 					return std::nullopt;
 
-				if(str.front() == ':')
+				if(str.front() == 'R')
+				{
+					str.remove_prefix(1);
+
+					if(str.empty() || str.front() != ')')
+						return std::nullopt;
+					str.remove_prefix(1);
+
+					res.el= RecursionGroup{ 0 };
+				}
+				else if(str.front() >= '0' && str.front() <= '9')
+				{
+					const auto index= size_t(str.front() - '0');
+					str.remove_prefix(1);
+
+					if(str.empty() || str.front() != ')')
+						return std::nullopt;
+					str.remove_prefix(1);
+
+					res.el= RecursionGroup{ index };
+				}
+				else if(str.front() == ':')
 				{
 					str.remove_prefix(1);
 

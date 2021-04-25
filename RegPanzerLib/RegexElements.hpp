@@ -109,6 +109,13 @@ struct ConditionalElement
 	bool operator!=(const ConditionalElement& other) const { return !(*this == other); }
 };
 
+struct RecursionGroup
+{
+	size_t index= std::numeric_limits<size_t>::max(); // 0 - whole expression, 1 - first grout, 2 - second group, etc.
+	bool operator==(const RecursionGroup& other) const { return index == other.index; }
+	bool operator!=(const RecursionGroup& other) const { return !(*this == other); }
+};
+
 enum class SequenceMode : uint8_t
 {
 	Greedy,
@@ -153,7 +160,8 @@ struct RegexElementFull
 			AtomicGroup,
 			Alternatives,
 			Look,
-			ConditionalElement>;
+			ConditionalElement,
+			RecursionGroup>;
 
 	ElementType	el;
 
