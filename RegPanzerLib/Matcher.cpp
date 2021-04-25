@@ -1,4 +1,4 @@
-#include "RegexGraphMatcher.hpp"
+#include "Matcher.hpp"
 #include "PushDisableLLVMWarnings.hpp"
 #include <llvm/Support/ConvertUTF.h>
 #include "PopLLVMWarnings.hpp"
