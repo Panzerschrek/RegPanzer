@@ -131,6 +131,15 @@ bool MatchNodeImpl(const GraphElements::Look& node, State& state)
 	}
 }
 
+bool MatchNodeImpl(const GraphElements::ConditionalElement& node, State& state)
+{
+	State state_copy= state;
+	if(MatchNode(node.condition_node, state_copy))
+		return MatchNode(node.next_true, state);
+	else
+		return MatchNode(node.next_false, state);
+}
+
 bool MatchNodeImpl(const GraphElements::LoopEnter& node, State& state)
 {
 	state.loop_counters[node.id]= 0;

@@ -1683,6 +1683,112 @@ inline const MatcherTestDataElement g_matcher_test_data[]
 		}
 	},
 
+	{ // Conditional element.
+		"(?(?=0)[0-9]+|[a-z]+)Q",
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // Shortest match with first alternative.
+				"0Q",
+				{ {0, 2} }
+			},
+			{ // Long match with first alternative.
+				"0542354653Q",
+				{ {0, 11} }
+			},
+			{ // No match with first alternative because of condition.
+				"54Q",
+				{}
+			},
+			{ // Shortest match with second alternative.
+				"hQ",
+				{ {0, 2} }
+			},
+			{ // Long match with second alternative.
+				"rhijtrcvklofQ",
+				{ {0, 13} }
+			},
+		}
+	},
+
+	{ // Conditional element with negative condition.
+		"(?(?!7)[A-Z]+|[0-9]+)",
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // Shortest first alternative.
+				"H",
+				{ {0, 1} }
+			},
+			{ // Long first alternative.
+				"NJOWNAWW",
+				{ {0, 8} }
+			},
+			{ // Control flow goes to first alternative but later match fails. So, match succeeded only statred with position 1.
+				"6NH",
+				{ {1, 3} }
+			},
+			{ // Shortest second alternative.
+				"7",
+				{ {0, 1} }
+			},
+			{ // Long second alternative.
+				"765444224",
+				{ {0, 9} }
+			},
+			{ // Sequence started with first '7' extracted.
+				"056373783",
+				{ {4, 9} }
+			},
+		}
+	},
+
+	{ // Conditional element with long look condition.
+		"(?(?=..y)[a-z]+|[a-xz]+)",  // if third symbol is 'y' - match words, else - match words without 'y'.
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // Shortest first alternative.
+				"ywy",
+				{ {0, 3} }
+			},
+			{ // Long first alternative.
+				"wyywdfwkmhdybva",
+				{ {0, 15} }
+			},
+			{ // Shortest second alternative.
+				"c",
+				{ {0, 1} }
+			},
+			{ // No match - if there is no 'y' in third position 'y' will be ignored.
+				"y",
+				{}
+			},
+			{ // There is no match starting from start position because there is no 'y' in third position and 'y' in beginning will be ignored.
+				"yoc",
+				{ {1, 3} }
+			},
+			{ // Several matches with second alternative - break on 'y' symbol
+				"wdvwyvnjywcdbjjywdfyy",
+				{ {0, 4}, {5, 8}, {9, 15}, {16, 19} }
+			},
+			{ // Two sequential matches - for first and for second alternatives.
+				"abcdefyzyjhyu",
+				{ {0, 6}, {6, 13} }
+			},
+			{ // Replacing single 'y' in sequence abore produces significantly different result.
+				"abcdefyzfjhyu",
+				{ {0, 6}, {7, 11}, {12, 13} }
+			},
+		}
+	},
+
 	// Non-ASCII symbols match.
 	{
 		"ё",

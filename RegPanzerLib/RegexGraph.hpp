@@ -20,6 +20,7 @@ struct GroupStart;
 struct GroupEnd;
 struct BackReference;
 struct Look;
+struct ConditionalElement;
 struct LoopEnter;
 struct LoopCounterBlock;
 struct PossessiveSequence;
@@ -34,6 +35,7 @@ using Node= std::variant<
 	GroupEnd,
 	BackReference,
 	Look,
+	ConditionalElement,
 	LoopEnter,
 	LoopCounterBlock,
 	PossessiveSequence,
@@ -90,6 +92,13 @@ struct Look
 	NodePtr look_graph;
 	bool forward= true;
 	bool positive= true;
+};
+
+struct ConditionalElement
+{
+	NodePtr condition_node;
+	NodePtr next_true;
+	NodePtr next_false;
 };
 
 using LoopId= const void*;

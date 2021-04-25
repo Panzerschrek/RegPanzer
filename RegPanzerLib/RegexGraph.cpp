@@ -79,9 +79,12 @@ GraphElements::NodePtr BuildRegexGraphNodeImpl(const Look& look, const GraphElem
 
 GraphElements::NodePtr BuildRegexGraphNodeImpl(const ConditionalElement& conditional_element, const GraphElements::NodePtr& next)
 {
-	// TODO
-	(void)conditional_element;
-	return next;
+	GraphElements::ConditionalElement out_node;
+	out_node.condition_node= BuildRegexGraphNodeImpl(conditional_element.look, nullptr);
+	out_node.next_true=  BuildRegexGraphImpl(conditional_element.alternatives.alternatives[0].begin(), conditional_element.alternatives.alternatives[0].end(), next);
+	out_node.next_false= BuildRegexGraphImpl(conditional_element.alternatives.alternatives[1].begin(), conditional_element.alternatives.alternatives[1].end(), next);
+
+	return std::make_shared<GraphElements::Node>(std::move(out_node));
 }
 
 GraphElements::NodePtr BuildRegexGraphNode(const RegexElementFull::ElementType& element, const GraphElements::NodePtr& next)

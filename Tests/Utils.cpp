@@ -11,9 +11,9 @@ RegexFeatureFlags GetSequeneFeatures(const RegexElementsChain& chain);
 
 template<typename T> RegexFeatureFlags GetSequeneFeaturesForElement(const T&){ return 0; }
 
-RegexFeatureFlags GetSequeneFeaturesForElement(const Look&)
+RegexFeatureFlags GetSequeneFeaturesForElement(const Look& look)
 {
-	return RegexFeatureFlag::Look;
+	return RegexFeatureFlag::Look | GetSequeneFeatures(look.elements);
 }
 
 RegexFeatureFlags GetSequeneFeaturesForElement(const Group& group)
@@ -29,6 +29,14 @@ RegexFeatureFlags GetSequeneFeaturesForElement(const NonCapturingGroup& noncaptu
 RegexFeatureFlags GetSequeneFeaturesForElement(const AtomicGroup& atomic_group)
 {
 	return RegexFeatureFlag::AtomicGroups | GetSequeneFeatures(atomic_group.elements);
+}
+
+RegexFeatureFlags GetSequeneFeaturesForElement(const ConditionalElement& conditional_element)
+{
+	return
+		RegexFeatureFlag::ConditionalElements |
+		GetSequeneFeaturesForElement(conditional_element.look) |
+		GetSequeneFeaturesForElement(conditional_element.alternatives);
 }
 
 RegexFeatureFlags GetSequeneFeaturesForElement(const Alternatives& alternatives)

@@ -21,7 +21,8 @@ TEST_P(StdRegexMatchTest, TestMatch)
 	if((GetRegexFeatures(param.regex_str) & (
 			RegexFeatureFlag::UTF8 |
 			RegexFeatureFlag::PossessiveSequences |
-			RegexFeatureFlag::AtomicGroups)) != 0)
+			RegexFeatureFlag::AtomicGroups |
+			RegexFeatureFlag::ConditionalElements)) != 0)
 		return;
 
 	try

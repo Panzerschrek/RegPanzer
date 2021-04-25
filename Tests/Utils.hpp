@@ -14,6 +14,7 @@ struct RegexFeatureFlag
 		Look= 1 << 3,
 		NoncapturingGroups= 1 << 4,
 		AtomicGroups= 1 << 5,
+		ConditionalElements= 1 << 6,
 	};
 };
 
