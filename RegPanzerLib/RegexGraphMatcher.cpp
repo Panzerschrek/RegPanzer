@@ -117,6 +117,19 @@ bool MatchNodeImpl(const GraphElements::BackReference& node, State& state)
 	return false;
 }
 
+bool MatchNodeImpl(const GraphElements::Look& node, State& state)
+{
+	if(node.forward)
+	{
+		State state_copy= state;
+		return (!node.positive ^ MatchNode(node.look_graph, state_copy)) && MatchNode(node.next, state);
+	}
+	else
+	{
+		assert(false && "not implemented yet!");
+		return false;
+	}
+}
 
 bool MatchNodeImpl(const GraphElements::LoopEnter& node, State& state)
 {
@@ -161,7 +174,6 @@ bool MatchNodeImpl(const GraphElements::LoopCounterBlock& node, State& state)
 				return MatchNode(next_iteration, state);
 		}
 	}
-
 }
 
 bool MatchNode(const GraphElements::NodePtr& node, State& state)

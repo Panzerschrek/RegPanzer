@@ -107,10 +107,12 @@ GraphElements::NodePtr BuildRegexGraphNodeImpl(const Alternatives& alternatives)
 
 GraphElements::NodePtr BuildRegexGraphNodeImpl(const Look& look)
 {
-	// TODO
-	(void)look;
-	assert(false);
-	return nullptr;
+	GraphElements::Look out_node;
+	out_node.look_graph= BuildRegexGraphImpl(look.elements.begin(), look.elements.end());
+	out_node.forward= look.forward;
+	out_node.positive= look.positive;
+
+	return std::make_shared<GraphElements::Node>(std::move(out_node));
 }
 
 GraphElements::NodePtr BuildRegexGraphNode(const RegexElementFull::ElementType& element)

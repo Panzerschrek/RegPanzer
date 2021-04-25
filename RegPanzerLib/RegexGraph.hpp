@@ -19,6 +19,7 @@ struct Alternatives;
 struct GroupStart;
 struct GroupEnd;
 struct BackReference;
+struct Look;
 struct LoopEnter;
 struct LoopCounterBlock;
 
@@ -30,6 +31,7 @@ using Node= std::variant<
 	GroupStart,
 	GroupEnd,
 	BackReference,
+	Look,
 	LoopEnter,
 	LoopCounterBlock>;
 
@@ -76,6 +78,14 @@ struct BackReference
 {
 	NodePtr next;
 	size_t index= std::numeric_limits<size_t>::max();
+};
+
+struct Look
+{
+	NodePtr next;
+	NodePtr look_graph;
+	bool forward= true;
+	bool positive= true;
 };
 
 using LoopId= const void*;

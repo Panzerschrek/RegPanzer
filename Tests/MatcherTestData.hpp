@@ -1136,7 +1136,7 @@ inline const MatcherTestDataElement g_matcher_test_data[]
 			},
 		}
 	},
-#if 0
+
 	// Simple positive lookahead.
 	{
 		"w(?=Q)",
@@ -1202,7 +1202,7 @@ inline const MatcherTestDataElement g_matcher_test_data[]
 			},
 		}
 	},
-
+#if 0
 	{  // Negative lookahead for possessive sequence.
 		"[a-z]++(?!\\.)", // This regex extracts all words but ignore whole words with '.' at end.
 		{
@@ -1232,7 +1232,7 @@ inline const MatcherTestDataElement g_matcher_test_data[]
 			},
 		}
 	},
-
+#endif
 	{ // Negative lookahead in middle of regex.
 		"Q(?!jb)[a-z]+",
 		{
@@ -1338,7 +1338,7 @@ inline const MatcherTestDataElement g_matcher_test_data[]
 			},
 		}
 	},
-#endif
+
 	{ // Simplest backreference.
 		"(w)\\1",
 		{
