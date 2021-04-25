@@ -23,7 +23,8 @@ TEST_P(LlvmRegexMatchTest, TestMatch)
 			RegexFeatureFlag::LazySequences |
 			RegexFeatureFlag::PossessiveSequences |
 			RegexFeatureFlag::Look |
-			RegexFeatureFlag::NoncapturingGroups)) != 0)
+			RegexFeatureFlag::NoncapturingGroups |
+			RegexFeatureFlag::AtomicGroups)) != 0)
 		return;
 
 	llvm::Regex regex(param.regex_str);

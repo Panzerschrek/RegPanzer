@@ -3,6 +3,7 @@
 #include <llvm/Support/ConvertUTF.h>
 #include "PopLLVMWarnings.hpp"
 #include <cassert>
+#include <unordered_map>
 
 namespace RegPanzer
 {
@@ -10,20 +11,16 @@ namespace RegPanzer
 namespace
 {
 
-using RegexIterator = RegexElementsChain::const_iterator;
-using MatchInput = std::string_view;
-
-constexpr size_t c_max_group= 9;
-
 struct State
 {
-	MatchInput str;
-	MatchInput groups[1 + c_max_group]; // Actually used 1-9
+	std::string_view str;
+	std::string_view groups[10];
+	std::unordered_map<GraphElements::LoopId, size_t> loop_counters;
 };
 
 std::optional<CharType> ExtractCodePoint(State& state)
 {
-	MatchInput& str= state.str;
+	std::string_view& str= state.str;
 
 	llvm::UTF32 code= 0;
 
@@ -40,85 +37,42 @@ std::optional<CharType> ExtractCodePoint(State& state)
 	return CharType(code);
 }
 
-bool MatchChain(const RegexElementsChain& chain, State& state);
+bool MatchNode(const GraphElements::NodePtr& node, State& state);
 
-bool MatchElementImpl(const AnySymbol&, State& state)
+bool MatchNodeImpl(const GraphElements::AnySymbol& node, State& state)
 {
-	return ExtractCodePoint(state) != std::nullopt;
+	return ExtractCodePoint(state) && MatchNode(node.next, state);
 }
 
-bool MatchElementImpl(const SpecificSymbol& specific_symbol, State& state)
+bool MatchNodeImpl(const GraphElements::SpecificSymbol& node, State& state)
 {
-	return ExtractCodePoint(state) == specific_symbol.code;
+	return ExtractCodePoint(state) == node.code && MatchNode(node.next, state);
 }
 
-bool MatchElementImpl(const OneOf& one_of, State& state)
+bool MatchNodeImpl(const GraphElements::OneOf& node, State& state)
 {
-	if(const auto code= ExtractCodePoint(state))
-	{
-		for(const CharType& v : one_of.variants)
-			if(*code == v)
-				return !one_of.inverse_flag;
-
-		for(const auto& range : one_of.ranges)
-			if(*code >= range.first && *code <= range.second)
-				return !one_of.inverse_flag;
-
-		return one_of.inverse_flag;
-	}
-
-	return false;
-}
-
-bool MatchElementImpl(const Group& group, State& state)
-{
-	const char* const start= state.str.data();
-	if(MatchChain(group.elements, state))
-	{
-		if(group.index >= 1 && group.index <= c_max_group)
-		{
-			const char* const end= state.str.data();
-			state.groups[group.index]= MatchInput(start, size_t(end - start));
-		}
-		return true;
-	}
-	return false;
-}
-
-bool MatchElementImpl(const BackReference& back_reference, State& state)
-{
-	if(!(back_reference.index >= 0 && back_reference.index <= c_max_group))
+	const auto code= ExtractCodePoint(state);
+	if(code == std::nullopt)
 		return false;
 
-	const MatchInput prev_group= state.groups[back_reference.index];
-	if(state.str.size() >= prev_group.size() && prev_group == state.str.substr(0, prev_group.size()))
-	{
-		state.str.remove_prefix(prev_group.size());
-		return true;
-	}
+	bool found= false;
+	for(const CharType& v : node.variants)
+		if(*code == v)
+			found= true;
 
-	return false;
+	for(const auto& range : node.ranges)
+		if(*code >= range.first && *code <= range.second)
+			found= true;
+
+	return (found ^ node.inverse_flag) && MatchNode(node.next, state);
 }
 
-bool MatchElementImpl(const NonCapturingGroup& non_capturing_group, State& state)
+bool MatchNodeImpl(const GraphElements::Alternatives& node, State& state)
 {
-	return MatchChain(non_capturing_group.elements, state);
-}
-
-bool MatchElementImpl(const AtomicGroup& atomic_group, State& state)
-{
-	// TODO
-	(void)atomic_group;
-	(void)state;
-	return false;
-}
-
-bool MatchElementImpl(const Alternatives& alternatives, State& state)
-{
-	for(const RegexElementsChain& chain : alternatives.alternatives)
+	for(const GraphElements::NodePtr& alternative : node.next)
 	{
 		State state_copy= state;
-		if(MatchChain(chain, state_copy))
+		if(MatchNode(alternative, state_copy))
 		{
 			state= state_copy;
 			return true;
@@ -128,127 +82,145 @@ bool MatchElementImpl(const Alternatives& alternatives, State& state)
 	return false;
 }
 
-bool MatchElementImpl(const Look& look, const State& state)
+bool MatchNodeImpl(const GraphElements::GroupStart& node, State& state)
 {
-	if(look.forward)
+	if(node.index >= 1 && node.index <= 9)
+		state.groups[node.index]= state.str.substr(0, 0);
+
+	return MatchNode(node.next, state);
+}
+
+bool MatchNodeImpl(const GraphElements::GroupEnd& node, State& state)
+{
+	if(node.index >= 1 && node.index <= 9)
+	{
+		const char* const ptr= state.groups[node.index].data();
+		const auto size= size_t(state.str.data() - ptr);
+		state.groups[node.index]= std::string_view(ptr, size);
+	}
+
+	return MatchNode(node.next, state);
+}
+
+bool MatchNodeImpl(const GraphElements::BackReference& node, State& state)
+{
+	if(node.index >= 1 && node.index <= 9)
+	{
+		const std::string_view prev_value= state.groups[node.index];
+		if(state.str.size() >= prev_value.size() && state.str.substr(0, prev_value.size()) == prev_value)
+		{
+			state.str.remove_prefix(prev_value.size());
+			return MatchNode(node.next, state);
+		}
+	}
+
+	return false;
+}
+
+bool MatchNodeImpl(const GraphElements::Look& node, State& state)
+{
+	if(node.forward)
 	{
 		State state_copy= state;
-		return (!look.positive) ^ MatchChain(look.elements, state_copy);
+		return (!node.positive ^ MatchNode(node.look_graph, state_copy)) && MatchNode(node.next, state);
 	}
 	else
 	{
-		// TODO
 		assert(false && "not implemented yet!");
 		return false;
 	}
 }
 
-bool MatchElement(const RegexElementFull::ElementType& element, State& state)
+bool MatchNodeImpl(const GraphElements::LoopEnter& node, State& state)
 {
-	return std::visit([&](const auto& el){ return MatchElementImpl(el, state); }, element);
+	state.loop_counters[node.id]= 0;
+	return MatchNode(node.next, state);
 }
 
-bool MatchElementFull(const RegexIterator begin, const RegexIterator end, State& state)
+bool MatchNodeImpl(const GraphElements::LoopCounterBlock& node, State& state)
 {
-	if(begin == end)
-		return true;
-	const RegexElementFull& element= *begin;
+	const size_t loop_counter= state.loop_counters[node.id];
+	++state.loop_counters[node.id];
 
-	switch(element.seq.mode)
+	const auto next_iteration= node.next_iteration.lock();
+	assert(next_iteration != nullptr);
+
+	if(loop_counter < node.min_elements)
+		return MatchNode(next_iteration, state);
+	else if(loop_counter >= node.max_elements)
+		return MatchNode(node.next_loop_end, state);
+	else
 	{
-	case SequenceMode::Greedy:
+		State state_copy= state;
+		if(node.greedy)
 		{
-			std::optional<State> last_success_state;
-
-			for(size_t i= 0; ; ++i)
+			if(MatchNode(next_iteration, state_copy))
 			{
-				// Check tail only after reaching minimum number of elements.
-				if(i >= element.seq.min_elements)
-				{
-					State state_copy= state;
-					if(MatchElementFull(std::next(begin), end, state_copy))
-						last_success_state= state_copy;
-				}
-
-				if(i == element.seq.max_elements || // Finish loop after tail check but before sequence element check.
-					!MatchElement(element.el, state))
-					break;
-			}
-
-			if(last_success_state == std::nullopt)
-				return false;
-
-			state= *last_success_state;
-			return true;
-		}
-
-	case SequenceMode::Lazy:
-		{
-			for(size_t i= 0; ; ++i)
-			{
-				// Check tail only after reaching minimum number of elements.
-				if(i >= element.seq.min_elements)
-				{
-					State state_copy= state;
-					if(MatchElementFull(std::next(begin), end, state_copy))
-					{
-						// In lazy mode return on first tail match.
-						state= state_copy;
-						return true;
-					}
-				}
-
-				if(i == element.seq.max_elements) // Finish loop after tail check but before sequence element check.
-					break;
-
-				State state_copy= state;
-				if(!MatchElement(element.el, state_copy))
-					break;
 				state= state_copy;
+				return true;
 			}
-
-			return false;
+			else
+				return MatchNode(node.next_loop_end, state);
 		}
-
-	case SequenceMode::Possessive:
+		else
 		{
-			// In possessive mode check only sequence elements itself and check tail later.
-			for(size_t i= 0; i < element.seq.max_elements; ++i)
+			if(MatchNode(node.next_loop_end, state_copy))
 			{
-				State state_copy= state;
-				if(!MatchElement(element.el, state_copy))
-				{
-					if(i < element.seq.min_elements)
-						return false;
-					else
-						break;
-				}
 				state= state_copy;
+				return true;
 			}
-
-			// Than match tail.
-			return MatchElementFull(std::next(begin), end, state);
+			else
+				return MatchNode(next_iteration, state);
 		}
 	}
+}
 
-	assert(false && "Unreachable code!");
+bool MatchNodeImpl(const GraphElements::PossessiveSequence& node, State& state)
+{
+	for(size_t i= 0; i < node.max_elements; ++i)
+	{
+		State state_copy= state;
+		if(!MatchNode(node.sequence_element, state_copy))
+		{
+			if(i < node.min_elements)
+				return false;
+			break;
+		}
+		state= state_copy;
+	}
+
+	return MatchNode(node.next, state);
+}
+
+bool MatchNodeImpl(const GraphElements::AtomicGroup& node, State& state)
+{
+	State state_copy= state;
+	if(MatchNode(node.group_element, state_copy))
+	{
+		state= state_copy;
+		return MatchNode(node.next, state);
+	}
+
 	return false;
 }
 
-bool MatchChain(const RegexElementsChain& chain, State& state)
+bool MatchNode(const GraphElements::NodePtr& node, State& state)
 {
-	return MatchElementFull(chain.begin(), chain.end(), state);
+	if(node == nullptr)
+		return true;
+
+	return std::visit([&](const auto& el){ return MatchNodeImpl(el, state); }, *node);
 }
 
 } // namespace
 
-MatchResult Match(const RegexElementsChain& regex, const std::string_view str)
+MatchResult Match(const GraphElements::NodePtr& node, std::string_view str)
 {
 	for(size_t i= 0; i < str.size(); ++i)
 	{
 		State state;
 		state.str= str.substr(i, str.size() - i);
-		if(MatchChain(regex, state))
+		if(MatchNode(node, state))
 			return str.substr(i, str.size() - state.str.size() - i);
 	}
 

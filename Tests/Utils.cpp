@@ -26,6 +26,11 @@ RegexFeatureFlags GetSequeneFeaturesForElement(const NonCapturingGroup& noncaptu
 	return RegexFeatureFlag::NoncapturingGroups | GetSequeneFeatures(noncapturing_group.elements);
 }
 
+RegexFeatureFlags GetSequeneFeaturesForElement(const AtomicGroup& atomic_group)
+{
+	return RegexFeatureFlag::AtomicGroups | GetSequeneFeatures(atomic_group.elements);
+}
+
 RegexFeatureFlags GetSequeneFeaturesForElement(const Alternatives& alternatives)
 {
 	RegexFeatureFlags flags= 0;
