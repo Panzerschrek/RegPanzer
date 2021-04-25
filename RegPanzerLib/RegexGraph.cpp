@@ -1,5 +1,4 @@
 #include "RegexGraph.hpp"
-#include <cassert>
 
 namespace RegPanzer
 {
@@ -9,144 +8,100 @@ namespace
 
 using RegexChainIterator= RegexElementsChain::const_iterator;
 
+GraphElements::NodePtr BuildRegexGraphImpl(const RegexChainIterator begin, const RegexChainIterator end, const GraphElements::NodePtr& next);
 
-void SetMostRightNext(GraphElements::Node& node, const GraphElements::NodePtr& next);
-
-template<typename T>
-void SetMostRightNextImpl(T& node, const GraphElements::NodePtr& next)
+GraphElements::NodePtr BuildRegexGraphNodeImpl(const AnySymbol&, const GraphElements::NodePtr& next)
 {
-	if(node.next == nullptr)
-		node.next= next;
-	else
-		SetMostRightNext(*node.next, next);
+	return std::make_shared<GraphElements::Node>(GraphElements::AnySymbol{next});
 }
 
-void SetMostRightNextImpl(GraphElements::Alternatives& node, const GraphElements::NodePtr& next)
+GraphElements::NodePtr BuildRegexGraphNodeImpl(const SpecificSymbol& specific_symbol, const GraphElements::NodePtr& next)
 {
-	for(GraphElements::NodePtr& alternative : node.next)
-	{
-		if(alternative == nullptr)
-			alternative= next;
-		else
-			SetMostRightNext(*alternative, next);
-	}
+	return std::make_shared<GraphElements::Node>(GraphElements::SpecificSymbol{next, specific_symbol.code});
 }
 
-void SetMostRightNextImpl(GraphElements::LoopCounterBlock& node, const GraphElements::NodePtr& next)
-{
-	if(node.next_loop_end == nullptr)
-		node.next_loop_end= next;
-	else
-		SetMostRightNext(*node.next_loop_end, next);
-}
-
-void SetMostRightNext(GraphElements::Node& node, const GraphElements::NodePtr& next)
-{
-	if(&node == next.get())
-		return; // Hack for alternatives.
-
-	std::visit([&](auto& el){ return SetMostRightNextImpl(el, next); }, node);
-}
-
-GraphElements::NodePtr BuildRegexGraphImpl(const RegexChainIterator begin, const RegexChainIterator end);
-
-GraphElements::NodePtr BuildRegexGraphNodeImpl(const AnySymbol&)
-{
-	return std::make_shared<GraphElements::Node>(GraphElements::AnySymbol{});
-}
-
-GraphElements::NodePtr BuildRegexGraphNodeImpl(const SpecificSymbol& specific_symbol)
-{
-	return std::make_shared<GraphElements::Node>(GraphElements::SpecificSymbol{nullptr, specific_symbol.code});
-}
-
-GraphElements::NodePtr BuildRegexGraphNodeImpl(const OneOf& one_of)
+GraphElements::NodePtr BuildRegexGraphNodeImpl(const OneOf& one_of, const GraphElements::NodePtr& next)
 {
 	GraphElements::OneOf out_node;
+	out_node.next= next;
 	out_node.variants= one_of.variants;
 	out_node.ranges= one_of.ranges;
 	out_node.inverse_flag= one_of.inverse_flag;
 	return std::make_shared<GraphElements::Node>(std::move(out_node));
 }
 
-GraphElements::NodePtr BuildRegexGraphNodeImpl(const Group& group)
+GraphElements::NodePtr BuildRegexGraphNodeImpl(const Group& group, const GraphElements::NodePtr& next)
 {
-	const auto group_end= std::make_shared<GraphElements::Node>(GraphElements::GroupEnd{nullptr, group.index});
-	const auto group_contents= BuildRegexGraphImpl(group.elements.begin(), group.elements.end());
-	SetMostRightNext(*group_contents, group_end);
+	const auto group_end= std::make_shared<GraphElements::Node>(GraphElements::GroupEnd{next, group.index});
+	const auto group_contents= BuildRegexGraphImpl(group.elements.begin(), group.elements.end(), group_end);
 
 	return std::make_shared<GraphElements::Node>(GraphElements::GroupStart{group_contents, group.index});
 }
 
-GraphElements::NodePtr BuildRegexGraphNodeImpl(const BackReference& back_reference)
+GraphElements::NodePtr BuildRegexGraphNodeImpl(const BackReference& back_reference, const GraphElements::NodePtr& next)
 {
-	return std::make_shared<GraphElements::Node>(GraphElements::BackReference{nullptr, back_reference.index});
+	return std::make_shared<GraphElements::Node>(GraphElements::BackReference{next, back_reference.index});
 }
 
-GraphElements::NodePtr BuildRegexGraphNodeImpl(const NonCapturingGroup& non_capturing_group)
+GraphElements::NodePtr BuildRegexGraphNodeImpl(const NonCapturingGroup& non_capturing_group, const GraphElements::NodePtr& next)
 {
-	return BuildRegexGraphImpl(non_capturing_group.elements.begin(), non_capturing_group.elements.end());
+	return BuildRegexGraphImpl(non_capturing_group.elements.begin(), non_capturing_group.elements.end(), next);
 }
 
-GraphElements::NodePtr BuildRegexGraphNodeImpl(const AtomicGroup& atomic_group)
+GraphElements::NodePtr BuildRegexGraphNodeImpl(const AtomicGroup& atomic_group, const GraphElements::NodePtr& next)
 {
 	return
 		std::make_shared<GraphElements::Node>(
 			GraphElements::AtomicGroup{
-				nullptr,
-				BuildRegexGraphImpl(atomic_group.elements.begin(), atomic_group.elements.end())});
+				next,
+				BuildRegexGraphImpl(atomic_group.elements.begin(), atomic_group.elements.end(), nullptr)});
 }
 
-GraphElements::NodePtr BuildRegexGraphNodeImpl(const Alternatives& alternatives)
+GraphElements::NodePtr BuildRegexGraphNodeImpl(const Alternatives& alternatives, const GraphElements::NodePtr& next)
 {
 	GraphElements::Alternatives out_node;
 	for(const auto& alternative : alternatives.alternatives)
-		out_node.next.push_back(BuildRegexGraphImpl(alternative.begin(), alternative.end()));
+		out_node.next.push_back(BuildRegexGraphImpl(alternative.begin(), alternative.end(), next));
 
 	return std::make_shared<GraphElements::Node>(std::move(out_node));
 }
 
-GraphElements::NodePtr BuildRegexGraphNodeImpl(const Look& look)
+GraphElements::NodePtr BuildRegexGraphNodeImpl(const Look& look, const GraphElements::NodePtr& next)
 {
 	GraphElements::Look out_node;
-	out_node.look_graph= BuildRegexGraphImpl(look.elements.begin(), look.elements.end());
+	out_node.next= next;
+	out_node.look_graph= BuildRegexGraphImpl(look.elements.begin(), look.elements.end(), nullptr);
 	out_node.forward= look.forward;
 	out_node.positive= look.positive;
 
 	return std::make_shared<GraphElements::Node>(std::move(out_node));
 }
 
-GraphElements::NodePtr BuildRegexGraphNode(const RegexElementFull::ElementType& element)
+GraphElements::NodePtr BuildRegexGraphNode(const RegexElementFull::ElementType& element, const GraphElements::NodePtr& next)
 {
-	return std::visit([&](const auto& el){ return BuildRegexGraphNodeImpl(el); }, element);
+	return std::visit([&](const auto& el){ return BuildRegexGraphNodeImpl(el, next); }, element);
 }
 
-GraphElements::NodePtr BuildRegexGraphImpl(const RegexChainIterator begin, const RegexChainIterator end)
+GraphElements::NodePtr BuildRegexGraphImpl(const RegexChainIterator begin, const RegexChainIterator end, const GraphElements::NodePtr& next)
 {
 	if(begin == end)
-		return nullptr;
+		return next;
 
 	const RegexElementFull& element= *begin;
 
-	const auto node= BuildRegexGraphNode(element.el);
-	const auto next_node= BuildRegexGraphImpl(std::next(begin), end);
+	const auto next_node= BuildRegexGraphImpl(std::next(begin), end, next);
 
 	if(element.seq.min_elements == 1 && element.seq.max_elements == 1)
-	{
-		SetMostRightNext(*node, next_node);
-		return node;
-	}
+		return BuildRegexGraphNode(element.el, next_node);
 	else if(element.seq.mode == SequenceMode::Possessive)
-	{
 		return
 			std::make_shared<GraphElements::Node>(
 				GraphElements::PossessiveSequence{
 					next_node,
-					node,
+					BuildRegexGraphNode(element.el, nullptr),
 					element.seq.min_elements,
 					element.seq.max_elements,
 					});
-	}
 	else
 	{
 		const GraphElements::LoopId id= &element;
@@ -154,7 +109,7 @@ GraphElements::NodePtr BuildRegexGraphImpl(const RegexChainIterator begin, const
 		const auto loop_counter_block=
 			std::make_shared<GraphElements::Node>(
 				GraphElements::LoopCounterBlock{
-					node,
+					GraphElements::NodePtr(),
 					next_node,
 					id,
 					element.seq.min_elements,
@@ -162,7 +117,10 @@ GraphElements::NodePtr BuildRegexGraphImpl(const RegexChainIterator begin, const
 					element.seq.mode != SequenceMode::Lazy,
 					});
 
-		SetMostRightNext(*node, loop_counter_block);
+		const auto node= BuildRegexGraphNode(element.el, loop_counter_block);
+
+		std::get<GraphElements::LoopCounterBlock>(*loop_counter_block).next_iteration= node;
+
 		return std::make_shared<GraphElements::Node>(GraphElements::LoopEnter{loop_counter_block, node, id});
 	}
 }
@@ -171,7 +129,7 @@ GraphElements::NodePtr BuildRegexGraphImpl(const RegexChainIterator begin, const
 
 GraphElements::NodePtr BuildRegexGraph(const RegexElementsChain& regex_chain)
 {
-	return BuildRegexGraphImpl(regex_chain.begin(), regex_chain.end());
+	return BuildRegexGraphImpl(regex_chain.begin(), regex_chain.end(), nullptr);
 }
 
 } // namespace RegPanzer
