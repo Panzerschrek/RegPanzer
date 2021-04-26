@@ -25,6 +25,8 @@ struct LoopEnter;
 struct LoopCounterBlock;
 struct PossessiveSequence;
 struct AtomicGroup;
+struct SubroutineEnter;
+struct SubroutineLeave;
 
 using Node= std::variant<
 	AnySymbol,
@@ -39,7 +41,9 @@ using Node= std::variant<
 	LoopEnter,
 	LoopCounterBlock,
 	PossessiveSequence,
-	AtomicGroup>;
+	AtomicGroup,
+	SubroutineEnter,
+	SubroutineLeave>;
 
 using NodePtr= std::shared_ptr<Node>;
 
@@ -132,6 +136,19 @@ struct AtomicGroup
 {
 	NodePtr next;
 	NodePtr group_element;
+};
+
+struct SubroutineEnter
+{
+	NodePtr next; // Next node after subroutine leave.
+	NodePtr subroutine_node;
+	size_t group_state_save_mask= 0;
+};
+
+struct SubroutineLeave
+{
+	// Next node calculated dynamically.
+	size_t group_state_restore_mask= 0;
 };
 
 } // GraphElements

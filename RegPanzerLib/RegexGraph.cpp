@@ -146,7 +146,9 @@ GraphElements::NodePtr BuildRegexGraphImpl(const RegexChainIterator begin, const
 
 GraphElements::NodePtr BuildRegexGraph(const RegexElementsChain& regex_chain)
 {
-	return BuildRegexGraphImpl(regex_chain.begin(), regex_chain.end(), nullptr);
+	const auto end_node= std::make_shared<GraphElements::Node>(GraphElements::SubroutineLeave{~size_t(0)});
+	const auto node= BuildRegexGraphImpl(regex_chain.begin(), regex_chain.end(), end_node);
+	return std::make_shared<GraphElements::Node>(GraphElements::SubroutineEnter{nullptr, node});
 }
 
 } // namespace RegPanzer

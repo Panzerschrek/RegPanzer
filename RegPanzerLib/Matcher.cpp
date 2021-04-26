@@ -16,6 +16,7 @@ struct State
 	std::string_view str;
 	std::string_view groups[10];
 	std::unordered_map<GraphElements::LoopId, size_t> loop_counters;
+	std::vector<GraphElements::NodePtr> subroutines_return_stack;
 };
 
 std::optional<CharType> ExtractCodePoint(State& state)
@@ -211,6 +212,27 @@ bool MatchNodeImpl(const GraphElements::AtomicGroup& node, State& state)
 	}
 
 	return false;
+}
+
+bool MatchNodeImpl(const GraphElements::SubroutineEnter& node, State& state)
+{
+	// TODO - save groups state.
+	state.subroutines_return_stack.push_back(node.next);
+	return MatchNode(node.subroutine_node, state);
+}
+
+bool MatchNodeImpl(const GraphElements::SubroutineLeave& node, State& state)
+{
+	// TODO - restore groups state.
+	(void)node;
+
+	if(state.subroutines_return_stack.empty())
+		return MatchNode(nullptr, state);
+
+	const auto next_node= state.subroutines_return_stack.back();
+	state.subroutines_return_stack.pop_back();
+	return MatchNode(next_node, state);
+
 }
 
 bool MatchNode(const GraphElements::NodePtr& node, State& state)
