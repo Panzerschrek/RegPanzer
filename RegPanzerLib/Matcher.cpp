@@ -232,7 +232,6 @@ bool MatchNodeImpl(const GraphElements::SubroutineLeave& node, State& state)
 	const auto next_node= state.subroutines_return_stack.back();
 	state.subroutines_return_stack.pop_back();
 	return MatchNode(next_node, state);
-
 }
 
 bool MatchNode(const GraphElements::NodePtr& node, State& state)

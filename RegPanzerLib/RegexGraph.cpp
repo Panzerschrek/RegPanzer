@@ -32,10 +32,15 @@ GraphElements::NodePtr BuildRegexGraphNodeImpl(const OneOf& one_of, const GraphE
 
 GraphElements::NodePtr BuildRegexGraphNodeImpl(const Group& group, const GraphElements::NodePtr& next)
 {
-	const auto group_end= std::make_shared<GraphElements::Node>(GraphElements::GroupEnd{next, group.index});
-	const auto group_contents= BuildRegexGraphImpl(group.elements.begin(), group.elements.end(), group_end);
+	// TODO - set groups state restore mask.
+	const auto subroutine_leave= std::make_shared<GraphElements::Node>(GraphElements::SubroutineLeave{});
 
-	return std::make_shared<GraphElements::Node>(GraphElements::GroupStart{group_contents, group.index});
+	const auto group_end= std::make_shared<GraphElements::Node>(GraphElements::GroupEnd{subroutine_leave, group.index});
+	const auto group_contents= BuildRegexGraphImpl(group.elements.begin(), group.elements.end(), group_end);
+	const auto group_start= std::make_shared<GraphElements::Node>(GraphElements::GroupStart{group_contents, group.index});
+
+	// TODO - set groups state save mask.
+	return std::make_shared<GraphElements::Node>(GraphElements::SubroutineEnter{next, group_start});
 }
 
 GraphElements::NodePtr BuildRegexGraphNodeImpl(const BackReference& back_reference, const GraphElements::NodePtr& next)
@@ -87,10 +92,10 @@ GraphElements::NodePtr BuildRegexGraphNodeImpl(const ConditionalElement& conditi
 	return std::make_shared<GraphElements::Node>(std::move(out_node));
 }
 
-GraphElements::NodePtr BuildRegexGraphNodeImpl(const RecursionGroup& atomic_recursion_group, const GraphElements::NodePtr& next)
+GraphElements::NodePtr BuildRegexGraphNodeImpl(const RecursionGroup& recursion_group, const GraphElements::NodePtr& next)
 {
 	// TODO
-	(void)atomic_recursion_group;
+	(void)recursion_group;
 	return next;
 }
 
