@@ -40,7 +40,7 @@ GraphElements::NodePtr BuildRegexGraphNodeImpl(const Group& group, const GraphEl
 	const auto group_start= std::make_shared<GraphElements::Node>(GraphElements::GroupStart{group_contents, group.index});
 
 	// TODO - set groups state save mask.
-	return std::make_shared<GraphElements::Node>(GraphElements::SubroutineEnter{next, group_start});
+	return std::make_shared<GraphElements::Node>(GraphElements::SubroutineEnter{next, group_start, group.index});
 }
 
 GraphElements::NodePtr BuildRegexGraphNodeImpl(const BackReference& back_reference, const GraphElements::NodePtr& next)
@@ -94,9 +94,8 @@ GraphElements::NodePtr BuildRegexGraphNodeImpl(const ConditionalElement& conditi
 
 GraphElements::NodePtr BuildRegexGraphNodeImpl(const RecursionGroup& recursion_group, const GraphElements::NodePtr& next)
 {
-	// TODO
-	(void)recursion_group;
-	return next;
+	// TODO - set groups state save mask.
+	return std::make_shared<GraphElements::Node>(GraphElements::SubroutineEnter{next, nullptr /*set actual pointer later*/, recursion_group.index});
 }
 
 GraphElements::NodePtr BuildRegexGraphNode(const RegexElementFull::ElementType& element, const GraphElements::NodePtr& next)
@@ -147,13 +146,177 @@ GraphElements::NodePtr BuildRegexGraphImpl(const RegexChainIterator begin, const
 	}
 }
 
+GraphElements::NodePtr GetGroupNodeByIndex(const GraphElements::NodePtr& node, const size_t index);
+
+template<typename T>
+GraphElements::NodePtr GetGroupNodeByIndexImpl(const T& node, const size_t index)
+{
+	return GetGroupNodeByIndex(node.next, index);
+}
+
+GraphElements::NodePtr GetGroupNodeByIndexImpl(const GraphElements::Alternatives& node, const size_t index)
+{
+	for(const auto& next : node.next)
+		if(const auto res= GetGroupNodeByIndex(next, index))
+			return res;
+
+	return nullptr;
+}
+
+GraphElements::NodePtr GetGroupNodeByIndexImpl(const GraphElements::Look& node, const size_t index)
+{
+	if(const auto res= GetGroupNodeByIndex(node.next, index))
+		return res;
+	return GetGroupNodeByIndex(node.look_graph, index);
+}
+
+GraphElements::NodePtr GetGroupNodeByIndexImpl(const GraphElements::ConditionalElement& node, const size_t index)
+{
+	if(const auto res= GetGroupNodeByIndex(node.next_true, index))
+		return res;
+	if(const auto res= GetGroupNodeByIndex(node.next_false, index))
+		return res;
+	return GetGroupNodeByIndex(node.condition_node, index);
+}
+
+GraphElements::NodePtr GetGroupNodeByIndexImpl(const GraphElements::LoopEnter& node, const size_t index)
+{
+	if(const auto res= GetGroupNodeByIndex(node.next, index))
+		return res;
+	return GetGroupNodeByIndex(node.loop_iteration_node, index);
+}
+
+GraphElements::NodePtr GetGroupNodeByIndexImpl(const GraphElements::LoopCounterBlock& node, const size_t index)
+{
+	return GetGroupNodeByIndex(node.next_loop_end, index);
+}
+
+GraphElements::NodePtr GetGroupNodeByIndexImpl(const GraphElements::PossessiveSequence& node, const size_t index)
+{
+	if(const auto res= GetGroupNodeByIndex(node.next, index))
+		return res;
+	return GetGroupNodeByIndex(node.sequence_element, index);
+}
+
+GraphElements::NodePtr GetGroupNodeByIndexImpl(const GraphElements::AtomicGroup& node, const size_t index)
+{
+	if(const auto res= GetGroupNodeByIndex(node.next, index))
+		return res;
+	return GetGroupNodeByIndex(node.group_element, index);
+}
+
+GraphElements::NodePtr GetGroupNodeByIndexImpl(const GraphElements::SubroutineEnter& node, const size_t index)
+{
+	if(const auto res= GetGroupNodeByIndex(node.next, index))
+		return res;
+	return GetGroupNodeByIndex(node.subroutine_node, index);
+}
+
+GraphElements::NodePtr GetGroupNodeByIndexImpl(const GraphElements::SubroutineLeave& node, const size_t index)
+{
+	(void)node;
+	(void)index;
+	return nullptr;
+}
+
+GraphElements::NodePtr GetGroupNodeByIndex(const GraphElements::NodePtr& node, const size_t index)
+{
+	if(node == nullptr)
+		return nullptr;
+
+	if(const auto group_start= std::get_if<GraphElements::GroupStart>(node.get()))
+		if(group_start->index == index)
+			return node;
+
+	return std::visit([&](const auto& el){ return GetGroupNodeByIndexImpl(el, index); }, *node);
+}
+
+void SetupSubroutineCalls(const GraphElements::NodePtr& node, const GraphElements::NodePtr& root);
+
+template<typename T>
+void SetupSubroutineCallsImpl(const T& node, const GraphElements::NodePtr& root)
+{
+	SetupSubroutineCalls(node.next, root);
+}
+
+void SetupSubroutineCallsImpl(const GraphElements::Alternatives& node, const GraphElements::NodePtr& root)
+{
+	for(const auto& next : node.next)
+		SetupSubroutineCalls(next, root);
+}
+
+void SetupSubroutineCallsImpl(const GraphElements::Look& node, const GraphElements::NodePtr& root)
+{
+	SetupSubroutineCalls(node.next, root);
+	SetupSubroutineCalls(node.look_graph, root);
+}
+
+void SetupSubroutineCallsImpl(const GraphElements::ConditionalElement& node, const GraphElements::NodePtr& root)
+{
+	SetupSubroutineCalls(node.condition_node, root);
+	SetupSubroutineCalls(node.next_true, root);
+	SetupSubroutineCalls(node.next_false, root);
+}
+
+void SetupSubroutineCallsImpl(const GraphElements::LoopEnter& node, const GraphElements::NodePtr& root)
+{
+	SetupSubroutineCalls(node.next, root);
+	SetupSubroutineCalls(node.loop_iteration_node, root);
+}
+
+void SetupSubroutineCallsImpl(const GraphElements::LoopCounterBlock& node, const GraphElements::NodePtr& root)
+{
+	SetupSubroutineCalls(node.next_loop_end, root);
+}
+
+void SetupSubroutineCallsImpl(const GraphElements::PossessiveSequence& node, const GraphElements::NodePtr& root)
+{
+	SetupSubroutineCalls(node.next, root);
+	SetupSubroutineCalls(node.sequence_element, root);
+}
+
+void SetupSubroutineCallsImpl(const GraphElements::AtomicGroup& node, const GraphElements::NodePtr& root)
+{
+	SetupSubroutineCalls(node.next, root);
+	SetupSubroutineCalls(node.group_element, root);
+}
+
+void SetupSubroutineCallsImpl(const GraphElements::SubroutineEnter& node, const GraphElements::NodePtr& root)
+{
+	SetupSubroutineCalls(node.next, root);
+	SetupSubroutineCalls(node.subroutine_node, root);
+}
+
+void SetupSubroutineCallsImpl(const GraphElements::SubroutineLeave& node, const GraphElements::NodePtr& root)
+{
+	(void)node;
+	(void)root;
+}
+
+void SetupSubroutineCalls(const GraphElements::NodePtr& node, const GraphElements::NodePtr& root)
+{
+	if(node == nullptr)
+		return;
+
+	if(const auto subroutine_enter= std::get_if<GraphElements::SubroutineEnter>(node.get()))
+	{
+		if(subroutine_enter->subroutine_node == nullptr)
+			subroutine_enter->subroutine_node= GetGroupNodeByIndex(root, subroutine_enter->index);
+	}
+
+	return std::visit([&](const auto& el){ return SetupSubroutineCallsImpl(el, root); }, *node);
+}
+
 } // namespace
 
 GraphElements::NodePtr BuildRegexGraph(const RegexElementsChain& regex_chain)
 {
 	const auto end_node= std::make_shared<GraphElements::Node>(GraphElements::SubroutineLeave{~size_t(0)});
 	const auto node= BuildRegexGraphImpl(regex_chain.begin(), regex_chain.end(), end_node);
-	return std::make_shared<GraphElements::Node>(GraphElements::SubroutineEnter{nullptr, node});
+	const auto start= std::make_shared<GraphElements::Node>(GraphElements::SubroutineEnter{nullptr, node, 0u});
+
+	SetupSubroutineCalls(start, start);
+	return start;
 }
 
 } // namespace RegPanzer

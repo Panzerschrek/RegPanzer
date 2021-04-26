@@ -142,6 +142,7 @@ struct SubroutineEnter
 {
 	NodePtr next; // Next node after subroutine leave.
 	NodePtr subroutine_node;
+	size_t index= std::numeric_limits<size_t>::max(); // 0 - whole expression, 1 - first group, etc.
 	size_t group_state_save_mask= 0;
 };
 
