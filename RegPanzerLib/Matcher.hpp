@@ -1,6 +1,7 @@
 #pragma once
 #include "RegexGraph.hpp"
 #include <optional>
+#include <string_view>
 
 namespace RegPanzer
 {
