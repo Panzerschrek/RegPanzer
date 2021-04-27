@@ -827,6 +827,7 @@ const TestDataElement c_test_data[]
 	{ "\\|", { { SpecificSymbol{ '|' }, { 1, 1, SequenceMode::Greedy }, } } },
 	{ "\\?", { { SpecificSymbol{ '?' }, { 1, 1, SequenceMode::Greedy }, } } },
 	{ "\\\\", { { SpecificSymbol{ '\\' }, { 1, 1, SequenceMode::Greedy }, } } },
+	{ "\\/", { { SpecificSymbol{ '/' }, { 1, 1, SequenceMode::Greedy }, } } },
 
 	// Basic escape sequences for "OneOf".
 	{ "[\\[]", { { OneOf{ {'['}, {}, false }, { 1, 1, SequenceMode::Greedy }, } } },
@@ -843,6 +844,7 @@ const TestDataElement c_test_data[]
 	{ "[\\|]", { { OneOf{ {'|'}, {}, false }, { 1, 1, SequenceMode::Greedy }, } } },
 	{ "[\\?]", { { OneOf{ {'?'}, {}, false }, { 1, 1, SequenceMode::Greedy }, } } },
 	{ "[\\\\]", { { OneOf{ {'\\'}, {}, false }, { 1, 1, SequenceMode::Greedy }, } } },
+	{ "[\\/]", { { OneOf{ {'/'}, {}, false }, { 1, 1, SequenceMode::Greedy }, } } },
 };
 
 INSTANTIATE_TEST_CASE_P(P, ParseTest, testing::ValuesIn(c_test_data));

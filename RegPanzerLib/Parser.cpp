@@ -39,6 +39,7 @@ std::optional<RegexElementFull::ElementType> ParseEscapeSequence(StrView& str)
 	case '|':
 	case '?':
 	case '\\':
+	case '/':
 		return SpecificSymbol{ c };
 
 	case '1':
