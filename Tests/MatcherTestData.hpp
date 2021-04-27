@@ -1789,6 +1789,100 @@ inline const MatcherTestDataElement g_matcher_test_data[]
 		}
 	},
 
+	{ // Non-recursive subroutine call.
+		"([a-z]+)2(?1)", // Equivalent to ([a-z]+)2([a-z]+)
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // No match - not enough symbols in second sequence.
+				"bg2",
+				{}
+			},
+			{ // No match - no '2' symbol.
+				"wdad7dbgh",
+				{}
+			},
+			{ // Shortest possible match.
+				"h2w",
+				{ {0, 3} }
+			},
+			{ // Match with shortest equal.
+				"l2l",
+				{ {0, 3} }
+			},
+			{ // Match with equal parts.
+				"bng2bng",
+				{ {0, 7} }
+			},
+			{ // Match with non-equal partw with same length.
+				"nbwf2joac",
+				{ {0, 9} }
+			},
+			{ // Match with non-equal partw with different length.
+				"vy2nyeq",
+				{ {0, 7} }
+			},
+		}
+	},
+
+	{ // Non-recursive subroutine call to group defined later.
+		"(?1)@([0-9]{2,4})",
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // No match - not enough symbols at beginning.
+				"5@78543",
+				{}
+			},
+			{ // No match - not enough symbols at end.
+				"233566@8",
+				{}
+			},
+			{ // Shortest possible match.
+				"73@14",
+				{ {0, 5} }
+			},
+			{ // Too much symbols - sequence will be truncated
+				"72456476953@1680890214",
+				{ {7, 16} }
+			},
+			{ // Two sequential sequences.
+				"5466@136623@6640",
+				{ {0, 9}, {9, 16} }
+			},
+		}
+	},
+
+	{ // Two non-recursive subroutine calls.
+		"(?1)\\/([a-f])+\\/(?1)",
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // Shortest possible match.
+				"b/c/a",
+				{ {0, 5} }
+			},
+			{ // Match with long sequence.
+				"d/fabcaafcc/b",
+				{ {0, 13} }
+			},
+			{ // Excessive symbols at front and at end are discarded.
+				"bacced/e/abddc",
+				{ {5, 10} }
+			},
+			{ // Two sequential sequences.
+				"b/acd/ee/f/c",
+				{ {0, 7}, {7, 12} }
+			},
+		}
+	},
+
 	// Non-ASCII symbols match.
 	{
 		"ё",

@@ -22,7 +22,8 @@ TEST_P(StdRegexMatchTest, TestMatch)
 			RegexFeatureFlag::UTF8 |
 			RegexFeatureFlag::PossessiveSequences |
 			RegexFeatureFlag::AtomicGroups |
-			RegexFeatureFlag::ConditionalElements)) != 0)
+			RegexFeatureFlag::ConditionalElements |
+			RegexFeatureFlag::Subroutines)) != 0)
 		return;
 
 	try
