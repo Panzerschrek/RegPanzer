@@ -1,6 +1,7 @@
 #pragma once
 #include "RegexElements.hpp"
 #include <memory>
+#include <unordered_set>
 #include <variant>
 #include <vector>
 
@@ -106,6 +107,7 @@ struct ConditionalElement
 };
 
 using LoopId= const void*;
+using LoopIdSet= std::unordered_set<LoopId>;
 
 struct LoopEnter
 {
@@ -144,12 +146,14 @@ struct SubroutineEnter
 	NodePtr subroutine_node;
 	size_t index= std::numeric_limits<size_t>::max(); // 0 - whole expression, 1 - first group, etc.
 	size_t group_state_save_mask= 0;
+	LoopIdSet loop_counters_to_save;
 };
 
 struct SubroutineLeave
 {
 	// Next node calculated dynamically.
 	size_t group_state_restore_mask= 0;
+	LoopIdSet loop_counters_to_restore;
 };
 
 } // GraphElements
