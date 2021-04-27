@@ -104,19 +104,15 @@ GraphElements::NodePtr BuildRegexGraphNodeImpl(const OneOf& one_of, const GraphE
 
 GraphElements::NodePtr BuildRegexGraphNodeImpl(const Group& group, const GraphElements::NodePtr& next)
 {
-	GraphElements::LoopIdSet loop_id_set;
-	CollectLoopIdsForRegexChain(group.elements, loop_id_set);
+	// We do not need to save state here, save will be saved (if needed) in recursive call.
 
-	// TODO - set groups state restore mask.
-	const size_t groups_mask= 0;
-
-	const auto subroutine_leave= std::make_shared<GraphElements::Node>(GraphElements::SubroutineLeave{groups_mask, loop_id_set});
+	const auto subroutine_leave= std::make_shared<GraphElements::Node>(GraphElements::SubroutineLeave{});
 
 	const auto group_end= std::make_shared<GraphElements::Node>(GraphElements::GroupEnd{subroutine_leave, group.index});
 	const auto group_contents= BuildRegexGraphNodeImpl(group.elements.begin(), group.elements.end(), group_end);
 	const auto group_start= std::make_shared<GraphElements::Node>(GraphElements::GroupStart{group_contents, group.index});
 
-	return std::make_shared<GraphElements::Node>(GraphElements::SubroutineEnter{next, group_start, group.index, groups_mask, loop_id_set});
+	return std::make_shared<GraphElements::Node>(GraphElements::SubroutineEnter{next, group_start, group.index});
 }
 
 GraphElements::NodePtr BuildRegexGraphNodeImpl(const BackReference& back_reference, const GraphElements::NodePtr& next)
@@ -170,10 +166,11 @@ GraphElements::NodePtr BuildRegexGraphNodeImpl(const ConditionalElement& conditi
 
 GraphElements::NodePtr BuildRegexGraphNodeImpl(const RecursionGroup& recursion_group, const GraphElements::NodePtr& next)
 {
-	// TODO - set groups state save mask.
-	// TODO - set set of loop counters to restore.
-
-	return std::make_shared<GraphElements::Node>(GraphElements::SubroutineEnter{next, nullptr /*set actual pointer later*/, recursion_group.index, 0, {}});
+	// We need to save and restore state in subroutine calls.
+	// TODO - fill required for save/restore data.
+	const auto state_restore= std::make_shared<GraphElements::Node>(GraphElements::StateRestore{next});
+	const auto enter_node= std::make_shared<GraphElements::Node>(GraphElements::SubroutineEnter{state_restore, nullptr /*set actual pointer later*/, recursion_group.index});
+	return std::make_shared<GraphElements::Node>(GraphElements::StateSave{enter_node});
 }
 
 GraphElements::NodePtr BuildRegexGraphNode(const RegexElementFull::ElementType& element, const GraphElements::NodePtr& next)
@@ -397,9 +394,9 @@ void SetupSubroutineCalls(const GraphElements::NodePtr& node, const GraphElement
 
 GraphElements::NodePtr BuildRegexGraph(const RegexElementsChain& regex_chain)
 {
-	const auto end_node= std::make_shared<GraphElements::Node>(GraphElements::SubroutineLeave{~size_t(0), {}});
+	const auto end_node= std::make_shared<GraphElements::Node>(GraphElements::SubroutineLeave{});
 	const auto node= BuildRegexGraphNodeImpl(regex_chain.begin(), regex_chain.end(), end_node);
-	const auto start= std::make_shared<GraphElements::Node>(GraphElements::SubroutineEnter{nullptr, node, 0u, 0u, {}});
+	const auto start= std::make_shared<GraphElements::Node>(GraphElements::SubroutineEnter{nullptr, node, 0u});
 
 	SetupSubroutineCalls(start, start);
 	return start;

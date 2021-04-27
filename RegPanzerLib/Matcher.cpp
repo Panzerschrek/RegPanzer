@@ -216,15 +216,12 @@ bool MatchNodeImpl(const GraphElements::AtomicGroup& node, State& state)
 
 bool MatchNodeImpl(const GraphElements::SubroutineEnter& node, State& state)
 {
-	// TODO - save groups state.
 	state.subroutines_return_stack.push_back(node.next);
 	return MatchNode(node.subroutine_node, state);
 }
 
-bool MatchNodeImpl(const GraphElements::SubroutineLeave& node, State& state)
+bool MatchNodeImpl(const GraphElements::SubroutineLeave&, State& state)
 {
-	// TODO - restore groups state.
-	(void)node;
 
 	if(state.subroutines_return_stack.empty())
 		return MatchNode(nullptr, state);
@@ -232,6 +229,18 @@ bool MatchNodeImpl(const GraphElements::SubroutineLeave& node, State& state)
 	const auto next_node= state.subroutines_return_stack.back();
 	state.subroutines_return_stack.pop_back();
 	return MatchNode(next_node, state);
+}
+
+bool MatchNodeImpl(const GraphElements::StateSave& node, State& state)
+{
+	// TODO - save state.
+	return MatchNode(node.next, state);
+}
+
+bool MatchNodeImpl(const GraphElements::StateRestore& node, State& state)
+{
+	// TODO - restore state.
+	return MatchNode(node.next, state);
 }
 
 bool MatchNode(const GraphElements::NodePtr& node, State& state)

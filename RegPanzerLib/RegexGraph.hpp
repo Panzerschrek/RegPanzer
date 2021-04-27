@@ -28,6 +28,8 @@ struct PossessiveSequence;
 struct AtomicGroup;
 struct SubroutineEnter;
 struct SubroutineLeave;
+struct StateSave;
+struct StateRestore;
 
 using Node= std::variant<
 	AnySymbol,
@@ -44,7 +46,9 @@ using Node= std::variant<
 	PossessiveSequence,
 	AtomicGroup,
 	SubroutineEnter,
-	SubroutineLeave>;
+	SubroutineLeave,
+	StateSave,
+	StateRestore>;
 
 using NodePtr= std::shared_ptr<Node>;
 
@@ -145,15 +149,22 @@ struct SubroutineEnter
 	NodePtr next; // Next node after subroutine leave.
 	NodePtr subroutine_node;
 	size_t index= std::numeric_limits<size_t>::max(); // 0 - whole expression, 1 - first group, etc.
-	size_t group_state_save_mask= 0;
-	LoopIdSet loop_counters_to_save;
 };
 
 struct SubroutineLeave
 {
-	// Next node calculated dynamically.
-	size_t group_state_restore_mask= 0;
-	LoopIdSet loop_counters_to_restore;
+};
+
+struct StateSave
+{
+	// TODO - data for groups state and loop counters.
+	NodePtr next;
+};
+
+struct StateRestore
+{
+	// TODO - data for groups state and loop counters.
+	NodePtr next;
 };
 
 } // GraphElements
