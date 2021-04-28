@@ -1,4 +1,5 @@
 #include "RegexGraph.hpp"
+#include <unordered_map>
 
 namespace RegPanzer
 {
@@ -7,7 +8,7 @@ namespace
 {
 
 //
-// CollectLoopIdsForRegexChain
+// CollectGroupInternalsForRegexChain
 //
 
 GraphElements::LoopId GetLoopId(const RegexElementFull& element)
@@ -15,63 +16,145 @@ GraphElements::LoopId GetLoopId(const RegexElementFull& element)
 	return &element;
 }
 
-void CollectLoopIdsForRegexChain(const RegexElementsChain& regex_chain, GraphElements::LoopIdSet& loop_id_set);
+using GroupIdSet= std::unordered_set<size_t>;
+using CallTargetSet= std::unordered_set<size_t>;
 
-void CollectLoopIdsForElementImpl(const AnySymbol&, GraphElements::LoopIdSet&){}
-void CollectLoopIdsForElementImpl(const SpecificSymbol&, GraphElements::LoopIdSet&){}
-void CollectLoopIdsForElementImpl(const OneOf&, GraphElements::LoopIdSet&){}
-
-void CollectLoopIdsForElementImpl(const Group& group, GraphElements::LoopIdSet& loop_id_set)
+struct GroupStat
 {
-	CollectLoopIdsForRegexChain(group.elements, loop_id_set);
+	bool recursive= false; // Both directly and indirectly.
+	GraphElements::LoopIdSet internal_loops;
+	GroupIdSet internal_groups;
+	CallTargetSet internal_calls;
+};
+
+void CollectGroupInternalsForRegexChain(const RegexElementsChain& regex_chain, GroupStat&);
+
+void CollectGroupInternalsForElementImpl(const AnySymbol&, GroupStat&){}
+void CollectGroupInternalsForElementImpl(const SpecificSymbol&, GroupStat&){}
+void CollectGroupInternalsForElementImpl(const OneOf&, GroupStat&){}
+
+void CollectGroupInternalsForElementImpl(const Group& group, GroupStat& stat)
+{
+	stat.internal_groups.insert(group.index);
+	CollectGroupInternalsForRegexChain(group.elements, stat);
 }
 
-void CollectLoopIdsForElementImpl(const BackReference&, GraphElements::LoopIdSet&){}
+void CollectGroupInternalsForElementImpl(const BackReference&, GroupStat& stat){}
 
-void CollectLoopIdsForElementImpl(const NonCapturingGroup& non_capturing_group, GraphElements::LoopIdSet& loop_id_set)
+void CollectGroupInternalsForElementImpl(const NonCapturingGroup& non_capturing_group, GroupStat& stat)
 {
-	CollectLoopIdsForRegexChain(non_capturing_group.elements, loop_id_set);
+	CollectGroupInternalsForRegexChain(non_capturing_group.elements, stat);
 }
 
-void CollectLoopIdsForElementImpl(const AtomicGroup& atomic_group, GraphElements::LoopIdSet& loop_id_set)
+void CollectGroupInternalsForElementImpl(const AtomicGroup& atomic_group, GroupStat& stat)
 {
-	CollectLoopIdsForRegexChain(atomic_group.elements, loop_id_set);
+	CollectGroupInternalsForRegexChain(atomic_group.elements, stat);
 }
 
-void CollectLoopIdsForElementImpl(const Look& look, GraphElements::LoopIdSet& loop_id_set)
+void CollectGroupInternalsForElementImpl(const Look& look, GroupStat& stat)
 {
-	CollectLoopIdsForRegexChain(look.elements, loop_id_set);
+	CollectGroupInternalsForRegexChain(look.elements, stat);
 }
 
-void CollectLoopIdsForElementImpl(const Alternatives& alternatives, GraphElements::LoopIdSet& loop_id_set)
+void CollectGroupInternalsForElementImpl(const Alternatives& alternatives, GroupStat& stat)
 {
 	for(const RegexElementsChain& alternaive : alternatives.alternatives)
-		CollectLoopIdsForRegexChain(alternaive, loop_id_set);
+		CollectGroupInternalsForRegexChain(alternaive, stat);
 }
 
-void CollectLoopIdsForElementImpl(const ConditionalElement& conditional_element, GraphElements::LoopIdSet& loop_id_set)
+void CollectGroupInternalsForElementImpl(const ConditionalElement& conditional_element, GroupStat& stat)
 {
-	CollectLoopIdsForElementImpl(conditional_element.look, loop_id_set);
-	CollectLoopIdsForElementImpl(conditional_element.alternatives, loop_id_set);
+	CollectGroupInternalsForElementImpl(conditional_element.look, stat);
+	CollectGroupInternalsForElementImpl(conditional_element.alternatives, stat);
 }
 
-void CollectLoopIdsForElementImpl(const RecursionGroup&, GraphElements::LoopIdSet&){}
-
-void CollectLoopIdsForElement(const RegexElementFull::ElementType& element, GraphElements::LoopIdSet& loop_id_set)
+void CollectGroupInternalsForElementImpl(const RecursionGroup& recursion_group, GroupStat& stat)
 {
-	std::visit([&](const auto& el){ return CollectLoopIdsForElementImpl(el, loop_id_set); }, element);
+	stat.internal_calls.insert(recursion_group.index);
 }
 
-void CollectLoopIdsForRegexElement(const RegexElementFull& element_full, GraphElements::LoopIdSet& loop_id_set)
+void CollectGroupIdsForElement(const RegexElementFull::ElementType& element, GroupStat& stat)
 {
-	loop_id_set.insert(GetLoopId(element_full));
-	CollectLoopIdsForElement(element_full.el, loop_id_set);
+	std::visit([&](const auto& el){ return CollectGroupInternalsForElementImpl(el, stat); }, element);
 }
 
-void CollectLoopIdsForRegexChain(const RegexElementsChain& regex_chain, GraphElements::LoopIdSet& loop_id_set)
+void CollectGroupInternalsForRegexElement(const RegexElementFull& element_full, GroupStat& stat)
+{
+	stat.internal_loops.insert(GetLoopId(element_full));
+	CollectGroupIdsForElement(element_full.el, stat);
+}
+
+void CollectGroupInternalsForRegexChain(const RegexElementsChain& regex_chain, GroupStat& stat)
 {
 	for(const RegexElementFull& el : regex_chain)
-		CollectLoopIdsForRegexElement(el, loop_id_set);
+		CollectGroupInternalsForRegexElement(el, stat);
+}
+
+//
+// CollectGroupStatsForRegexChain
+//
+
+using GroupStats= std::unordered_map<size_t, GroupStat>;
+
+void CollectGroupStatsForRegexChain(const RegexElementsChain& regex_chain, GroupStats& group_stats);
+
+void CollectGroupStatsForElementImpl(const AnySymbol&, GroupStats&){}
+void CollectGroupStatsForElementImpl(const SpecificSymbol&, GroupStats&){}
+void CollectGroupStatsForElementImpl(const OneOf&, GroupStats&){}
+
+void CollectGroupStatsForElementImpl(const Group& group, GroupStats& group_stats)
+{
+	if(group.index < group_stats.size())
+		CollectGroupInternalsForRegexChain(group.elements, group_stats[group.index]);
+
+	CollectGroupStatsForRegexChain(group.elements, group_stats);
+}
+
+void CollectGroupStatsForElementImpl(const BackReference&, GroupStats&){}
+
+void CollectGroupStatsForElementImpl(const NonCapturingGroup& non_capturing_group, GroupStats& group_stats)
+{
+	CollectGroupStatsForRegexChain(non_capturing_group.elements, group_stats);
+}
+
+void CollectGroupStatsForElementImpl(const AtomicGroup& atomic_group, GroupStats& group_stats)
+{
+	CollectGroupStatsForRegexChain(atomic_group.elements, group_stats);
+}
+
+void CollectGroupStatsForElementImpl(const Look& look, GroupStats& group_stats)
+{
+	CollectGroupStatsForRegexChain(look.elements, group_stats);
+}
+
+void CollectGroupStatsForElementImpl(const Alternatives& alternatives, GroupStats& group_stats)
+{
+	for(const RegexElementsChain& alternaive : alternatives.alternatives)
+		CollectGroupStatsForRegexChain(alternaive, group_stats);
+}
+
+void CollectGroupStatsForElementImpl(const ConditionalElement& conditional_element, GroupStats& group_stats)
+{
+	CollectGroupStatsForElementImpl(conditional_element.look, group_stats);
+	CollectGroupStatsForElementImpl(conditional_element.alternatives, group_stats);
+}
+
+void CollectGroupStatsForElementImpl(const RecursionGroup&, GroupStats&){}
+
+void CollectGroupStatsForElement(const RegexElementFull::ElementType& element, GroupStats& group_stats)
+{
+	std::visit([&](const auto& el){ return CollectGroupStatsForElementImpl(el, group_stats); }, element);
+}
+
+void CollectGroupStatsForRegexElement(const RegexElementFull& element_full, GroupStats& group_stats)
+{
+	CollectGroupStatsForElement(element_full.el, group_stats);
+}
+
+void CollectGroupStatsForRegexChain(const RegexElementsChain& regex_chain, GroupStats& group_stats)
+{
+	for(const RegexElementFull& el : regex_chain)
+		CollectGroupStatsForRegexElement(el, group_stats);
 }
 
 //
