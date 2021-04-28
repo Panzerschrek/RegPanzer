@@ -22,6 +22,8 @@ using CallTargetSet= std::unordered_set<size_t>;
 struct GroupStat
 {
 	bool recursive= false; // Both directly and indirectly.
+	size_t backreference_count= 0;
+	size_t indirect_call_count= 0; // (?1), (?R), etc.
 	GraphElements::LoopIdSet internal_loops;
 	GroupIdSet internal_groups; // All (include children of children and futrher).
 	CallTargetSet internal_calls; // All (include children of children and futrher).
@@ -39,7 +41,7 @@ void CollectGroupInternalsForElementImpl(const Group& group, GroupStat& stat)
 	CollectGroupInternalsForRegexChain(group.elements, stat);
 }
 
-void CollectGroupInternalsForElementImpl(const BackReference&, GroupStat& stat){}
+void CollectGroupInternalsForElementImpl(const BackReference&, GroupStat&){}
 
 void CollectGroupInternalsForElementImpl(const NonCapturingGroup& non_capturing_group, GroupStat& stat)
 {
@@ -104,13 +106,14 @@ void CollectGroupStatsForElementImpl(const OneOf&, GroupStats&){}
 
 void CollectGroupStatsForElementImpl(const Group& group, GroupStats& group_stats)
 {
-	if(group.index < group_stats.size())
-		CollectGroupInternalsForRegexChain(group.elements, group_stats[group.index]);
-
+	CollectGroupInternalsForRegexChain(group.elements, group_stats[group.index]);
 	CollectGroupStatsForRegexChain(group.elements, group_stats);
 }
 
-void CollectGroupStatsForElementImpl(const BackReference&, GroupStats&){}
+void CollectGroupStatsForElementImpl(const BackReference& back_reference, GroupStats& group_stats)
+{
+	++(group_stats[back_reference.index].backreference_count);
+}
 
 void CollectGroupStatsForElementImpl(const NonCapturingGroup& non_capturing_group, GroupStats& group_stats)
 {
@@ -139,7 +142,10 @@ void CollectGroupStatsForElementImpl(const ConditionalElement& conditional_eleme
 	CollectGroupStatsForElementImpl(conditional_element.alternatives, group_stats);
 }
 
-void CollectGroupStatsForElementImpl(const RecursionGroup&, GroupStats&){}
+void CollectGroupStatsForElementImpl(const RecursionGroup& recursion_group, GroupStats& group_stats)
+{
+	++(group_stats[recursion_group.index].indirect_call_count);
+}
 
 void CollectGroupStatsForElement(const RegexElementFull::ElementType& element, GroupStats& group_stats)
 {
@@ -222,15 +228,47 @@ GraphElements::NodePtr BuildRegexGraphNodeImpl(const GroupStats& group_stats, co
 
 GraphElements::NodePtr BuildRegexGraphNodeImpl(const GroupStats& group_stats, const Group& group, const GraphElements::NodePtr& next)
 {
-	// We do not need to save state here, save will be saved (if needed) in recursive call.
+	const GroupStat& stat= group_stats.at(group.index);
 
-	const auto subroutine_leave= std::make_shared<GraphElements::Node>(GraphElements::SubroutineLeave{});
+	if(stat.indirect_call_count == 0)
+	{
+		if(stat.backreference_count == 0)
+		{
+			// No calls, no backreferences - generate only node for internal elements.
+			return BuildRegexGraphChain(group_stats, group.elements, next);
+		}
+		else
+		{
+			// Have backreferences - generate start/end nodes.
+			const auto group_end= std::make_shared<GraphElements::Node>(GraphElements::GroupEnd{next, group.index});
+			const auto group_contents= BuildRegexGraphChain(group_stats, group.elements, group_end);
+			return std::make_shared<GraphElements::Node>(GraphElements::GroupStart{group_contents, group.index});
+		}
+	}
+	else
+	{
+		// We do not need to save state here, save will be saved (if needed) in indirect call.
 
-	const auto group_end= std::make_shared<GraphElements::Node>(GraphElements::GroupEnd{subroutine_leave, group.index});
-	const auto group_contents= BuildRegexGraphChain(group_stats, group.elements, group_end);
-	const auto group_start= std::make_shared<GraphElements::Node>(GraphElements::GroupStart{group_contents, group.index});
+		if(stat.backreference_count == 0)
+		{
+			// No backreferences - generate only enter/leave nodes.
+			const auto subroutine_leave= std::make_shared<GraphElements::Node>(GraphElements::SubroutineLeave{});
+			const auto group_contents= BuildRegexGraphChain(group_stats, group.elements, subroutine_leave);
+			return std::make_shared<GraphElements::Node>(GraphElements::SubroutineEnter{next, group_contents, group.index});
+		}
+		else
+		{
+			// Both backreferences and indirect calls needed - generated all nodes.
 
-	return std::make_shared<GraphElements::Node>(GraphElements::SubroutineEnter{next, group_start, group.index});
+			const auto subroutine_leave= std::make_shared<GraphElements::Node>(GraphElements::SubroutineLeave{});
+
+			const auto group_end= std::make_shared<GraphElements::Node>(GraphElements::GroupEnd{subroutine_leave, group.index});
+			const auto group_contents= BuildRegexGraphChain(group_stats, group.elements, group_end);
+			const auto group_start= std::make_shared<GraphElements::Node>(GraphElements::GroupStart{group_contents, group.index});
+
+			return std::make_shared<GraphElements::Node>(GraphElements::SubroutineEnter{next, group_start, group.index});
+		}
+	}
 }
 
 GraphElements::NodePtr BuildRegexGraphNodeImpl(const GroupStats& group_stats, const BackReference& back_reference, const GraphElements::NodePtr& next)
@@ -426,6 +464,7 @@ GraphElements::NodePtr GetGroupNodeByIndex(const GraphElements::NodePtr& node, c
 	if(node == nullptr)
 		return nullptr;
 
+	// TODO - what if we do not add "GroupStart" in group node?
 	if(const auto group_start= std::get_if<GraphElements::GroupStart>(node.get()))
 		if(group_start->index == index)
 			return node;
@@ -522,12 +561,18 @@ GraphElements::NodePtr BuildRegexGraph(const RegexElementsChain& regex_chain)
 	CollectGroupStatsForRegexChain(regex_chain, group_stats);
 	SearchRecursiveGroupCalls(group_stats);
 
-	const auto end_node= std::make_shared<GraphElements::Node>(GraphElements::SubroutineLeave{});
-	const auto node= BuildRegexGraphChain(group_stats, regex_chain, end_node);
-	const auto start= std::make_shared<GraphElements::Node>(GraphElements::SubroutineEnter{nullptr, node, 0u});
+	GraphElements::NodePtr result_root;
+	if(group_stats.at(0).indirect_call_count == 0)
+		result_root= BuildRegexGraphChain(group_stats, regex_chain, nullptr);
+	else
+	{
+		const auto end_node= std::make_shared<GraphElements::Node>(GraphElements::SubroutineLeave{});
+		const auto node= BuildRegexGraphChain(group_stats, regex_chain, end_node);
+		result_root= std::make_shared<GraphElements::Node>(GraphElements::SubroutineEnter{nullptr, node, 0u});
+	}
 
-	SetupSubroutineCalls(start, start);
-	return start;
+	SetupSubroutineCalls(result_root, result_root);
+	return result_root;
 }
 
 } // namespace RegPanzer
