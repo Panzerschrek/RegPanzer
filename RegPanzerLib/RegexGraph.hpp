@@ -157,14 +157,16 @@ struct SubroutineLeave
 
 struct StateSave
 {
-	// TODO - data for groups state and loop counters.
 	NodePtr next;
+	LoopIdSet loop_counters_to_save;
+	std::unordered_set<size_t> groups_to_save;
 };
 
 struct StateRestore
 {
-	// TODO - data for groups state and loop counters.
 	NodePtr next;
+	LoopIdSet loop_counters_to_restore;
+	std::unordered_set<size_t> groups_to_restore;
 };
 
 } // GraphElements

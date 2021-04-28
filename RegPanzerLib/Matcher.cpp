@@ -17,6 +17,14 @@ struct State
 	std::string_view groups[10];
 	std::unordered_map<GraphElements::LoopId, size_t> loop_counters;
 	std::vector<GraphElements::NodePtr> subroutines_return_stack;
+
+	struct SubroutineEnterSaveState
+	{
+		std::unordered_map<GraphElements::LoopId, size_t> loop_counters;
+		std::unordered_map<size_t, std::string_view> groups;
+	};
+
+	std::vector<SubroutineEnterSaveState> state_save_stack;
 };
 
 std::optional<CharType> ExtractCodePoint(State& state)
@@ -233,12 +241,38 @@ bool MatchNodeImpl(const GraphElements::SubroutineLeave&, State& state)
 bool MatchNodeImpl(const GraphElements::StateSave& node, State& state)
 {
 	// TODO - save state.
+	State::SubroutineEnterSaveState state_to_save;
+	for(const GraphElements::LoopId loop_id : node.loop_counters_to_save)
+	{
+		state_to_save.loop_counters[loop_id]= state.loop_counters[loop_id];
+		state.loop_counters[loop_id]= 0; // TODO - do we need to zero it here?
+	}
+
+	for(const size_t group_id : node.groups_to_save)
+	{
+		state_to_save.groups[group_id]= state.groups[group_id];
+		state.groups[group_id] = std::string_view(); // TODO - do we need to reset it here?
+	}
+
+	state.state_save_stack.push_back(std::move(state_to_save));
+
 	return MatchNode(node.next, state);
 }
 
 bool MatchNodeImpl(const GraphElements::StateRestore& node, State& state)
 {
-	// TODO - restore state.
+	assert(!state.state_save_stack.empty());
+
+	State::SubroutineEnterSaveState& state_to_restore= state.state_save_stack.back();
+
+	for(const auto& loop_counter_pair : state_to_restore.loop_counters)
+		state.loop_counters[loop_counter_pair.first]= loop_counter_pair.second;
+
+	for(const auto& group_pair : state_to_restore.groups)
+		state.groups[group_pair.first]= group_pair.second;
+
+	state.state_save_stack.pop_back();
+
 	return MatchNode(node.next, state);
 }
 

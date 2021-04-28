@@ -231,6 +231,8 @@ GraphElements::NodePtr BuildRegexGraphNodeImpl(const GroupStats& group_stats, Ou
 {
 	const GroupStat& stat= group_stats.at(group.index);
 
+	// TODO -if building regexpr for groups extraction, always emit GroupStart/GroupEnd.
+
 	if(stat.indirect_call_count == 0)
 	{
 		if(stat.backreference_count == 0)
@@ -325,12 +327,28 @@ GraphElements::NodePtr BuildRegexGraphNodeImpl(const GroupStats& group_stats, Ou
 GraphElements::NodePtr BuildRegexGraphNodeImpl(const GroupStats& group_stats, OutRegexData&, const RecursionGroup& recursion_group, const GraphElements::NodePtr& next)
 {
 	// We need to save and restore state in subroutine calls.
-	// TODO - fill required for save/restore data.
-	(void) group_stats;
 
-	const auto state_restore= std::make_shared<GraphElements::Node>(GraphElements::StateRestore{next});
+	const GroupStat& stat= group_stats.at(recursion_group.index);
+
+	// Save loops only if recursive calls possible.
+	GraphElements::LoopIdSet loops;
+	if(stat.recursive)
+		loops= stat.internal_loops;
+
+	// Save group state itself and state of its subgroups, but only if they used in backreferences.
+	// TODO - save groups also if we match also subexpressions.
+	GroupIdSet groups;
+
+	for(const size_t& internal_group_id : stat.internal_groups)
+		if(group_stats.at(internal_group_id).backreference_count > 0)
+			groups.insert(internal_group_id);
+
+	if(group_stats.at(recursion_group.index).backreference_count > 0)
+		groups.insert(recursion_group.index);
+
+	const auto state_restore= std::make_shared<GraphElements::Node>(GraphElements::StateRestore{next, loops, groups});
 	const auto enter_node= std::make_shared<GraphElements::Node>(GraphElements::SubroutineEnter{state_restore, nullptr /*set actual pointer later*/, recursion_group.index});
-	return std::make_shared<GraphElements::Node>(GraphElements::StateSave{enter_node});
+	return std::make_shared<GraphElements::Node>(GraphElements::StateSave{enter_node, loops, groups});
 }
 
 GraphElements::NodePtr BuildRegexGraphNode(const GroupStats& group_stats, OutRegexData& out_data, const RegexElementFull::ElementType& element, const GraphElements::NodePtr& next)
