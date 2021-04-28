@@ -147,7 +147,7 @@ struct AtomicGroup
 struct SubroutineEnter
 {
 	NodePtr next; // Next node after subroutine leave.
-	NodePtr subroutine_node;
+	NodePtr subroutine_node; // TODO - this node may create strong shared pointers loop. Maybe make it weak?
 	size_t index= std::numeric_limits<size_t>::max(); // 0 - whole expression, 1 - first group, etc.
 };
 
