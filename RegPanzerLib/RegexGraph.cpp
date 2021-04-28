@@ -23,8 +23,8 @@ struct GroupStat
 {
 	bool recursive= false; // Both directly and indirectly.
 	GraphElements::LoopIdSet internal_loops;
-	GroupIdSet internal_groups;
-	CallTargetSet internal_calls;
+	GroupIdSet internal_groups; // All (include children of children and futrher).
+	CallTargetSet internal_calls; // All (include children of children and futrher).
 };
 
 void CollectGroupInternalsForRegexChain(const RegexElementsChain& regex_chain, GroupStat&);
@@ -155,6 +155,41 @@ void CollectGroupStatsForRegexChain(const RegexElementsChain& regex_chain, Group
 {
 	for(const RegexElementFull& el : regex_chain)
 		CollectGroupStatsForRegexElement(el, group_stats);
+}
+
+//
+// SearchRecursiveGroupCalls
+//
+
+using GrupsStack= std::vector<size_t>;
+
+void SearchRecursiveGroupCalls_r(GroupStats& group_stats, const size_t current_group_id, GrupsStack& stack)
+{
+	GroupStat& group_stat= group_stats[current_group_id];
+
+	for(const size_t prev_stack_id : stack)
+	{
+		if(prev_stack_id == current_group_id)
+		{
+			group_stats[current_group_id].recursive= true;
+			return;
+		}
+	}
+
+	stack.push_back(current_group_id);
+
+	for(const size_t& internal_group_id : group_stat.internal_groups)
+		SearchRecursiveGroupCalls_r(group_stats, internal_group_id, stack);
+	for(const size_t& internal_group_id : group_stat.internal_calls)
+		SearchRecursiveGroupCalls_r(group_stats, internal_group_id, stack);
+
+	stack.pop_back();
+}
+
+void SearchRecursiveGroupCalls(GroupStats& group_stats)
+{
+	GrupsStack stack;
+	SearchRecursiveGroupCalls_r(group_stats, 0, stack);
 }
 
 //
@@ -477,6 +512,11 @@ void SetupSubroutineCalls(const GraphElements::NodePtr& node, const GraphElement
 
 GraphElements::NodePtr BuildRegexGraph(const RegexElementsChain& regex_chain)
 {
+	GroupStats group_stats;
+	CollectGroupInternalsForRegexChain(regex_chain, group_stats[0]);
+	CollectGroupStatsForRegexChain(regex_chain, group_stats);
+	SearchRecursiveGroupCalls(group_stats);
+
 	const auto end_node= std::make_shared<GraphElements::Node>(GraphElements::SubroutineLeave{});
 	const auto node= BuildRegexGraphNodeImpl(regex_chain.begin(), regex_chain.end(), end_node);
 	const auto start= std::make_shared<GraphElements::Node>(GraphElements::SubroutineEnter{nullptr, node, 0u});
