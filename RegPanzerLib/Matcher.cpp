@@ -222,7 +222,6 @@ bool MatchNodeImpl(const GraphElements::SubroutineEnter& node, State& state)
 
 bool MatchNodeImpl(const GraphElements::SubroutineLeave&, State& state)
 {
-
 	if(state.subroutines_return_stack.empty())
 		return MatchNode(nullptr, state);
 
