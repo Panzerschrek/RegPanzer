@@ -1883,6 +1883,44 @@ inline const MatcherTestDataElement g_matcher_test_data[]
 		}
 	},
 
+	{ // Non-recursive call to group, backreference to which used later.  Backreference should point to first group usage result, not to indirect call.
+		"([a-z]+)\\/(?1)\\/\\1",
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // No match - not enoug symbols.
+				"jy//jy",
+				{}
+			},
+			{ // No match - not enoug symbols.
+				"hly/t/hl",
+				{}
+			},
+			{ // Minimal possible match.
+				"m/n/m",
+				{ {0, 5} }
+			},
+			{ // Valid match - third part if a copy of first part.
+				"abc/de/abc",
+				{ {0, 10} },
+			},
+			{ // No match - third part is a copy of second part.
+				"abc/de/de",
+				{}
+			},
+			{ // Match with all parts same.
+				"ytrb/ytrb/ytrb",
+				{ {0, 14} }
+			},
+			{ // Two sequential matches.
+				"nbfrt/io/nbfrtz/yuoi/z",
+				{ {0, 14}, {14, 22} }
+			},
+		}
+	},
+
 	{ // Simple recursive subroutine call - call whole expression.
 		"a(?R)?b",
 		{
@@ -1987,6 +2025,132 @@ inline const MatcherTestDataElement g_matcher_test_data[]
 				{ {0, 6}, {7, 11} }
 			},
 		}
+	},
+
+	{ // Expression for numeric expressions with possible brackets. Contains recursive call and indirect call.
+		"(([0-9]+)|(\\((?R)\\)))(((\\+)|(-)|(\\*)|(\\/))(?1))*",
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // Shortest possible match.
+				"7",
+				{ {0, 1} }
+			},
+			{ // Single number with multiple digits.
+				"64347",
+				{ {0, 5} }
+			},
+			{ // Expression with two components.
+				"76-312",
+				{ {0, 6} }
+			},
+			{ // Expression with multiple components.
+				"1+54/3-676*21/2+7874*543*122",
+				{ {0, 28} }
+			},
+			{ // Simple expression in brackets.
+				"(56)",
+				{ {0, 4} }
+			},
+			{ // Multiple brackets around expression.
+				"(((8644)))",
+				{ {0, 10} }
+			},
+			{ // long expression with brackets.
+				"772*(45-56)+95/(13/2)-(77*(22-122))/8",
+				{ {0, 37} }
+			},
+			{ // Unclosed left bracket.
+				"(35",
+				{ {1, 3} }
+			},
+			{ // Unclosed right bracket.
+				"66+17)",
+				{ {0, 5} }
+			},
+			{ // Leading binary operator.
+				"/66-44*256-(54/22)",
+				{ {1, 18} }
+			},
+			{ // Trailing binary operator.
+				"5+4+21+7563*",
+				{ {0, 11} }
+			},
+			{ // Two separate matches because of space between operands.
+				"55 +771",
+				{ {0, 2}, {4, 7} }
+			},
+			{ // Two separate matches because of duplicated operand.
+				"77//(45-4)",
+				{ {0, 2}, {4, 10} }
+			},
+		}
+	},
+
+	{ // Indirect call and recursive call.
+		"([a-z]+|(\\((?R)\\)))( (?1))*",  // Sequence of words separated by spaces or bracket pairs with same sequence inside.
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // Shortes possible match - single word.
+				"u",
+				{ {0, 1} }
+			},
+			{ // Single long word.
+				"trraht",
+				{ {0, 6} }
+			},
+			{ // Multiple words.
+				"rererr rhthjtj eewabnpepq feeimq",
+				{ {0, 32} }
+			},
+			{ // single word inside brackets.
+				"(whttgr)",
+				{ {0, 8} }
+			},
+			{ // single word inside nested brackets.
+				"(((((jkiopj)))))",
+				{ {0, 16} }
+			},
+			{ // Long expression with nested subparts.
+				"twac (trra) dawawpzqqvfk (trr awdw) daz (tgrtr (wdd (ssd ((bhh)) juoklf) wwda) (wwd) wdaad (wwgnnz (wdcvxx)) wdnmnnpmq ((ve)))",
+				{ {0, 126} }
+			},
+			{ // Duplicated space - two matches.
+				"yyhhtth  awdwd wdwa",
+				{ {0, 7}, {9, 19} }
+			},
+			{ // Missing bracket - two matches.
+				"vewac wdwadwd (httt aaz",
+				{ {0, 13}, {15, 23} }
+			},
+		}
+	},
+
+	{ // Recursive call from internal loop. Should presever counter.
+		"([A-Z])((\\*\\((?R)\\)){2,3})?",
+		{
+			{
+				"A*(X)*(Y)",
+				{ {0, 9} },
+			},
+			{
+				"A*(X)*(Y)*(Z)*(W)",
+				{ {0, 13}, {15, 16} }
+			},
+			{
+				"A*(X)*(Y)",
+				{ {0, 9} },
+			},
+			{
+				"A*(X)*(Z*(S)*(T))*(Y)*(W)",
+				{ {0, 21}, {23, 24} }
+			},
+		},
 	},
 
 	// Non-ASCII symbols match.

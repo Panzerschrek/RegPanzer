@@ -249,7 +249,6 @@ bool MatchNodeImpl(const GraphElements::SubroutineLeave&, State& state)
 
 bool MatchNodeImpl(const GraphElements::StateSave& node, State& state)
 {
-	// TODO - save state.
 	State::SubroutineEnterSaveState state_to_save;
 	for(const GraphElements::LoopId loop_id : node.loop_counters_to_save)
 	{
