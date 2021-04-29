@@ -1883,6 +1883,70 @@ inline const MatcherTestDataElement g_matcher_test_data[]
 		}
 	},
 
+	{ // Simple recursive subroutine call - call whole expression.
+		"a(?R)?b",
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // No match - not enough symbols.
+				"a",
+				{}
+			},
+			{ // No match - wrong symbol in middle of string.
+				"aacbb",
+				{}
+			},
+			{ // Shortest possible match.
+				"ab",
+				{ {0, 2} }
+			},
+			{ // Long match for whole string.
+				"aaaabbbb",
+				{ {0, 8} }
+			},
+			{ // Symbols at begining are ignored.
+				"aaaaabbb",
+				{ {2, 8} }
+			},
+			{ // Symbols at end are ignored.
+				"aabbbbb",
+				{ {0, 4} }
+			},
+		}
+	},
+
+	{ // Recursive call togroup.
+		"B(q(?1)?w)E",
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // No match - no trailing symbol.
+				"Bqw",
+				{}
+			},
+			{ // No match - no symbols in group.
+				"BE",
+				{}
+			},
+			{ // No match - different number of symbols.
+				"BqqwwwE",
+				{}
+			},
+			{ // Shortest possible match.
+				"BqwE",
+				{ {0, 4} }
+			},
+			{ // Long match.
+				"BqqqqqwwwwwE",
+				{ {0, 12} }
+			},
+		}
+	},
+
 	// Non-ASCII symbols match.
 	{
 		"ё",

@@ -479,9 +479,14 @@ void SetupSubroutineCalls(const GraphElements::NodePtr& node, const OutRegexData
 
 	if(const auto subroutine_enter= std::get_if<GraphElements::SubroutineEnter>(node.get()))
 		if(subroutine_enter->subroutine_node == nullptr)
+		{
 			subroutine_enter->subroutine_node= regex_data.group_nodes.at(subroutine_enter->index);
+			SetupSubroutineCalls(subroutine_enter->next, regex_data);
+			// Do noy setup calls for subroutine enter for indirect calls.
+			return;
+		}
 
-	return std::visit([&](const auto& el){ return SetupSubroutineCallsImpl(el, regex_data); }, *node);
+	std::visit([&](const auto& el){ return SetupSubroutineCallsImpl(el, regex_data); }, *node);
 }
 
 } // namespace
