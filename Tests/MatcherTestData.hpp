@@ -1947,6 +1947,48 @@ inline const MatcherTestDataElement g_matcher_test_data[]
 		}
 	},
 
+	{ // Recursive call for whole expression and backreference.
+		"([a-z]+)(?R)?\\1",  // Expressions for polyndromes.
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // No match - different symbols.
+				"ud",
+				{}
+			},
+			{ // Shortest possible match.
+				"hh",
+				{ {0, 2} }
+			},
+			{ // Long match with same symbols.
+				"tttttttt",
+				{ {0, 8} }
+			},
+			{ // Long match with different symbols.
+				"qwertyytrewq",
+				{ {0, 12} }
+			},
+			{ // Polyndrome of polyndromes.
+				"abbaabba",
+				{ {0, 8} }
+			},
+			{ // Non-paired symbols are truncated.
+				"zehjuttujhyu",
+				{ {2, 10} }
+			},
+			{ // Two sequential matches.
+				"rtggtrjkkj",
+				{ {0, 6}, {6, 10} }
+			},
+			{ // Two non-sequential matches.
+				"rtggtrqjkkj",
+				{ {0, 6}, {7, 11} }
+			},
+		}
+	},
+
 	// Non-ASCII symbols match.
 	{
 		"ё",
