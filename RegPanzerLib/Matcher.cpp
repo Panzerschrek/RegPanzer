@@ -1,6 +1,7 @@
 #include "Matcher.hpp"
 #include "PushDisableLLVMWarnings.hpp"
 #include <llvm/ADT/SmallVector.h>
+#include <llvm/ADT/DenseMap.h>
 #include <llvm/Support/ConvertUTF.h>
 #include "PopLLVMWarnings.hpp"
 #include <cassert>
@@ -16,7 +17,7 @@ struct State
 {
 	std::string_view str;
 	std::string_view groups[10];
-	std::unordered_map<GraphElements::LoopId, size_t> loop_counters;
+	llvm::DenseMap<GraphElements::LoopId, size_t> loop_counters;
 	std::vector<GraphElements::NodePtr> subroutines_return_stack;
 
 	struct SubroutineEnterSaveState
