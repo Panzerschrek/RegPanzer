@@ -1,5 +1,6 @@
 #include "Matcher.hpp"
 #include "PushDisableLLVMWarnings.hpp"
+#include <llvm/ADT/SmallVector.h>
 #include <llvm/Support/ConvertUTF.h>
 #include "PopLLVMWarnings.hpp"
 #include <cassert>
@@ -20,11 +21,12 @@ struct State
 
 	struct SubroutineEnterSaveState
 	{
-		std::unordered_map<GraphElements::LoopId, size_t> loop_counters;
-		std::unordered_map<size_t, std::string_view> groups;
+		llvm::SmallVector<std::pair<GraphElements::LoopId, size_t>, 6> loop_counters;
+		llvm::SmallVector<std::pair<size_t, std::string_view>, 4> groups;
+		const SubroutineEnterSaveState* prev= nullptr;
 	};
 
-	std::vector<SubroutineEnterSaveState> state_save_stack;
+	const SubroutineEnterSaveState* saved_state= nullptr;
 };
 
 std::optional<CharType> ExtractCodePoint(State& state)
@@ -250,36 +252,38 @@ bool MatchNodeImpl(const GraphElements::SubroutineLeave&, State& state)
 bool MatchNodeImpl(const GraphElements::StateSave& node, State& state)
 {
 	State::SubroutineEnterSaveState state_to_save;
+
+	state_to_save.loop_counters.reserve(node.loop_counters_to_save.size());
 	for(const GraphElements::LoopId loop_id : node.loop_counters_to_save)
 	{
-		state_to_save.loop_counters[loop_id]= state.loop_counters[loop_id];
+		state_to_save.loop_counters.emplace_back(loop_id, state.loop_counters[loop_id]);
 		state.loop_counters[loop_id]= 0; // TODO - do we need to zero it here?
 	}
 
+	state_to_save.groups.reserve(node.groups_to_save.size());
 	for(const size_t group_id : node.groups_to_save)
 	{
-		state_to_save.groups[group_id]= state.groups[group_id];
+		state_to_save.groups.emplace_back(group_id, state.groups[group_id]);
 		state.groups[group_id] = std::string_view(); // TODO - do we need to reset it here?
 	}
 
-	state.state_save_stack.push_back(std::move(state_to_save));
+	state_to_save.prev= state.saved_state;
+	state.saved_state= &state_to_save;
 
 	return MatchNode(node.next, state);
 }
 
 bool MatchNodeImpl(const GraphElements::StateRestore& node, State& state)
 {
-	assert(!state.state_save_stack.empty());
+	assert(state.saved_state != nullptr);
 
-	State::SubroutineEnterSaveState& state_to_restore= state.state_save_stack.back();
-
-	for(const auto& loop_counter_pair : state_to_restore.loop_counters)
+	for(const auto& loop_counter_pair : state.saved_state->loop_counters)
 		state.loop_counters[loop_counter_pair.first]= loop_counter_pair.second;
 
-	for(const auto& group_pair : state_to_restore.groups)
+	for(const auto& group_pair : state.saved_state->groups)
 		state.groups[group_pair.first]= group_pair.second;
 
-	state.state_save_stack.pop_back();
+	state.saved_state= state.saved_state->prev;
 
 	return MatchNode(node.next, state);
 }
