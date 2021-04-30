@@ -18,7 +18,7 @@ struct State
 	std::string_view str;
 	std::string_view groups[10];
 	llvm::DenseMap<GraphElements::LoopId, size_t> loop_counters;
-	std::vector<GraphElements::NodePtr> subroutines_return_stack;
+	llvm::SmallVector<GraphElements::NodePtr, 8> subroutines_return_stack;
 
 	struct SubroutineEnterSaveState
 	{
