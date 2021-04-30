@@ -1921,6 +1921,40 @@ inline const MatcherTestDataElement g_matcher_test_data[]
 		}
 	},
 
+	{ // Two calls to group. Group itself directly not matched because of {0} quantifier.
+		"([a-z]+){0}Q(?1)-(?1)",
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // No start symbol - no match.
+				"bbt-aa",
+				{}
+			},
+			{ // Shortest possible match.
+				"Qa-n",
+				{ {0, 4} }
+			},
+			{ // Match of same sequences.
+				"Qhjt-hjt",
+				{ {0, 8} }
+			},
+			{ // Match of long words.
+				"Qwadwad-wdawdbvbr",
+				{ {0, 17} }
+			},
+			{ // Group at begnning not matched.
+				"ubQa-ze",
+				{ {2, 7} }
+			},
+			{ // Two sequential matches.
+				"Qhhjtt-awQbnty-vf",
+				{ {0, 9}, {9, 17} }
+			},
+		},
+	},
+
 	{ // Simple recursive subroutine call - call whole expression.
 		"a(?R)?b",
 		{
@@ -1955,7 +1989,7 @@ inline const MatcherTestDataElement g_matcher_test_data[]
 		}
 	},
 
-	{ // Recursive call togroup.
+	{ // Recursive call to group.
 		"B(q(?1)?w)E",
 		{
 			{ // Empty string - no matches.
@@ -2131,7 +2165,7 @@ inline const MatcherTestDataElement g_matcher_test_data[]
 		}
 	},
 
-	{ // Recursive call from internal loop. Should presever counter.
+	{ // Recursive call from internal loop. Should preserve counter.
 		"([A-Z])((\\*\\((?R)\\)){2,3})?",
 		{
 			{
@@ -2151,6 +2185,36 @@ inline const MatcherTestDataElement g_matcher_test_data[]
 				{ {0, 21}, {23, 24} }
 			},
 		},
+	},
+
+	{ // Indirect recursive call.
+		"(\\((?2)?\\))(\\[(?1)?\\])",
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // Shortest possible match.
+				"()[]",
+				{ {0, 4} }
+			},
+			{ // Call second group in first group.
+				"([])[]",
+				{ {0, 6} }
+			},
+			{ // Call first group in second group.
+				"()[()]",
+				{ {0, 6} }
+			},
+			{ // Deep recursion.
+				"([([])])[([([([()])])])]",
+				{ {0, 24} }
+			},
+			{ // Two sequential matches.
+				"()[]()[]",
+				{ {0, 4}, {4, 8} }
+			},
+		}
 	},
 
 	// Non-ASCII symbols match.
