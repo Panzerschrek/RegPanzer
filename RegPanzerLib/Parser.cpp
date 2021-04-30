@@ -39,6 +39,7 @@ std::optional<RegexElementFull::ElementType> ParseEscapeSequence(StrView& str)
 	case '|':
 	case '?':
 	case '\\':
+	case '/':
 		return SpecificSymbol{ c };
 
 	case '1':
@@ -333,7 +334,7 @@ std::optional<RegexElementsChain> ParseRegexStringImpl(size_t& next_group_index,
 						return std::nullopt;
 					str.remove_prefix(1);
 
-					res.el= RecursionGroup{ 0 };
+					res.el= SubroutineCall{ 0 };
 				}
 				else if(str.front() >= '0' && str.front() <= '9')
 				{
@@ -344,7 +345,7 @@ std::optional<RegexElementsChain> ParseRegexStringImpl(size_t& next_group_index,
 						return std::nullopt;
 					str.remove_prefix(1);
 
-					res.el= RecursionGroup{ index };
+					res.el= SubroutineCall{ index };
 				}
 				else if(str.front() == ':')
 				{

@@ -1,5 +1,7 @@
 #include "Matcher.hpp"
 #include "PushDisableLLVMWarnings.hpp"
+#include <llvm/ADT/SmallVector.h>
+#include <llvm/ADT/DenseMap.h>
 #include <llvm/Support/ConvertUTF.h>
 #include "PopLLVMWarnings.hpp"
 #include <cassert>
@@ -15,7 +17,17 @@ struct State
 {
 	std::string_view str;
 	std::string_view groups[10];
-	std::unordered_map<GraphElements::LoopId, size_t> loop_counters;
+	llvm::DenseMap<GraphElements::LoopId, size_t> loop_counters;
+	llvm::SmallVector<GraphElements::NodePtr, 8> subroutines_return_stack;
+
+	struct SubroutineEnterSaveState
+	{
+		llvm::SmallVector<std::pair<GraphElements::LoopId, size_t>, 6> loop_counters;
+		llvm::SmallVector<std::pair<size_t, std::string_view>, 4> groups;
+		const SubroutineEnterSaveState* prev= nullptr;
+	};
+
+	const SubroutineEnterSaveState* saved_state= nullptr;
 };
 
 std::optional<CharType> ExtractCodePoint(State& state)
@@ -211,6 +223,70 @@ bool MatchNodeImpl(const GraphElements::AtomicGroup& node, State& state)
 	}
 
 	return false;
+}
+
+bool MatchNodeImpl(const GraphElements::SubroutineEnter& node, State& state)
+{
+	state.subroutines_return_stack.push_back(node.next);
+
+	GraphElements::NodePtr subroutine_node;
+	if(const auto strong_ptr = std::get_if<GraphElements::NodePtr>(&node.subroutine_node))
+		subroutine_node= *strong_ptr;
+	else if(const auto weak_ptr = std::get_if<GraphElements::NodePtr::weak_type>(&node.subroutine_node))
+		subroutine_node= weak_ptr->lock();
+	else
+		assert(false);
+
+	return MatchNode(subroutine_node, state);
+}
+
+bool MatchNodeImpl(const GraphElements::SubroutineLeave&, State& state)
+{
+	if(state.subroutines_return_stack.empty())
+		return MatchNode(nullptr, state);
+
+	const auto next_node= state.subroutines_return_stack.back();
+	state.subroutines_return_stack.pop_back();
+	return MatchNode(next_node, state);
+}
+
+bool MatchNodeImpl(const GraphElements::StateSave& node, State& state)
+{
+	State::SubroutineEnterSaveState state_to_save;
+
+	state_to_save.loop_counters.reserve(node.loop_counters_to_save.size());
+	for(const GraphElements::LoopId loop_id : node.loop_counters_to_save)
+	{
+		state_to_save.loop_counters.emplace_back(loop_id, state.loop_counters[loop_id]);
+		state.loop_counters[loop_id]= 0; // TODO - do we need to zero it here?
+	}
+
+	state_to_save.groups.reserve(node.groups_to_save.size());
+	for(const size_t group_id : node.groups_to_save)
+	{
+		state_to_save.groups.emplace_back(group_id, state.groups[group_id]);
+		state.groups[group_id] = std::string_view(); // TODO - do we need to reset it here?
+	}
+
+	state_to_save.prev= state.saved_state;
+	state.saved_state= &state_to_save;
+
+	return MatchNode(node.next, state);
+}
+
+bool MatchNodeImpl(const GraphElements::StateRestore& node, State& state)
+{
+	assert(state.saved_state != nullptr);
+
+	for(const auto& loop_counter_pair : state.saved_state->loop_counters)
+		state.loop_counters[loop_counter_pair.first]= loop_counter_pair.second;
+
+	for(const auto& group_pair : state.saved_state->groups)
+		state.groups[group_pair.first]= group_pair.second;
+
+	state.saved_state= state.saved_state->prev;
+
+	return MatchNode(node.next, state);
 }
 
 bool MatchNode(const GraphElements::NodePtr& node, State& state)

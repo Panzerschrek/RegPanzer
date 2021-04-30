@@ -713,16 +713,16 @@ const TestDataElement c_test_data[]
 		}
 	},
 
-	{ // Recursion for whole expression.
+	{ // Subroutine call for whole expression.
 		"a(?R)?b",
 		{
 			{ SpecificSymbol{ 'a' }, { 1, 1, SequenceMode::Greedy } },
-			{ RecursionGroup{ 0 }, { 0, 1, SequenceMode::Greedy } },
+			{ SubroutineCall{ 0 }, { 0, 1, SequenceMode::Greedy } },
 			{ SpecificSymbol{ 'b' }, { 1, 1, SequenceMode::Greedy } },
 		}
 	},
 
-	{ // Recursion for part of expression.
+	{ // Subroutine call for part of expression.
 		"(Q)(z(?2)?w)T",
 		{
 			{
@@ -739,7 +739,7 @@ const TestDataElement c_test_data[]
 					2,
 					{
 						{ SpecificSymbol{ 'z' }, { 1, 1, SequenceMode::Greedy } },
-						{ RecursionGroup{ 2 }, { 0, 1, SequenceMode::Greedy } },
+						{ SubroutineCall{ 2 }, { 0, 1, SequenceMode::Greedy } },
 						{ SpecificSymbol{ 'w' }, { 1, 1, SequenceMode::Greedy } },
 					}
 				},
@@ -749,7 +749,7 @@ const TestDataElement c_test_data[]
 		}
 	},
 
-	{ // Recursion for '0' - recursion for whole pattern.
+	{ // Subroutine call for '0' - recursion for whole pattern.
 		"([a-z])(?0)?\\1",
 		{
 			{
@@ -760,7 +760,7 @@ const TestDataElement c_test_data[]
 				},
 				{ 1, 1, SequenceMode::Greedy }
 			},
-			{ RecursionGroup{ 0 }, { 0, 1, SequenceMode::Greedy } },
+			{ SubroutineCall{ 0 }, { 0, 1, SequenceMode::Greedy } },
 			{ BackReference{ 1 }, { 1, 1, SequenceMode::Greedy } },
 		}
 	},
@@ -827,6 +827,7 @@ const TestDataElement c_test_data[]
 	{ "\\|", { { SpecificSymbol{ '|' }, { 1, 1, SequenceMode::Greedy }, } } },
 	{ "\\?", { { SpecificSymbol{ '?' }, { 1, 1, SequenceMode::Greedy }, } } },
 	{ "\\\\", { { SpecificSymbol{ '\\' }, { 1, 1, SequenceMode::Greedy }, } } },
+	{ "\\/", { { SpecificSymbol{ '/' }, { 1, 1, SequenceMode::Greedy }, } } },
 
 	// Basic escape sequences for "OneOf".
 	{ "[\\[]", { { OneOf{ {'['}, {}, false }, { 1, 1, SequenceMode::Greedy }, } } },
@@ -843,6 +844,7 @@ const TestDataElement c_test_data[]
 	{ "[\\|]", { { OneOf{ {'|'}, {}, false }, { 1, 1, SequenceMode::Greedy }, } } },
 	{ "[\\?]", { { OneOf{ {'?'}, {}, false }, { 1, 1, SequenceMode::Greedy }, } } },
 	{ "[\\\\]", { { OneOf{ {'\\'}, {}, false }, { 1, 1, SequenceMode::Greedy }, } } },
+	{ "[\\/]", { { OneOf{ {'/'}, {}, false }, { 1, 1, SequenceMode::Greedy }, } } },
 };
 
 INSTANTIATE_TEST_CASE_P(P, ParseTest, testing::ValuesIn(c_test_data));

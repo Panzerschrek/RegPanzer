@@ -1789,6 +1789,434 @@ inline const MatcherTestDataElement g_matcher_test_data[]
 		}
 	},
 
+	{ // Non-recursive subroutine call.
+		"([a-z]+)2(?1)", // Equivalent to ([a-z]+)2([a-z]+)
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // No match - not enough symbols in second sequence.
+				"bg2",
+				{}
+			},
+			{ // No match - no '2' symbol.
+				"wdad7dbgh",
+				{}
+			},
+			{ // Shortest possible match.
+				"h2w",
+				{ {0, 3} }
+			},
+			{ // Match with shortest equal.
+				"l2l",
+				{ {0, 3} }
+			},
+			{ // Match with equal parts.
+				"bng2bng",
+				{ {0, 7} }
+			},
+			{ // Match with non-equal partw with same length.
+				"nbwf2joac",
+				{ {0, 9} }
+			},
+			{ // Match with non-equal partw with different length.
+				"vy2nyeq",
+				{ {0, 7} }
+			},
+		}
+	},
+
+	{ // Non-recursive subroutine call to group defined later.
+		"(?1)@([0-9]{2,4})",
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // No match - not enough symbols at beginning.
+				"5@78543",
+				{}
+			},
+			{ // No match - not enough symbols at end.
+				"233566@8",
+				{}
+			},
+			{ // Shortest possible match.
+				"73@14",
+				{ {0, 5} }
+			},
+			{ // Too much symbols - sequence will be truncated
+				"72456476953@1680890214",
+				{ {7, 16} }
+			},
+			{ // Two sequential sequences.
+				"5466@136623@6640",
+				{ {0, 9}, {9, 16} }
+			},
+		}
+	},
+
+	{ // Two non-recursive subroutine calls.
+		"(?1)\\/([a-f])+\\/(?1)",
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // Shortest possible match.
+				"b/c/a",
+				{ {0, 5} }
+			},
+			{ // Match with long sequence.
+				"d/fabcaafcc/b",
+				{ {0, 13} }
+			},
+			{ // Excessive symbols at front and at end are discarded.
+				"bacced/e/abddc",
+				{ {5, 10} }
+			},
+			{ // Two sequential sequences.
+				"b/acd/ee/f/c",
+				{ {0, 7}, {7, 12} }
+			},
+		}
+	},
+
+	{ // Non-recursive call to group, backreference to which used later.  Backreference should point to first group usage result, not to indirect call.
+		"([a-z]+)\\/(?1)\\/\\1",
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // No match - not enoug symbols.
+				"jy//jy",
+				{}
+			},
+			{ // No match - not enoug symbols.
+				"hly/t/hl",
+				{}
+			},
+			{ // Minimal possible match.
+				"m/n/m",
+				{ {0, 5} }
+			},
+			{ // Valid match - third part if a copy of first part.
+				"abc/de/abc",
+				{ {0, 10} },
+			},
+			{ // No match - third part is a copy of second part.
+				"abc/de/de",
+				{}
+			},
+			{ // Match with all parts same.
+				"ytrb/ytrb/ytrb",
+				{ {0, 14} }
+			},
+			{ // Two sequential matches.
+				"nbfrt/io/nbfrtz/yuoi/z",
+				{ {0, 14}, {14, 22} }
+			},
+		}
+	},
+
+	{ // Two calls to group. Group itself directly not matched because of {0} quantifier.
+		"([a-z]+){0}Q(?1)-(?1)",
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // No start symbol - no match.
+				"bbt-aa",
+				{}
+			},
+			{ // Shortest possible match.
+				"Qa-n",
+				{ {0, 4} }
+			},
+			{ // Match of same sequences.
+				"Qhjt-hjt",
+				{ {0, 8} }
+			},
+			{ // Match of long words.
+				"Qwadwad-wdawdbvbr",
+				{ {0, 17} }
+			},
+			{ // Group at begnning not matched.
+				"ubQa-ze",
+				{ {2, 7} }
+			},
+			{ // Two sequential matches.
+				"Qhhjtt-awQbnty-vf",
+				{ {0, 9}, {9, 17} }
+			},
+		},
+	},
+
+	{ // Simple recursive subroutine call - call whole expression.
+		"a(?R)?b",
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // No match - not enough symbols.
+				"a",
+				{}
+			},
+			{ // No match - wrong symbol in middle of string.
+				"aacbb",
+				{}
+			},
+			{ // Shortest possible match.
+				"ab",
+				{ {0, 2} }
+			},
+			{ // Long match for whole string.
+				"aaaabbbb",
+				{ {0, 8} }
+			},
+			{ // Symbols at begining are ignored.
+				"aaaaabbb",
+				{ {2, 8} }
+			},
+			{ // Symbols at end are ignored.
+				"aabbbbb",
+				{ {0, 4} }
+			},
+		}
+	},
+
+	{ // Recursive call to group.
+		"B(q(?1)?w)E",
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // No match - no trailing symbol.
+				"Bqw",
+				{}
+			},
+			{ // No match - no symbols in group.
+				"BE",
+				{}
+			},
+			{ // No match - different number of symbols.
+				"BqqwwwE",
+				{}
+			},
+			{ // Shortest possible match.
+				"BqwE",
+				{ {0, 4} }
+			},
+			{ // Long match.
+				"BqqqqqwwwwwE",
+				{ {0, 12} }
+			},
+		}
+	},
+
+	{ // Recursive call for whole expression and backreference.
+		"([a-z]+)(?R)?\\1",  // Expressions for polyndromes.
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // No match - different symbols.
+				"ud",
+				{}
+			},
+			{ // Shortest possible match.
+				"hh",
+				{ {0, 2} }
+			},
+			{ // Long match with same symbols.
+				"tttttttt",
+				{ {0, 8} }
+			},
+			{ // Long match with different symbols.
+				"qwertyytrewq",
+				{ {0, 12} }
+			},
+			{ // Polyndrome of polyndromes.
+				"abbaabba",
+				{ {0, 8} }
+			},
+			{ // Non-paired symbols are truncated.
+				"zehjuttujhyu",
+				{ {2, 10} }
+			},
+			{ // Two sequential matches.
+				"rtggtrjkkj",
+				{ {0, 6}, {6, 10} }
+			},
+			{ // Two non-sequential matches.
+				"rtggtrqjkkj",
+				{ {0, 6}, {7, 11} }
+			},
+		}
+	},
+
+	{ // Expression for numeric expressions with possible brackets. Contains recursive call and indirect call.
+		"(([0-9]+)|(\\((?R)\\)))(((\\+)|(-)|(\\*)|(\\/))(?1))*",
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // Shortest possible match.
+				"7",
+				{ {0, 1} }
+			},
+			{ // Single number with multiple digits.
+				"64347",
+				{ {0, 5} }
+			},
+			{ // Expression with two components.
+				"76-312",
+				{ {0, 6} }
+			},
+			{ // Expression with multiple components.
+				"1+54/3-676*21/2+7874*543*122",
+				{ {0, 28} }
+			},
+			{ // Simple expression in brackets.
+				"(56)",
+				{ {0, 4} }
+			},
+			{ // Multiple brackets around expression.
+				"(((8644)))",
+				{ {0, 10} }
+			},
+			{ // long expression with brackets.
+				"772*(45-56)+95/(13/2)-(77*(22-122))/8",
+				{ {0, 37} }
+			},
+			{ // Unclosed left bracket.
+				"(35",
+				{ {1, 3} }
+			},
+			{ // Unclosed right bracket.
+				"66+17)",
+				{ {0, 5} }
+			},
+			{ // Leading binary operator.
+				"/66-44*256-(54/22)",
+				{ {1, 18} }
+			},
+			{ // Trailing binary operator.
+				"5+4+21+7563*",
+				{ {0, 11} }
+			},
+			{ // Two separate matches because of space between operands.
+				"55 +771",
+				{ {0, 2}, {4, 7} }
+			},
+			{ // Two separate matches because of duplicated operand.
+				"77//(45-4)",
+				{ {0, 2}, {4, 10} }
+			},
+		}
+	},
+
+	{ // Indirect call and recursive call.
+		"([a-z]+|(\\((?R)\\)))( (?1))*",  // Sequence of words separated by spaces or bracket pairs with same sequence inside.
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // Shortes possible match - single word.
+				"u",
+				{ {0, 1} }
+			},
+			{ // Single long word.
+				"trraht",
+				{ {0, 6} }
+			},
+			{ // Multiple words.
+				"rererr rhthjtj eewabnpepq feeimq",
+				{ {0, 32} }
+			},
+			{ // single word inside brackets.
+				"(whttgr)",
+				{ {0, 8} }
+			},
+			{ // single word inside nested brackets.
+				"(((((jkiopj)))))",
+				{ {0, 16} }
+			},
+			{ // Long expression with nested subparts.
+				"twac (trra) dawawpzqqvfk (trr awdw) daz (tgrtr (wdd (ssd ((bhh)) juoklf) wwda) (wwd) wdaad (wwgnnz (wdcvxx)) wdnmnnpmq ((ve)))",
+				{ {0, 126} }
+			},
+			{ // Duplicated space - two matches.
+				"yyhhtth  awdwd wdwa",
+				{ {0, 7}, {9, 19} }
+			},
+			{ // Missing bracket - two matches.
+				"vewac wdwadwd (httt aaz",
+				{ {0, 13}, {15, 23} }
+			},
+		}
+	},
+
+	{ // Recursive call from internal loop. Should preserve counter.
+		"([A-Z])((\\*\\((?R)\\)){2,3})?",
+		{
+			{
+				"A*(X)*(Y)",
+				{ {0, 9} },
+			},
+			{
+				"A*(X)*(Y)*(Z)*(W)",
+				{ {0, 13}, {15, 16} }
+			},
+			{
+				"A*(X)*(Y)",
+				{ {0, 9} },
+			},
+			{
+				"A*(X)*(Z*(S)*(T))*(Y)*(W)",
+				{ {0, 21}, {23, 24} }
+			},
+		},
+	},
+
+	{ // Indirect recursive call.
+		"(\\((?2)?\\))(\\[(?1)?\\])",
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // Shortest possible match.
+				"()[]",
+				{ {0, 4} }
+			},
+			{ // Call second group in first group.
+				"([])[]",
+				{ {0, 6} }
+			},
+			{ // Call first group in second group.
+				"()[()]",
+				{ {0, 6} }
+			},
+			{ // Deep recursion.
+				"([([])])[([([([()])])])]",
+				{ {0, 24} }
+			},
+			{ // Two sequential matches.
+				"()[]()[]",
+				{ {0, 4}, {4, 8} }
+			},
+		}
+	},
+
 	// Non-ASCII symbols match.
 	{
 		"ё",

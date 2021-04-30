@@ -15,6 +15,7 @@ struct RegexFeatureFlag
 		NoncapturingGroups= 1 << 4,
 		AtomicGroups= 1 << 5,
 		ConditionalElements= 1 << 6,
+		Subroutines= 1 << 7,
 	};
 };
 

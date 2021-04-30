@@ -1,6 +1,7 @@
 #pragma once
 #include "RegexElements.hpp"
 #include <memory>
+#include <unordered_set>
 #include <variant>
 #include <vector>
 
@@ -25,6 +26,10 @@ struct LoopEnter;
 struct LoopCounterBlock;
 struct PossessiveSequence;
 struct AtomicGroup;
+struct SubroutineEnter;
+struct SubroutineLeave;
+struct StateSave;
+struct StateRestore;
 
 using Node= std::variant<
 	AnySymbol,
@@ -39,7 +44,11 @@ using Node= std::variant<
 	LoopEnter,
 	LoopCounterBlock,
 	PossessiveSequence,
-	AtomicGroup>;
+	AtomicGroup,
+	SubroutineEnter,
+	SubroutineLeave,
+	StateSave,
+	StateRestore>;
 
 using NodePtr= std::shared_ptr<Node>;
 
@@ -102,6 +111,7 @@ struct ConditionalElement
 };
 
 using LoopId= const void*;
+using LoopIdSet= std::unordered_set<LoopId>;
 
 struct LoopEnter
 {
@@ -132,6 +142,31 @@ struct AtomicGroup
 {
 	NodePtr next;
 	NodePtr group_element;
+};
+
+struct SubroutineEnter
+{
+	NodePtr next; // Next node after subroutine leave.
+	std::variant<NodePtr, NodePtr::weak_type> subroutine_node; // Strong pointer stored for direct "SubroutineEnter", weak pointer stored for indirect calls.
+	size_t index= std::numeric_limits<size_t>::max(); // 0 - whole expression, 1 - first group, etc.
+};
+
+struct SubroutineLeave
+{
+};
+
+struct StateSave
+{
+	NodePtr next;
+	LoopIdSet loop_counters_to_save;
+	std::unordered_set<size_t> groups_to_save;
+};
+
+struct StateRestore
+{
+	NodePtr next;
+	LoopIdSet loop_counters_to_restore;
+	std::unordered_set<size_t> groups_to_restore;
 };
 
 } // GraphElements

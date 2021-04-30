@@ -109,11 +109,11 @@ struct ConditionalElement
 	bool operator!=(const ConditionalElement& other) const { return !(*this == other); }
 };
 
-struct RecursionGroup
+struct SubroutineCall
 {
 	size_t index= std::numeric_limits<size_t>::max(); // 0 - whole expression, 1 - first grout, 2 - second group, etc.
-	bool operator==(const RecursionGroup& other) const { return index == other.index; }
-	bool operator!=(const RecursionGroup& other) const { return !(*this == other); }
+	bool operator==(const SubroutineCall& other) const { return index == other.index; }
+	bool operator!=(const SubroutineCall& other) const { return !(*this == other); }
 };
 
 enum class SequenceMode : uint8_t
@@ -161,7 +161,7 @@ struct RegexElementFull
 			Alternatives,
 			Look,
 			ConditionalElement,
-			RecursionGroup>;
+			SubroutineCall>;
 
 	ElementType	el;
 
