@@ -47,7 +47,7 @@ RegexFeatureFlags GetSequeneFeaturesForElement(const Alternatives& alternatives)
 	return flags;
 }
 
-RegexFeatureFlags GetSequeneFeaturesForElement(const RecursionGroup&)
+RegexFeatureFlags GetSequeneFeaturesForElement(const SubroutineCall&)
 {
 	return RegexFeatureFlag::Subroutines;
 }

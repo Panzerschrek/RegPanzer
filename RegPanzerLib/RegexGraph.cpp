@@ -70,9 +70,9 @@ void CollectGroupInternalsForElementImpl(const ConditionalElement& conditional_e
 	CollectGroupInternalsForElementImpl(conditional_element.alternatives, stat);
 }
 
-void CollectGroupInternalsForElementImpl(const RecursionGroup& recursion_group, GroupStat& stat)
+void CollectGroupInternalsForElementImpl(const SubroutineCall& subroutine_call, GroupStat& stat)
 {
-	stat.internal_calls.insert(recursion_group.index);
+	stat.internal_calls.insert(subroutine_call.index);
 }
 
 void CollectGroupIdsForElement(const RegexElementFull::ElementType& element, GroupStat& stat)
@@ -142,9 +142,9 @@ void CollectGroupStatsForElementImpl(const ConditionalElement& conditional_eleme
 	CollectGroupStatsForElementImpl(conditional_element.alternatives, group_stats);
 }
 
-void CollectGroupStatsForElementImpl(const RecursionGroup& recursion_group, GroupStats& group_stats)
+void CollectGroupStatsForElementImpl(const SubroutineCall& subroutine_call, GroupStats& group_stats)
 {
-	++(group_stats[recursion_group.index].indirect_call_count);
+	++(group_stats[subroutine_call.index].indirect_call_count);
 }
 
 void CollectGroupStatsForElement(const RegexElementFull::ElementType& element, GroupStats& group_stats)
@@ -324,11 +324,11 @@ GraphElements::NodePtr BuildRegexGraphNodeImpl(const GroupStats& group_stats, Ou
 	return std::make_shared<GraphElements::Node>(std::move(out_node));
 }
 
-GraphElements::NodePtr BuildRegexGraphNodeImpl(const GroupStats& group_stats, OutRegexData&, const RecursionGroup& recursion_group, const GraphElements::NodePtr& next)
+GraphElements::NodePtr BuildRegexGraphNodeImpl(const GroupStats& group_stats, OutRegexData&, const SubroutineCall& subroutine_call, const GraphElements::NodePtr& next)
 {
 	// We need to save and restore state in subroutine calls.
 
-	const GroupStat& stat= group_stats.at(recursion_group.index);
+	const GroupStat& stat= group_stats.at(subroutine_call.index);
 
 	// Save loops only if recursive calls possible.
 	GraphElements::LoopIdSet loops;
@@ -343,13 +343,13 @@ GraphElements::NodePtr BuildRegexGraphNodeImpl(const GroupStats& group_stats, Ou
 		if(group_stats.at(internal_group_id).backreference_count > 0)
 			groups.insert(internal_group_id);
 
-	if(group_stats.at(recursion_group.index).backreference_count > 0)
-		groups.insert(recursion_group.index);
+	if(group_stats.at(subroutine_call.index).backreference_count > 0)
+		groups.insert(subroutine_call.index);
 
 	const auto state_restore= std::make_shared<GraphElements::Node>(GraphElements::StateRestore{next, loops, groups});
 
 	const auto subroutine_node = GraphElements::NodePtr::weak_type(); // Use weak pointer for indirect calls. Set actual pointer value later.
-	const auto enter_node= std::make_shared<GraphElements::Node>(GraphElements::SubroutineEnter{state_restore, subroutine_node, recursion_group.index});
+	const auto enter_node= std::make_shared<GraphElements::Node>(GraphElements::SubroutineEnter{state_restore, subroutine_node, subroutine_call.index});
 	return std::make_shared<GraphElements::Node>(GraphElements::StateSave{enter_node, loops, groups});
 }
 
