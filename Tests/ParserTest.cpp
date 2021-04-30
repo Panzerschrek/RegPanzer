@@ -16,7 +16,10 @@ TEST_P(ParseTest, CheckParse)
 {
 	const auto param= GetParam();
 	const auto res = RegPanzer::ParseRegexString(param.first);
-	ASSERT_EQ(res, param.second);
+	if(res != param.second)
+	{
+		ASSERT_EQ(res, param.second);
+	}
 }
 
 const TestDataElement c_test_data[]
@@ -829,6 +832,12 @@ const TestDataElement c_test_data[]
 	{ "\\\\", { { SpecificSymbol{ '\\' }, { 1, 1, SequenceMode::Greedy }, } } },
 	{ "\\/", { { SpecificSymbol{ '/' }, { 1, 1, SequenceMode::Greedy }, } } },
 
+	// Symbol classes
+	{ "\\d", { { OneOf{ {}, { { '0', '9' } }, false }, { 1, 1, SequenceMode::Greedy }, } } },
+	{ "\\D", { { OneOf{ {}, { { '0', '9' } }, true  }, { 1, 1, SequenceMode::Greedy }, } } },
+	{ "\\w", { { OneOf{ { '_' }, { {'a', 'z'}, {'A', 'Z'}, {'0', '9'} }, false }, { 1, 1, SequenceMode::Greedy }, } } },
+	{ "\\W", { { OneOf{ { '_' }, { {'a', 'z'}, {'A', 'Z'}, {'0', '9'} }, true  }, { 1, 1, SequenceMode::Greedy }, } } },
+
 	// Basic escape sequences for "OneOf".
 	{ "[\\[]", { { OneOf{ {'['}, {}, false }, { 1, 1, SequenceMode::Greedy }, } } },
 	{ "[\\]]", { { OneOf{ {']'}, {}, false }, { 1, 1, SequenceMode::Greedy }, } } },
@@ -845,6 +854,12 @@ const TestDataElement c_test_data[]
 	{ "[\\?]", { { OneOf{ {'?'}, {}, false }, { 1, 1, SequenceMode::Greedy }, } } },
 	{ "[\\\\]", { { OneOf{ {'\\'}, {}, false }, { 1, 1, SequenceMode::Greedy }, } } },
 	{ "[\\/]", { { OneOf{ {'/'}, {}, false }, { 1, 1, SequenceMode::Greedy }, } } },
+
+	// Symbol classes inside "OneOf".
+	{ "[\\d]", { { OneOf{ {}, { { '0', '9' } }, false }, { 1, 1, SequenceMode::Greedy }, } } },
+	{ "[\\D]", { { OneOf{ {}, { { '0', '9' } }, true  }, { 1, 1, SequenceMode::Greedy }, } } },
+	{ "[\\w]", { { OneOf{ { '_' }, { {'a', 'z'}, {'A', 'Z'}, {'0', '9'} }, false }, { 1, 1, SequenceMode::Greedy }, } } },
+	{ "[\\W]", { { OneOf{ { '_' }, { {'a', 'z'}, {'A', 'Z'}, {'0', '9'} }, true  }, { 1, 1, SequenceMode::Greedy }, } } },
 };
 
 INSTANTIATE_TEST_CASE_P(P, ParseTest, testing::ValuesIn(c_test_data));

@@ -42,6 +42,18 @@ std::optional<RegexElementFull::ElementType> ParseEscapeSequence(StrView& str)
 	case '/':
 		return SpecificSymbol{ c };
 
+	case 'd':
+		return OneOf{ {}, { {'0', '9'} }, false };
+
+	case 'D':
+		return OneOf{ {}, { {'0', '9'} }, true };
+
+	case 'w':
+		return OneOf{ { '_' }, { {'a', 'z'}, {'A', 'Z'}, {'0', '9'} }, false };
+
+	case 'W':
+		return OneOf{ { '_' }, { {'a', 'z'}, {'A', 'Z'}, {'0', '9'} }, true };
+
 	case '1':
 	case '2':
 	case '3':
@@ -85,6 +97,14 @@ std::optional<OneOf> ParseOneOf(StrView& str)
 			{
 				if(const auto specific_symbol= std::get_if<SpecificSymbol>(&*el))
 					c= specific_symbol->code;
+				else if(const auto inner_one_of= std::get_if<OneOf>(&*el))
+				{
+					// TODO - handle cases with invert flag for specific parts of "oneOf".
+					one_of.inverse_flag= inner_one_of->inverse_flag;
+					one_of.variants.insert(one_of.variants.end(), inner_one_of->variants.begin(), inner_one_of->variants.end());
+					one_of.ranges.insert(one_of.ranges.end(), inner_one_of->ranges.begin(), inner_one_of->ranges.end());
+					continue;
+				}
 				else
 					return std::nullopt;
 			}
