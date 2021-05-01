@@ -204,6 +204,10 @@ void Generator::BuildNodeFunctionBodyImpl(
 	llvm_ir_builder.CreateRet(llvm::ConstantInt::getFalse(context_));
 
 	llvm_ir_builder.SetInsertPoint(eq_block);
+
+	const auto new_str_begin_value= llvm_ir_builder.CreateGEP(str_begin_value, GetFieldGEPIndex(1));
+	llvm_ir_builder.CreateStore(new_str_begin_value, str_begin_ptr);
+
 	CreateNextCallRet(llvm_ir_builder, state_ptr, node.next);
 }
 
