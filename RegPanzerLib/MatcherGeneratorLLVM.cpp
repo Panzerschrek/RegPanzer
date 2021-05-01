@@ -68,6 +68,12 @@ private:
 	void BuildNodeFunctionBodyImpl(
 		llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::OneOf& node);
 
+	void BuildNodeFunctionBodyImpl(
+		llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::Alternatives& node);
+
+	void BuildNodeFunctionBodyImpl(
+		llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::NextWeakNode& node);
+
 	template<typename T>
 	void BuildNodeFunctionBodyImpl(
 		llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* const state_ptr,
@@ -77,6 +83,8 @@ private:
 		llvm::IRBuilder<>& llvm_ir_builder,
 		llvm::Value* state_ptr,
 		const GraphElements::NodePtr& next_node);
+
+	void CopyState(llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* dst, llvm::Value* src);
 
 	llvm::Constant* GetZeroGEPIndex() const;
 	llvm::Constant* GetFieldGEPIndex(uint32_t field_index) const;
@@ -185,6 +193,7 @@ void Generator::BuildNodeFunctionBody(const GraphElements::NodePtr& node, llvm::
 	}
 
 	const auto state_ptr= &*function->arg_begin();
+	state_ptr->setName("state");
 
 	std::visit([&](const auto& el){ BuildNodeFunctionBodyImpl(llvm_ir_builder, state_ptr, el); }, *node);
 }
@@ -355,6 +364,44 @@ void Generator::BuildNodeFunctionBodyImpl(
 	}
 }
 
+void Generator::BuildNodeFunctionBodyImpl(
+	llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::Alternatives& node)
+{
+	const auto function= llvm_ir_builder.GetInsertBlock()->getParent();
+
+	const auto state_copy_ptr= llvm_ir_builder.CreateAlloca(state_type_, 0, "state_copy");
+
+	const auto found_block= llvm::BasicBlock::Create(context_, "found");
+
+	for(const GraphElements::NodePtr& possible_next : node.next)
+	{
+		CopyState(llvm_ir_builder, state_copy_ptr, state_ptr);
+		const auto variant_res= llvm_ir_builder.CreateCall(GetOrCreateNodeFunction(possible_next), {state_copy_ptr});
+		const auto next_block= llvm::BasicBlock::Create(context_, "", function);
+
+		llvm_ir_builder.CreateCondBr(variant_res, found_block, next_block);
+		llvm_ir_builder.SetInsertPoint(next_block);
+	}
+
+	// Return "false" in last "next" block.
+	llvm_ir_builder.GetInsertBlock()->setName("not_found");
+	llvm_ir_builder.CreateRet(llvm::ConstantInt::getFalse(context_));
+
+	// Return true if one of next variants were successfull.
+	found_block->insertInto(function);
+	llvm_ir_builder.SetInsertPoint(found_block);
+	CopyState(llvm_ir_builder, state_ptr, state_copy_ptr);
+	llvm_ir_builder.CreateRet(llvm::ConstantInt::getTrue(context_));
+}
+
+void Generator::BuildNodeFunctionBodyImpl(
+	llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::NextWeakNode& node)
+{
+	const auto next= node.next.lock();
+	assert(next != nullptr);
+	CreateNextCallRet(llvm_ir_builder, state_ptr, next);
+}
+
 template<typename T>
 void Generator::BuildNodeFunctionBodyImpl(llvm::IRBuilder<>&, llvm::Value* const, const T&)
 {
@@ -368,6 +415,18 @@ void Generator::CreateNextCallRet(
 {
 	const auto next_call= llvm_ir_builder.CreateCall(GetOrCreateNodeFunction(next_node), {state_ptr}, "next_call_res");
 	llvm_ir_builder.CreateRet(next_call);
+}
+
+void Generator::CopyState(llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* const dst, llvm::Value* const src)
+{
+	// TODO - use memcpy intrisinc?
+	for(uint32_t i= 0; i < state_type_->getNumElements(); ++i)
+	{
+		const auto dst_element_ptr= llvm_ir_builder.CreateGEP(dst, {GetZeroGEPIndex(), GetFieldGEPIndex(i)});
+		const auto src_element_ptr= llvm_ir_builder.CreateGEP(src, {GetZeroGEPIndex(), GetFieldGEPIndex(i)});
+		const auto value= llvm_ir_builder.CreateLoad(src_element_ptr);
+		llvm_ir_builder.CreateStore(value, dst_element_ptr);
+	}
 }
 
 llvm::Constant* Generator::GetZeroGEPIndex() const
