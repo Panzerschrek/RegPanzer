@@ -43,16 +43,16 @@ std::optional<RegexElementFull::ElementType> ParseEscapeSequence(StrView& str)
 		return SpecificSymbol{ c };
 
 	case 'd':
-		return OneOf{ {}, { {'0', '9'} }, false };
-
 	case 'D':
-		return OneOf{ {}, { {'0', '9'} }, true };
+		return OneOf{ {}, { {'0', '9'} }, c == 'D' };
 
 	case 'w':
-		return OneOf{ { '_' }, { {'a', 'z'}, {'A', 'Z'}, {'0', '9'} }, false };
-
 	case 'W':
-		return OneOf{ { '_' }, { {'a', 'z'}, {'A', 'Z'}, {'0', '9'} }, true };
+		return OneOf{ { '_' }, { {'a', 'z'}, {'A', 'Z'}, {'0', '9'} }, c == 'W' };
+
+	case 's':
+	case 'S':
+		return OneOf{ { ' ', '\r', '\n', '\t', '\f', '\v', 0x00A0, 0x1680, 0x2028, 0x2029, 0x202F, 0x3000, 0xFEFF }, { {0x2000, 0x200A} }, c == 'S' };
 
 	case '1':
 	case '2':

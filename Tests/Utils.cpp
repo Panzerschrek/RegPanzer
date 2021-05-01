@@ -76,7 +76,7 @@ bool RegexStringContainsSymbolClasses(const std::string& regex_str)
 		{
 			if(*next_it == '\\')
 				it+= 2;
-			else if(*next_it == 'd' || *next_it == 'D' || *next_it == 'w' || *next_it == 'W')
+			else if(*next_it == 'd' || *next_it == 'D' || *next_it == 'w' || *next_it == 'W' || *next_it == 's' || *next_it == 'S')
 				return true;
 			else
 				++it;

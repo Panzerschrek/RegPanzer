@@ -167,6 +167,44 @@ inline const MatcherTestDataElement g_matcher_test_data[]
 		}
 	},
 
+	// Match space symbol class.
+	{
+		"\\s",
+		{
+			{ // Empty string - no matches.
+				"",
+				{},
+			},
+			{ // All possible mathes.
+				"\r\n\t\f\v ",
+				{ {0, 1}, {1, 2}, {2, 3}, {3, 4}, {4, 5}, {5, 6} }
+			},
+			{ // No matches for non-space symbols.
+				"wbA2#9-=~`",
+				{}
+			},
+		}
+	},
+
+	// Match NOT space symbol class.
+	{
+		"\\S",
+		{
+			{ // Empty string - no matches.
+				"",
+				{},
+			},
+			{ // All possible space symbols - no matches.
+				"\r\n\t\f\v ",
+				{}
+			},
+			{ // No matches for non-space symbols.
+				"wbA2#9-=~`",
+				{ {0, 1}, {1, 2}, {2, 3}, {3, 4}, {4, 5}, {5, 6}, {6, 7}, {7, 8}, {8, 9}, {9, 10} }
+			},
+		}
+	},
+
 	// Match NOT word symbol class.
 	{
 		"\\W",
