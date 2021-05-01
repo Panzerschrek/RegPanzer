@@ -167,7 +167,43 @@ void Generator::BuildNodeFunctionBodyImpl(
 void Generator::BuildNodeFunctionBodyImpl(
 	llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::SpecificSymbol& node)
 {
-	// TODO
+	const auto function= llvm_ir_builder.GetInsertBlock()->getParent();
+
+	const auto str_begin_ptr= llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrBegin)});
+	const auto str_begin_value= llvm_ir_builder.CreateLoad(str_begin_ptr);
+
+	const auto str_end_ptr= llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrEnd)});
+	const auto str_end_value= llvm_ir_builder.CreateLoad(str_end_ptr);
+
+	const auto is_empty= llvm_ir_builder.CreateICmpEQ(str_begin_value, str_end_value);
+
+	const auto empty_block= llvm::BasicBlock::Create(context_, "empty", function);
+	const auto non_empty_block= llvm::BasicBlock::Create(context_, "non_empty", function);
+
+	llvm_ir_builder.CreateCondBr(is_empty, empty_block, non_empty_block);
+
+	llvm_ir_builder.SetInsertPoint(empty_block);
+	llvm_ir_builder.CreateRet(llvm::ConstantInt::getFalse(context_));
+
+	llvm_ir_builder.SetInsertPoint(non_empty_block);
+
+	// TODO - support UTF-8.
+
+	const auto char_value= llvm_ir_builder.CreateLoad(str_begin_value);
+	const auto is_same_symbol=
+		llvm_ir_builder.CreateICmpEQ(
+			char_value,
+			llvm::ConstantInt::get(char_type_, llvm::APInt(char_type_->getBitWidth(), node.code)));
+
+	const auto ne_block= llvm::BasicBlock::Create(context_, "ne", function);
+	const auto eq_block= llvm::BasicBlock::Create(context_, "eq", function);
+
+	llvm_ir_builder.CreateCondBr(is_same_symbol, eq_block, ne_block);
+
+	llvm_ir_builder.SetInsertPoint(ne_block);
+	llvm_ir_builder.CreateRet(llvm::ConstantInt::getFalse(context_));
+
+	llvm_ir_builder.SetInsertPoint(eq_block);
 	CreateNextCallRet(llvm_ir_builder, state_ptr, node.next);
 }
 
