@@ -9,6 +9,8 @@ namespace RegPanzer
 namespace
 {
 
+const char* GetNodeName(const GraphElements::NodePtr& node);
+
 const char* GetNodeName(const GraphElements::AnySymbol&) { return "any_symbol"; }
 const char* GetNodeName(const GraphElements::SpecificSymbol&) { return "specific_symbol"; }
 const char* GetNodeName(const GraphElements::OneOf&) { return "one_of"; }
@@ -18,8 +20,9 @@ const char* GetNodeName(const GraphElements::GroupEnd&) { return "group_end"; }
 const char* GetNodeName(const GraphElements::BackReference&) { return "back_reference"; }
 const char* GetNodeName(const GraphElements::Look&) { return "look"; }
 const char* GetNodeName(const GraphElements::ConditionalElement&) { return "condtinonal_element"; }
-const char* GetNodeName(const GraphElements::LoopEnter&) { return "loop_enter"; }
-const char* GetNodeName(const GraphElements::LoopCounterBlock&) { return "loop_counter_block"; }
+const char* GetNodeName(const GraphElements::SequenceCounterReset&) { return "sequence_counter_reset"; }
+const char* GetNodeName(const GraphElements::SequenceCounter&) { return "loop_counter_block"; }
+const char* GetNodeName(const GraphElements::NextWeakNode& node) { return GetNodeName(node.next.lock()); }
 const char* GetNodeName(const GraphElements::PossessiveSequence&) { return "possessive_sequence"; }
 const char* GetNodeName(const GraphElements::AtomicGroup&) { return "atomic_group"; }
 const char* GetNodeName(const GraphElements::SubroutineEnter&) { return "subroutine_enter"; }
