@@ -163,7 +163,7 @@ struct AtomicGroup
 struct SubroutineEnter
 {
 	NodePtr next; // Next node after subroutine leave.
-	std::variant<NodePtr, NodePtr::weak_type> subroutine_node; // Strong pointer stored for direct "SubroutineEnter", weak pointer stored for indirect calls.
+	NodePtr subroutine_node;
 	size_t index= std::numeric_limits<size_t>::max(); // 0 - whole expression, 1 - first group, etc.
 };
 

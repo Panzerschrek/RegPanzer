@@ -348,8 +348,7 @@ GraphElements::NodePtr BuildRegexGraphNodeImpl(const GroupStats& group_stats, Ou
 
 	const auto state_restore= std::make_shared<GraphElements::Node>(GraphElements::StateRestore{next, loops, groups});
 
-	const auto subroutine_node = GraphElements::NodePtr::weak_type(); // Use weak pointer for indirect calls. Set actual pointer value later.
-	const auto enter_node= std::make_shared<GraphElements::Node>(GraphElements::SubroutineEnter{state_restore, subroutine_node, subroutine_call.index});
+	const auto enter_node= std::make_shared<GraphElements::Node>(GraphElements::SubroutineEnter{state_restore, nullptr /*Set actual pointer value later*/, subroutine_call.index});
 	return std::make_shared<GraphElements::Node>(GraphElements::StateSave{enter_node, loops, groups});
 }
 
@@ -531,10 +530,8 @@ void SetupSubroutineCallsImpl(const GraphElements::AtomicGroup& node, const OutR
 
 void SetupSubroutineCallsImpl(const GraphElements::SubroutineEnter& node, const OutRegexData& regex_data)
 {
+	SetupSubroutineCalls(node.subroutine_node, regex_data);
 	SetupSubroutineCalls(node.next, regex_data);
-
-	if(const auto strong_ptr = std::get_if<GraphElements::NodePtr>(&node.subroutine_node))
-		SetupSubroutineCalls(*strong_ptr, regex_data);
 }
 
 void SetupSubroutineCallsImpl(const GraphElements::SubroutineLeave& node, const OutRegexData& regex_data)
@@ -549,8 +546,10 @@ void SetupSubroutineCalls(const GraphElements::NodePtr& node, const OutRegexData
 		return;
 
 	if(const auto subroutine_enter= std::get_if<GraphElements::SubroutineEnter>(node.get()))
-		if(const auto weak_ptr = std::get_if<GraphElements::NodePtr::weak_type>(&subroutine_enter->subroutine_node))
-			*weak_ptr= regex_data.group_nodes.at(subroutine_enter->index);
+		if(subroutine_enter->subroutine_node == nullptr)
+			subroutine_enter->subroutine_node=
+				std::make_shared<GraphElements::Node>(
+					GraphElements::NextWeakNode{regex_data.group_nodes.at(subroutine_enter->index)});
 
 	std::visit([&](const auto& el){ return SetupSubroutineCallsImpl(el, regex_data); }, *node);
 }

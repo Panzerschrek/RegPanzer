@@ -257,16 +257,7 @@ bool MatchNodeImpl(const GraphElements::AtomicGroup& node, State& state)
 bool MatchNodeImpl(const GraphElements::SubroutineEnter& node, State& state)
 {
 	state.subroutines_return_stack.push_back(node.next);
-
-	GraphElements::NodePtr subroutine_node;
-	if(const auto strong_ptr = std::get_if<GraphElements::NodePtr>(&node.subroutine_node))
-		subroutine_node= *strong_ptr;
-	else if(const auto weak_ptr = std::get_if<GraphElements::NodePtr::weak_type>(&node.subroutine_node))
-		subroutine_node= weak_ptr->lock();
-	else
-		assert(false);
-
-	return MatchNode(subroutine_node, state);
+	return MatchNode(node.subroutine_node, state);
 }
 
 bool MatchNodeImpl(const GraphElements::SubroutineLeave&, State& state)
