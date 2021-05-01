@@ -380,6 +380,27 @@ GraphElements::NodePtr BuildRegexGraphChain(const GroupStats& group_stats, const
 					element.seq.min_elements,
 					element.seq.max_elements,
 					});
+	else if(element.seq.min_elements == 0 && element.seq.max_elements == 1)
+	{
+		// Implement optional element using alternatives node.
+		GraphElements::Alternatives alternatives;
+
+		const auto node= BuildRegexGraphNode(group_stats, out_data, element.el, next_node);
+		if(element.seq.mode == SequenceMode::Greedy)
+		{
+			alternatives.next.push_back(node);
+			alternatives.next.push_back(next_node);
+		}
+		else
+		{
+			alternatives.next.push_back(next_node);
+			alternatives.next.push_back(node);
+		}
+
+		return std::make_shared<GraphElements::Node>(std::move(alternatives));
+	}
+	// TODO - add special element for counter-less loop.
+	// TODO - handle case with [1;inf] specially.
 	else
 	{
 		const GraphElements::LoopId id= GetLoopId(element);
