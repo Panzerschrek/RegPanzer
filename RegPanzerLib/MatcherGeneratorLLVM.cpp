@@ -62,6 +62,9 @@ private:
 	void BuildNodeFunctionBodyImpl(
 		llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::SpecificSymbol& node);
 
+	void BuildNodeFunctionBodyImpl(
+		llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::OneOf& node);
+
 	template<typename T>
 	void BuildNodeFunctionBodyImpl(
 		llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* const state_ptr,
@@ -215,7 +218,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 
 	// TODO - support UTF-8.
 
-	const auto char_value= llvm_ir_builder.CreateLoad(str_begin_value);
+	const auto char_value= llvm_ir_builder.CreateLoad(str_begin_value, "char_value");
 	const auto is_same_symbol=
 		llvm_ir_builder.CreateICmpEQ(
 			char_value,
@@ -235,6 +238,94 @@ void Generator::BuildNodeFunctionBodyImpl(
 	llvm_ir_builder.CreateStore(new_str_begin_value, str_begin_ptr);
 
 	CreateNextCallRet(llvm_ir_builder, state_ptr, node.next);
+}
+
+void Generator::BuildNodeFunctionBodyImpl(
+	llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::OneOf& node)
+{
+	const auto function= llvm_ir_builder.GetInsertBlock()->getParent();
+
+	const auto str_begin_ptr= llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrBegin)});
+	const auto str_begin_value= llvm_ir_builder.CreateLoad(str_begin_ptr);
+
+	const auto str_end_ptr= llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrEnd)});
+	const auto str_end_value= llvm_ir_builder.CreateLoad(str_end_ptr);
+
+	const auto is_empty= llvm_ir_builder.CreateICmpEQ(str_begin_value, str_end_value);
+
+	const auto empty_block= llvm::BasicBlock::Create(context_, "empty", function);
+	const auto non_empty_block= llvm::BasicBlock::Create(context_, "non_empty", function);
+
+	llvm_ir_builder.CreateCondBr(is_empty, empty_block, non_empty_block);
+
+	llvm_ir_builder.SetInsertPoint(empty_block);
+	llvm_ir_builder.CreateRet(llvm::ConstantInt::getFalse(context_));
+
+	llvm_ir_builder.SetInsertPoint(non_empty_block);
+
+	// TODO - support UTF-8.
+
+	const auto char_value= llvm_ir_builder.CreateLoad(str_begin_value, "char_value");
+
+	const auto found_block= llvm::BasicBlock::Create(context_, "found");
+
+	for(const CharType c : node.variants)
+	{
+		const auto is_same_symbol=
+			llvm_ir_builder.CreateICmpEQ(
+				char_value,
+				llvm::ConstantInt::get(char_type_, llvm::APInt(char_type_->getBitWidth(), c)));
+
+		const auto next_block= llvm::BasicBlock::Create(context_, "next", function);
+
+		llvm_ir_builder.CreateCondBr(is_same_symbol, found_block, next_block);
+		llvm_ir_builder.SetInsertPoint(next_block);
+	}
+
+	for(const auto& range : node.ranges)
+	{
+		const auto range_begin_constant= llvm::ConstantInt::get(char_type_, llvm::APInt(char_type_->getBitWidth(), range.first ));
+		const auto range_end_constant  = llvm::ConstantInt::get(char_type_, llvm::APInt(char_type_->getBitWidth(), range.second));
+
+		const auto ge= llvm_ir_builder.CreateICmpUGE(char_value, range_begin_constant);
+		const auto le= llvm_ir_builder.CreateICmpULE(char_value, range_end_constant  );
+		const auto in_range= llvm_ir_builder.CreateAnd(ge, le);
+
+		const auto next_block= llvm::BasicBlock::Create(context_, "next", function);
+
+		llvm_ir_builder.CreateCondBr(in_range, found_block, next_block);
+		llvm_ir_builder.SetInsertPoint(next_block);
+	}
+
+	if(node.inverse_flag)
+	{
+		// Not found anything - continue.
+		llvm_ir_builder.GetInsertBlock()->setName("not_found");
+
+		const auto new_str_begin_value= llvm_ir_builder.CreateGEP(str_begin_value, GetFieldGEPIndex(1));
+		llvm_ir_builder.CreateStore(new_str_begin_value, str_begin_ptr);
+		CreateNextCallRet(llvm_ir_builder, state_ptr, node.next);
+
+		// Found something - return false.
+		found_block->insertInto(function);
+		llvm_ir_builder.SetInsertPoint(found_block);
+		llvm_ir_builder.CreateRet(llvm::ConstantInt::getFalse(context_));
+	}
+	else
+	{
+		// Not found anything - return false.
+		llvm_ir_builder.GetInsertBlock()->setName("not_found");
+		llvm_ir_builder.CreateRet(llvm::ConstantInt::getFalse(context_));
+
+		// Found - continue.
+		found_block->insertInto(function);
+		llvm_ir_builder.SetInsertPoint(found_block);
+
+		const auto new_str_begin_value= llvm_ir_builder.CreateGEP(str_begin_value, GetFieldGEPIndex(1));
+		llvm_ir_builder.CreateStore(new_str_begin_value, str_begin_ptr);
+
+		CreateNextCallRet(llvm_ir_builder, state_ptr, node.next);
+	}
 }
 
 template<typename T>
