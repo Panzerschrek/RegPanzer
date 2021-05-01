@@ -87,7 +87,28 @@ std::optional<OneOf> ParseOneOf(StrView& str)
 
 	while(!str.empty() && str.front() != ']')
 	{
-		// TODO - process escape sequences.
+		constexpr StrView word_class = U"[:word:]";
+		if(str.size() >= word_class.size() && str.substr(0, word_class.size()) == word_class)
+		{
+			str.remove_prefix(word_class.size());
+			one_of.variants.push_back('_');
+			one_of.ranges.emplace_back('a', 'z');
+			one_of.ranges.emplace_back('A', 'Z');
+			one_of.ranges.emplace_back('0', '9');
+			continue;
+		}
+
+		constexpr StrView not_word_class = U"^[:word:]";
+		if(str.size() >= not_word_class.size() && str.substr(0, not_word_class.size()) == not_word_class)
+		{
+			str.remove_prefix(not_word_class.size());
+			one_of.inverse_flag= true;
+			one_of.variants.push_back('_');
+			one_of.ranges.emplace_back('a', 'z');
+			one_of.ranges.emplace_back('A', 'Z');
+			one_of.ranges.emplace_back('0', '9');
+			continue;
+		}
 
 		CharType c= str.front();
 

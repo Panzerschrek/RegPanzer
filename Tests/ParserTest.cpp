@@ -837,6 +837,8 @@ const TestDataElement c_test_data[]
 	{ "\\D", { { OneOf{ {}, { { '0', '9' } }, true  }, { 1, 1, SequenceMode::Greedy }, } } },
 	{ "\\w", { { OneOf{ { '_' }, { {'a', 'z'}, {'A', 'Z'}, {'0', '9'} }, false }, { 1, 1, SequenceMode::Greedy }, } } },
 	{ "\\W", { { OneOf{ { '_' }, { {'a', 'z'}, {'A', 'Z'}, {'0', '9'} }, true  }, { 1, 1, SequenceMode::Greedy }, } } },
+	{ "[[:word:]]" , { { OneOf{ { '_' }, { {'a', 'z'}, {'A', 'Z'}, {'0', '9'} }, false }, { 1, 1, SequenceMode::Greedy }, } } },
+	{ "[^[:word:]]", { { OneOf{ { '_' }, { {'a', 'z'}, {'A', 'Z'}, {'0', '9'} }, true  }, { 1, 1, SequenceMode::Greedy }, } } },
 
 	// Basic escape sequences for "OneOf".
 	{ "[\\[]", { { OneOf{ {'['}, {}, false }, { 1, 1, SequenceMode::Greedy }, } } },
