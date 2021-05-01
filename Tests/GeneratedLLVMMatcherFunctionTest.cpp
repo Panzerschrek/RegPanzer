@@ -1,4 +1,5 @@
 #include "MatcherTestData.hpp"
+#include "Utils.hpp"
 #include "../RegPanzerLib/MatcherGeneratorLLVM.hpp"
 #include "../RegPanzerLib/Parser.hpp"
 #include "../RegPanzerLib/PushDisableLLVMWarnings.hpp"
@@ -36,6 +37,10 @@ TEST_P(GeneratedLLVMMatcherTest, TestMatch)
 
 	for(const MatcherTestDataElement::Case& c : param.cases)
 	{
+		// TODO - remove this check when this matcher generator will support UTF-8.
+		if(StringContainsNonASCIISymbols(c.input_str))
+			continue;
+
 		MatcherTestDataElement::Ranges result_ranges;
 		for(size_t i= 0; i < c.input_str.size();)
 		{
@@ -63,6 +68,7 @@ TEST_P(GeneratedLLVMMatcherTest, TestMatch)
 const MatcherTestDataElement g_this_test_data[]
 {
 	g_matcher_test_data[0],
+	g_matcher_test_data[1],
 	g_matcher_test_data[2],
 	g_matcher_test_data[3],
 	g_matcher_test_data[4],
