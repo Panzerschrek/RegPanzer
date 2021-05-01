@@ -399,8 +399,44 @@ GraphElements::NodePtr BuildRegexGraphChain(const GroupStats& group_stats, const
 
 		return std::make_shared<GraphElements::Node>(std::move(alternatives));
 	}
-	// TODO - add special element for counter-less loop.
-	// TODO - handle case with [1;inf] specially.
+	else if(element.seq.min_elements == 1 && element.seq.max_elements == Sequence::c_max)
+	{
+		// In case of one or more elemenst first enter sequence body node, then counterless loop node.
+
+		const auto counterless_loop_node=
+			std::make_shared<GraphElements::Node>(
+				GraphElements::CounterlessLoopNode{
+					GraphElements::NodePtr(),
+					next_node,
+					element.seq.mode != SequenceMode::Lazy,
+					});
+
+
+		const auto node= BuildRegexGraphNode(group_stats, out_data, element.el, counterless_loop_node);
+		const auto node_weak= std::make_shared<GraphElements::Node>(GraphElements::NextWeakNode{node});
+
+		std::get<GraphElements::CounterlessLoopNode>(*counterless_loop_node).next_iteration= node_weak;
+		return node;
+	}
+	else if(element.seq.min_elements == 0 && element.seq.max_elements == Sequence::c_max)
+	{
+		// In case of zero or more elements first enter loop node, than loop body node.
+
+		const auto counterless_loop_node=
+			std::make_shared<GraphElements::Node>(
+				GraphElements::CounterlessLoopNode{
+					GraphElements::NodePtr(),
+					next_node,
+					element.seq.mode != SequenceMode::Lazy,
+					});
+
+		const auto counterless_loop_node_weak= std::make_shared<GraphElements::Node>(GraphElements::NextWeakNode{counterless_loop_node});
+
+		const auto node= BuildRegexGraphNode(group_stats, out_data, element.el, counterless_loop_node_weak);
+
+		std::get<GraphElements::CounterlessLoopNode>(*counterless_loop_node).next_iteration= node;
+		return counterless_loop_node;
+	}
 	else
 	{
 		const GraphElements::LoopId id= GetLoopId(element);
@@ -416,11 +452,13 @@ GraphElements::NodePtr BuildRegexGraphChain(const GroupStats& group_stats, const
 					element.seq.mode != SequenceMode::Lazy,
 					});
 
-		const auto node= BuildRegexGraphNode(group_stats, out_data, element.el, loop_counter_block);
+		const auto loop_counter_block_weak= std::make_shared<GraphElements::Node>(GraphElements::NextWeakNode{loop_counter_block});
+
+		const auto node= BuildRegexGraphNode(group_stats, out_data, element.el, loop_counter_block_weak);
 
 		std::get<GraphElements::LoopCounterBlock>(*loop_counter_block).next_iteration= node;
 
-		return std::make_shared<GraphElements::Node>(GraphElements::LoopEnter{loop_counter_block, node, id});
+		return std::make_shared<GraphElements::Node>(GraphElements::LoopEnter{loop_counter_block, id});
 	}
 }
 
@@ -463,13 +501,21 @@ void SetupSubroutineCallsImpl(const GraphElements::ConditionalElement& node, con
 void SetupSubroutineCallsImpl(const GraphElements::LoopEnter& node, const OutRegexData& regex_data)
 {
 	SetupSubroutineCalls(node.next, regex_data);
-	SetupSubroutineCalls(node.loop_iteration_node, regex_data);
 }
 
 void SetupSubroutineCallsImpl(const GraphElements::LoopCounterBlock& node, const OutRegexData& regex_data)
 {
+	SetupSubroutineCalls(node.next_iteration, regex_data);
 	SetupSubroutineCalls(node.next_loop_end, regex_data);
 }
+
+void SetupSubroutineCallsImpl(const GraphElements::CounterlessLoopNode& node, const OutRegexData& regex_data)
+{
+	SetupSubroutineCalls(node.next_iteration, regex_data);
+	SetupSubroutineCalls(node.next_loop_end, regex_data);
+}
+
+void SetupSubroutineCallsImpl(const GraphElements::NextWeakNode&, const OutRegexData&){}
 
 void SetupSubroutineCallsImpl(const GraphElements::PossessiveSequence& node, const OutRegexData& regex_data)
 {

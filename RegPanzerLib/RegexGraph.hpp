@@ -24,6 +24,8 @@ struct Look;
 struct ConditionalElement;
 struct LoopEnter;
 struct LoopCounterBlock;
+struct CounterlessLoopNode;
+struct NextWeakNode;
 struct PossessiveSequence;
 struct AtomicGroup;
 struct SubroutineEnter;
@@ -43,6 +45,8 @@ using Node= std::variant<
 	ConditionalElement,
 	LoopEnter,
 	LoopCounterBlock,
+	CounterlessLoopNode,
+	NextWeakNode,
 	PossessiveSequence,
 	AtomicGroup,
 	SubroutineEnter,
@@ -116,18 +120,30 @@ using LoopIdSet= std::unordered_set<LoopId>;
 struct LoopEnter
 {
 	NodePtr next; // To loop counter block.
-	NodePtr loop_iteration_node; // Used only to hold strong shared_pointer to it.
 	LoopId id= nullptr;
 };
 
 struct LoopCounterBlock
 {
-	NodePtr::weak_type next_iteration;
+	NodePtr next_iteration;
 	NodePtr next_loop_end;
 	LoopId id= nullptr;
 	size_t min_elements= 0u;
 	size_t max_elements= 0u;
 	bool greedy= true;
+};
+
+struct CounterlessLoopNode
+{
+	NodePtr next_iteration;
+	NodePtr next_loop_end;
+	bool greedy= true;
+};
+
+// Used for creation of back references (loops, recursive calls, etc.)
+struct NextWeakNode
+{
+	NodePtr::weak_type next;
 };
 
 struct PossessiveSequence

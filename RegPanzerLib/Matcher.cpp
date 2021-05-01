@@ -163,11 +163,8 @@ bool MatchNodeImpl(const GraphElements::LoopCounterBlock& node, State& state)
 	const size_t loop_counter= state.loop_counters[node.id];
 	++state.loop_counters[node.id];
 
-	const auto next_iteration= node.next_iteration.lock();
-	assert(next_iteration != nullptr);
-
 	if(loop_counter < node.min_elements)
-		return MatchNode(next_iteration, state);
+		return MatchNode(node.next_iteration, state);
 	else if(loop_counter >= node.max_elements)
 		return MatchNode(node.next_loop_end, state);
 	else
@@ -175,7 +172,7 @@ bool MatchNodeImpl(const GraphElements::LoopCounterBlock& node, State& state)
 		State state_copy= state;
 		if(node.greedy)
 		{
-			if(MatchNode(next_iteration, state_copy))
+			if(MatchNode(node.next_iteration, state_copy))
 			{
 				state= state_copy;
 				return true;
@@ -191,9 +188,41 @@ bool MatchNodeImpl(const GraphElements::LoopCounterBlock& node, State& state)
 				return true;
 			}
 			else
-				return MatchNode(next_iteration, state);
+				return MatchNode(node.next_iteration, state);
 		}
 	}
+}
+
+bool MatchNodeImpl(const GraphElements::CounterlessLoopNode& node, State& state)
+{
+	State state_copy= state;
+	if(node.greedy)
+	{
+		if(MatchNode(node.next_iteration, state_copy))
+		{
+			state= state_copy;
+			return true;
+		}
+		else
+			return MatchNode(node.next_loop_end, state);
+	}
+	else
+	{
+		if(MatchNode(node.next_loop_end, state_copy))
+		{
+			state= state_copy;
+			return true;
+		}
+		else
+			return MatchNode(node.next_iteration, state);
+	}
+}
+
+bool MatchNodeImpl(const GraphElements::NextWeakNode& node, State& state)
+{
+	const auto next= node.next.lock();
+	assert(next != nullptr);
+	return MatchNode(next, state);
 }
 
 bool MatchNodeImpl(const GraphElements::PossessiveSequence& node, State& state)
