@@ -9,6 +9,32 @@ namespace RegPanzer
 namespace
 {
 
+const char* GetNodeName(const GraphElements::AnySymbol&) { return "any_symbol"; }
+const char* GetNodeName(const GraphElements::SpecificSymbol&) { return "specific_symbol"; }
+const char* GetNodeName(const GraphElements::OneOf&) { return "one_of"; }
+const char* GetNodeName(const GraphElements::Alternatives&) { return "alternatives"; }
+const char* GetNodeName(const GraphElements::GroupStart&) { return "group_start"; }
+const char* GetNodeName(const GraphElements::GroupEnd&) { return "group_end"; }
+const char* GetNodeName(const GraphElements::BackReference&) { return "back_reference"; }
+const char* GetNodeName(const GraphElements::Look&) { return "look"; }
+const char* GetNodeName(const GraphElements::ConditionalElement&) { return "condtinonal_element"; }
+const char* GetNodeName(const GraphElements::LoopEnter&) { return "loop_enter"; }
+const char* GetNodeName(const GraphElements::LoopCounterBlock&) { return "loop_counter_block"; }
+const char* GetNodeName(const GraphElements::PossessiveSequence&) { return "possessive_sequence"; }
+const char* GetNodeName(const GraphElements::AtomicGroup&) { return "atomic_group"; }
+const char* GetNodeName(const GraphElements::SubroutineEnter&) { return "subroutine_enter"; }
+const char* GetNodeName(const GraphElements::SubroutineLeave&) { return "subroutine_leave"; }
+const char* GetNodeName(const GraphElements::StateSave&) { return "state_save"; }
+const char* GetNodeName(const GraphElements::StateRestore&) { return "state_restore"; }
+
+const char* GetNodeName(const GraphElements::NodePtr& node)
+{
+	if(node == nullptr)
+		return "true";
+
+	return std::visit([](const auto& el){ return GetNodeName(el); }, *node);
+}
+
 struct StateFieldIndex
 {
 	enum
@@ -134,7 +160,7 @@ llvm::Function* Generator::GetOrCreateNodeFunction(const GraphElements::NodePtr&
 	if(const auto it= node_functions_.find(node); it != node_functions_.end())
 		return it->second;
 
-	const auto function= llvm::Function::Create(node_function_type_, llvm::GlobalValue::ExternalLinkage, "", module_); // TODO - set name
+	const auto function= llvm::Function::Create(node_function_type_, llvm::GlobalValue::ExternalLinkage, GetNodeName(node), module_);
 	node_functions_.emplace(node, function);
 	BuildNodeFunctionBody(node, function);
 	return function;
