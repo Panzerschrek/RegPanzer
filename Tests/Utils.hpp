@@ -17,6 +17,7 @@ struct RegexFeatureFlag
 		ConditionalElements= 1 << 6,
 		Subroutines= 1 << 7,
 		SymbolClasses= 1 << 8,
+		FourDigitHexCodes= 1 << 9,
 	};
 };
 

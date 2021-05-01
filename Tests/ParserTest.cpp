@@ -840,6 +840,16 @@ const TestDataElement c_test_data[]
 	{ "[[:word:]]" , { { OneOf{ { '_' }, { {'a', 'z'}, {'A', 'Z'}, {'0', '9'} }, false }, { 1, 1, SequenceMode::Greedy }, } } },
 	{ "[^[:word:]]", { { OneOf{ { '_' }, { {'a', 'z'}, {'A', 'Z'}, {'0', '9'} }, true  }, { 1, 1, SequenceMode::Greedy }, } } },
 
+	// Twod-igit hex numbers.
+	{ "\\x04", { { SpecificSymbol{ 0x04 }, { 1, 1, SequenceMode::Greedy }, } } },
+	{ "\\xf7", { { SpecificSymbol{ 0xf7 }, { 1, 1, SequenceMode::Greedy }, } } },
+	{ "\\xaC", { { SpecificSymbol{ 0xaC }, { 1, 1, SequenceMode::Greedy }, } } },
+
+	// Four-digit hex numbers.
+	{ "\\u0123", { { SpecificSymbol{ 0x0123 }, { 1, 1, SequenceMode::Greedy }, } } },
+	{ "\\uFa3c", { { SpecificSymbol{ 0xFa3c }, { 1, 1, SequenceMode::Greedy }, } } },
+	{ "\\u006E", { { SpecificSymbol{ 0x006E }, { 1, 1, SequenceMode::Greedy }, } } },
+
 	// Basic escape sequences for "OneOf".
 	{ "[\\[]", { { OneOf{ {'['}, {}, false }, { 1, 1, SequenceMode::Greedy }, } } },
 	{ "[\\]]", { { OneOf{ {']'}, {}, false }, { 1, 1, SequenceMode::Greedy }, } } },

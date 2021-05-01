@@ -224,6 +224,16 @@ inline const MatcherTestDataElement g_matcher_test_data[]
 		}
 	},
 
+	{ // Macth hexademical (2 and 4 digits) constants.
+		"\\x6c\\x53\\u002B\\u0447\\u091b",
+		{
+			{
+				"lS+чछ",
+				{ {0, 8} }
+			}
+		},
+	},
+
 	// Match inverted "OneOf".
 	{
 		"[^0-9]",

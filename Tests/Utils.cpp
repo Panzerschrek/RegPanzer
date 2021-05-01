@@ -67,8 +67,9 @@ RegexFeatureFlags GetSequeneFeatures(const RegexElementsChain& chain)
 	return flags;
 }
 
-bool RegexStringContainsSymbolClasses(const std::string& regex_str)
+RegexFeatureFlags GetExcapeSequencesFlags(const std::string& regex_str)
 {
+	RegexFeatureFlags flags= 0;
 	for(auto it= regex_str.begin(), it_end= regex_str.end(); it != it_end; )
 	{
 		const auto next_it= std::next(it);
@@ -77,7 +78,15 @@ bool RegexStringContainsSymbolClasses(const std::string& regex_str)
 			if(*next_it == '\\')
 				it+= 2;
 			else if(*next_it == 'd' || *next_it == 'D' || *next_it == 'w' || *next_it == 'W' || *next_it == 's' || *next_it == 'S')
-				return true;
+			{
+				flags |= RegexFeatureFlag::SymbolClasses;
+				it+= 2;
+			}
+			else if(*next_it == 'u')
+			{
+				flags |= RegexFeatureFlag::FourDigitHexCodes;
+				it+= 2;
+			}
 			else
 				++it;
 		}
@@ -85,7 +94,7 @@ bool RegexStringContainsSymbolClasses(const std::string& regex_str)
 			++it;
 	}
 
-	return false;
+	return flags;
 }
 
 } // namespace
@@ -96,8 +105,7 @@ RegexFeatureFlags GetRegexFeatures(const std::string& regex_str)
 	if(StringContainsNonASCIISymbols(regex_str))
 		flags|= RegexFeatureFlag::UTF8;
 
-	if(RegexStringContainsSymbolClasses(regex_str))
-		flags|= RegexFeatureFlag::SymbolClasses;
+	flags|= GetExcapeSequencesFlags(regex_str);
 
 	if(const auto res= ParseRegexString(regex_str))
 		flags|= GetSequeneFeatures(*res);

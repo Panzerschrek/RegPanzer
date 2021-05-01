@@ -54,6 +54,31 @@ std::optional<RegexElementFull::ElementType> ParseEscapeSequence(StrView& str)
 	case 'S':
 		return OneOf{ { ' ', '\r', '\n', '\t', '\f', '\v', 0x00A0, 0x1680, 0x2028, 0x2029, 0x202F, 0x3000, 0xFEFF }, { {0x2000, 0x200A} }, c == 'S' };
 
+	case 'x':
+	case 'u':
+	{
+		const size_t digiths= c == 'x' ? 2 : 4;
+		if(str.size() < digiths)
+			return std::nullopt;
+
+		CharType code= 0;
+		for(size_t i= 0; i < digiths; ++i)
+		{
+			const CharType d= str[i];
+			const size_t shift= (digiths - 1 - i) << 2;
+			if(d >= '0' && d <= '9')
+				code|= (d - '0') << shift;
+			else if(d >= 'a' && d <= 'f')
+				code|= (d - 'a' + 10) << shift;
+			else if(str[i] >= 'A' && str[i] <= 'F')
+				code|= (d - 'A' + 10) << shift;
+			else
+				return std::nullopt;
+		}
+		str.remove_prefix(digiths);
+		return SpecificSymbol{ code };
+	}
+
 	case '1':
 	case '2':
 	case '3':

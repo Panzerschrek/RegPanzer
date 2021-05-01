@@ -1,4 +1,5 @@
 #include "MatcherTestData.hpp"
+#include "Utils.hpp"
 #include "../RegPanzerLib/PushDisableLLVMWarnings.hpp"
 #include <gtest/gtest.h>
 #include "../RegPanzerLib/PopLLVMWarnings.hpp"
@@ -15,6 +16,9 @@ class PcreRegexMatchTest : public ::testing::TestWithParam<MatcherTestDataElemen
 TEST_P(PcreRegexMatchTest, TestMatch)
 {
 	const auto param= GetParam();
+
+	if((GetRegexFeatures(param.regex_str) | RegexFeatureFlag::FourDigitHexCodes) != 0)
+		return;
 
 	pcrecpp::RE_Options options;
 	options.set_utf8(true);
