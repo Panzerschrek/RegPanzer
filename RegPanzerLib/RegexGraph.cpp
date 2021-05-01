@@ -24,7 +24,7 @@ struct GroupStat
 	bool recursive= false; // Both directly and indirectly.
 	size_t backreference_count= 0;
 	size_t indirect_call_count= 0; // (?1), (?R), etc.
-	GraphElements::LoopIdSet internal_loops;
+	GraphElements::LoopIdSet internal_loops; // Only loops where "LoopCounterBlock" is required.
 	GroupIdSet internal_groups; // All (include children of children and futrher).
 	CallTargetSet internal_calls; // All (include children of children and futrher).
 };
@@ -82,7 +82,17 @@ void CollectGroupIdsForElement(const RegexElementFull::ElementType& element, Gro
 
 void CollectGroupInternalsForRegexElement(const RegexElementFull& element_full, GroupStat& stat)
 {
-	stat.internal_loops.insert(GetLoopId(element_full));
+	// If this changed, "BuildRegexGraphChain" function must be changed too!
+	if(!(
+		element_full.seq.mode == SequenceMode::Possessive ||
+		(element_full.seq.min_elements == 1 && element_full.seq.max_elements == 1) ||
+		(element_full.seq.min_elements == 0 && element_full.seq.max_elements == 1) ||
+		(element_full.seq.min_elements == 0 && element_full.seq.max_elements == Sequence::c_max) ||
+		(element_full.seq.min_elements == 1 && element_full.seq.max_elements == Sequence::c_max)))
+	{
+		stat.internal_loops.insert(GetLoopId(element_full));
+	}
+
 	CollectGroupIdsForElement(element_full.el, stat);
 }
 
@@ -363,6 +373,8 @@ GraphElements::NodePtr BuildRegexGraphChain(const GroupStats& group_stats, const
 {
 	if(begin == end)
 		return next;
+
+	// If this changed, "CollectGroupInternalsForRegexElement" function must be changed too!
 
 	const RegexElementFull& element= *begin;
 
