@@ -24,7 +24,7 @@ struct GroupStat
 	bool recursive= false; // Both directly and indirectly.
 	size_t backreference_count= 0;
 	size_t indirect_call_count= 0; // (?1), (?R), etc.
-	GraphElements::SequenceIdSet internal_sequences; // Only sequences where "SequenceCounter" is required.
+	GraphElements::SequenceIdSet internal_sequences; // Only sequences where "SequenceCounter" collected here.
 	GroupIdSet internal_groups; // All (include children of children and futrher).
 	CallTargetSet internal_calls; // All (include children of children and futrher).
 };
@@ -412,7 +412,7 @@ GraphElements::NodePtr BuildRegexGraphChain(const GroupStats& group_stats, const
 	}
 	else if(element.seq.min_elements == 1 && element.seq.max_elements == Sequence::c_max)
 	{
-		// In case of one or more elemenst first enter sequence body node, then counterless sequence node.
+		// In case of one or more elemenst first enter sequence body node, then alternatives node.
 
 		const auto alternatives_node= std::make_shared<GraphElements::Node>(GraphElements::Alternatives{{next_node}});
 		const auto node= BuildRegexGraphNode(group_stats, out_data, element.el, alternatives_node);
@@ -428,7 +428,7 @@ GraphElements::NodePtr BuildRegexGraphChain(const GroupStats& group_stats, const
 	}
 	else if(element.seq.min_elements == 0 && element.seq.max_elements == Sequence::c_max)
 	{
-		// In case of zero or more elements first enter sequence node, than sequence body node.
+		// In case of zero or more elements first enter alternatives node, than sequence body node.
 
 		const auto alternatives_node= std::make_shared<GraphElements::Node>(GraphElements::Alternatives{{next_node}});
 		const auto alternatives_node_node_weak= std::make_shared<GraphElements::Node>(GraphElements::NextWeakNode{alternatives_node});
@@ -458,7 +458,6 @@ GraphElements::NodePtr BuildRegexGraphChain(const GroupStats& group_stats, const
 					});
 
 		const auto sequence_counter_block_weak= std::make_shared<GraphElements::Node>(GraphElements::NextWeakNode{sequence_counter_block});
-
 		const auto node= BuildRegexGraphNode(group_stats, out_data, element.el, sequence_counter_block_weak);
 
 		std::get<GraphElements::SequenceCounter>(*sequence_counter_block).next_iteration= node;
