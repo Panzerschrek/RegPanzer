@@ -193,31 +193,6 @@ bool MatchNodeImpl(const GraphElements::SequenceCounter& node, State& state)
 	}
 }
 
-bool MatchNodeImpl(const GraphElements::CounterlessSequenceNode& node, State& state)
-{
-	State state_copy= state;
-	if(node.greedy)
-	{
-		if(MatchNode(node.next_iteration, state_copy))
-		{
-			state= state_copy;
-			return true;
-		}
-		else
-			return MatchNode(node.next_sequence_end, state);
-	}
-	else
-	{
-		if(MatchNode(node.next_sequence_end, state_copy))
-		{
-			state= state_copy;
-			return true;
-		}
-		else
-			return MatchNode(node.next_iteration, state);
-	}
-}
-
 bool MatchNodeImpl(const GraphElements::NextWeakNode& node, State& state)
 {
 	const auto next= node.next.lock();

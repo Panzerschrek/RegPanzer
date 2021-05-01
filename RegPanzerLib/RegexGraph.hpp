@@ -24,7 +24,6 @@ struct Look;
 struct ConditionalElement;
 struct SequenceCounterReset;
 struct SequenceCounter;
-struct CounterlessSequenceNode;
 struct NextWeakNode;
 struct PossessiveSequence;
 struct AtomicGroup;
@@ -45,7 +44,6 @@ using Node= std::variant<
 	ConditionalElement,
 	SequenceCounterReset,
 	SequenceCounter,
-	CounterlessSequenceNode,
 	NextWeakNode,
 	PossessiveSequence,
 	AtomicGroup,
@@ -130,13 +128,6 @@ struct SequenceCounter
 	SequenceId id= nullptr;
 	size_t min_elements= 0u;
 	size_t max_elements= 0u;
-	bool greedy= true;
-};
-
-struct CounterlessSequenceNode
-{
-	NodePtr next_iteration;
-	NodePtr next_sequence_end;
 	bool greedy= true;
 };
 

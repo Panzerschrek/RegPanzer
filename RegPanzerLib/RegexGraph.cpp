@@ -414,39 +414,33 @@ GraphElements::NodePtr BuildRegexGraphChain(const GroupStats& group_stats, const
 	{
 		// In case of one or more elemenst first enter sequence body node, then counterless sequence node.
 
-		const auto counterless_sequence_node=
-			std::make_shared<GraphElements::Node>(
-				GraphElements::CounterlessSequenceNode{
-					GraphElements::NodePtr(),
-					next_node,
-					element.seq.mode != SequenceMode::Lazy,
-					});
-
-
-		const auto node= BuildRegexGraphNode(group_stats, out_data, element.el, counterless_sequence_node);
+		const auto alternatives_node= std::make_shared<GraphElements::Node>(GraphElements::Alternatives{{next_node}});
+		const auto node= BuildRegexGraphNode(group_stats, out_data, element.el, alternatives_node);
 		const auto node_weak= std::make_shared<GraphElements::Node>(GraphElements::NextWeakNode{node});
 
-		std::get<GraphElements::CounterlessSequenceNode>(*counterless_sequence_node).next_iteration= node_weak;
+		auto& alternatives= std::get<GraphElements::Alternatives>(*alternatives_node);
+		if(element.seq.mode == SequenceMode::Lazy)
+			alternatives.next.push_back(node_weak);
+		else
+			alternatives.next.insert(alternatives.next.begin(), node_weak);
+
 		return node;
 	}
 	else if(element.seq.min_elements == 0 && element.seq.max_elements == Sequence::c_max)
 	{
 		// In case of zero or more elements first enter sequence node, than sequence body node.
 
-		const auto counterless_sequence_node=
-			std::make_shared<GraphElements::Node>(
-				GraphElements::CounterlessSequenceNode{
-					GraphElements::NodePtr(),
-					next_node,
-					element.seq.mode != SequenceMode::Lazy,
-					});
+		const auto alternatives_node= std::make_shared<GraphElements::Node>(GraphElements::Alternatives{{next_node}});
+		const auto alternatives_node_node_weak= std::make_shared<GraphElements::Node>(GraphElements::NextWeakNode{alternatives_node});
+		const auto node= BuildRegexGraphNode(group_stats, out_data, element.el, alternatives_node_node_weak);
 
-		const auto counterless_sequence_node_weak= std::make_shared<GraphElements::Node>(GraphElements::NextWeakNode{counterless_sequence_node});
+		auto& alternatives= std::get<GraphElements::Alternatives>(*alternatives_node);
+		if(element.seq.mode == SequenceMode::Lazy)
+			alternatives.next.push_back(node);
+		else
+			alternatives.next.insert(alternatives.next.begin(), node);
 
-		const auto node= BuildRegexGraphNode(group_stats, out_data, element.el, counterless_sequence_node_weak);
-
-		std::get<GraphElements::CounterlessSequenceNode>(*counterless_sequence_node).next_iteration= node;
-		return counterless_sequence_node;
+		return alternatives_node;
 	}
 	else
 	{
@@ -515,12 +509,6 @@ void SetupSubroutineCallsImpl(const GraphElements::SequenceCounterReset& node, c
 }
 
 void SetupSubroutineCallsImpl(const GraphElements::SequenceCounter& node, const OutRegexData& regex_data)
-{
-	SetupSubroutineCalls(node.next_iteration, regex_data);
-	SetupSubroutineCalls(node.next_sequence_end, regex_data);
-}
-
-void SetupSubroutineCallsImpl(const GraphElements::CounterlessSequenceNode& node, const OutRegexData& regex_data)
 {
 	SetupSubroutineCalls(node.next_iteration, regex_data);
 	SetupSubroutineCalls(node.next_sequence_end, regex_data);
