@@ -22,9 +22,9 @@ struct GroupEnd;
 struct BackReference;
 struct Look;
 struct ConditionalElement;
-struct LoopEnter;
-struct LoopCounterBlock;
-struct CounterlessLoopNode;
+struct SequenceCounterReset;
+struct SequenceCounter;
+struct CounterlessSequenceNode;
 struct NextWeakNode;
 struct PossessiveSequence;
 struct AtomicGroup;
@@ -43,9 +43,9 @@ using Node= std::variant<
 	BackReference,
 	Look,
 	ConditionalElement,
-	LoopEnter,
-	LoopCounterBlock,
-	CounterlessLoopNode,
+	SequenceCounterReset,
+	SequenceCounter,
+	CounterlessSequenceNode,
 	NextWeakNode,
 	PossessiveSequence,
 	AtomicGroup,
@@ -114,33 +114,33 @@ struct ConditionalElement
 	NodePtr next_false;
 };
 
-using LoopId= const void*;
-using LoopIdSet= std::unordered_set<LoopId>;
+using SequenceId= const void*;
+using SequenceIdSet= std::unordered_set<SequenceId>;
 
-struct LoopEnter
+struct SequenceCounterReset
 {
-	NodePtr next; // To loop counter block.
-	LoopId id= nullptr;
+	NodePtr next; // To sequence counter node.
+	SequenceId id= nullptr;
 };
 
-struct LoopCounterBlock
+struct SequenceCounter
 {
 	NodePtr next_iteration;
-	NodePtr next_loop_end;
-	LoopId id= nullptr;
+	NodePtr next_sequence_end;
+	SequenceId id= nullptr;
 	size_t min_elements= 0u;
 	size_t max_elements= 0u;
 	bool greedy= true;
 };
 
-struct CounterlessLoopNode
+struct CounterlessSequenceNode
 {
 	NodePtr next_iteration;
-	NodePtr next_loop_end;
+	NodePtr next_sequence_end;
 	bool greedy= true;
 };
 
-// Used for creation of back references (loops, recursive calls, etc.)
+// Used for creation of back references (sequences, recursive calls, etc.)
 struct NextWeakNode
 {
 	NodePtr::weak_type next;
@@ -174,14 +174,14 @@ struct SubroutineLeave
 struct StateSave
 {
 	NodePtr next;
-	LoopIdSet loop_counters_to_save;
+	SequenceIdSet sequence_counters_to_save;
 	std::unordered_set<size_t> groups_to_save;
 };
 
 struct StateRestore
 {
 	NodePtr next;
-	LoopIdSet loop_counters_to_restore;
+	SequenceIdSet sequence_counters_to_restore;
 	std::unordered_set<size_t> groups_to_restore;
 };
 

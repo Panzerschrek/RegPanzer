@@ -17,12 +17,12 @@ struct State
 {
 	std::string_view str;
 	std::string_view groups[10];
-	llvm::DenseMap<GraphElements::LoopId, size_t> loop_counters;
+	llvm::DenseMap<GraphElements::SequenceId, size_t> sequence_counters;
 	llvm::SmallVector<GraphElements::NodePtr, 8> subroutines_return_stack;
 
 	struct SubroutineEnterSaveState
 	{
-		llvm::SmallVector<std::pair<GraphElements::LoopId, size_t>, 6> loop_counters;
+		llvm::SmallVector<std::pair<GraphElements::SequenceId, size_t>, 6> sequence_counters;
 		llvm::SmallVector<std::pair<size_t, std::string_view>, 4> groups;
 		const SubroutineEnterSaveState* prev= nullptr;
 	};
@@ -152,21 +152,21 @@ bool MatchNodeImpl(const GraphElements::ConditionalElement& node, State& state)
 		return MatchNode(node.next_false, state);
 }
 
-bool MatchNodeImpl(const GraphElements::LoopEnter& node, State& state)
+bool MatchNodeImpl(const GraphElements::SequenceCounterReset& node, State& state)
 {
-	state.loop_counters[node.id]= 0;
+	state.sequence_counters[node.id]= 0;
 	return MatchNode(node.next, state);
 }
 
-bool MatchNodeImpl(const GraphElements::LoopCounterBlock& node, State& state)
+bool MatchNodeImpl(const GraphElements::SequenceCounter& node, State& state)
 {
-	const size_t loop_counter= state.loop_counters[node.id];
-	++state.loop_counters[node.id];
+	const size_t sequence_counter= state.sequence_counters[node.id];
+	++state.sequence_counters[node.id];
 
-	if(loop_counter < node.min_elements)
+	if(sequence_counter < node.min_elements)
 		return MatchNode(node.next_iteration, state);
-	else if(loop_counter >= node.max_elements)
-		return MatchNode(node.next_loop_end, state);
+	else if(sequence_counter >= node.max_elements)
+		return MatchNode(node.next_sequence_end, state);
 	else
 	{
 		State state_copy= state;
@@ -178,11 +178,11 @@ bool MatchNodeImpl(const GraphElements::LoopCounterBlock& node, State& state)
 				return true;
 			}
 			else
-				return MatchNode(node.next_loop_end, state);
+				return MatchNode(node.next_sequence_end, state);
 		}
 		else
 		{
-			if(MatchNode(node.next_loop_end, state_copy))
+			if(MatchNode(node.next_sequence_end, state_copy))
 			{
 				state= state_copy;
 				return true;
@@ -193,7 +193,7 @@ bool MatchNodeImpl(const GraphElements::LoopCounterBlock& node, State& state)
 	}
 }
 
-bool MatchNodeImpl(const GraphElements::CounterlessLoopNode& node, State& state)
+bool MatchNodeImpl(const GraphElements::CounterlessSequenceNode& node, State& state)
 {
 	State state_copy= state;
 	if(node.greedy)
@@ -204,11 +204,11 @@ bool MatchNodeImpl(const GraphElements::CounterlessLoopNode& node, State& state)
 			return true;
 		}
 		else
-			return MatchNode(node.next_loop_end, state);
+			return MatchNode(node.next_sequence_end, state);
 	}
 	else
 	{
-		if(MatchNode(node.next_loop_end, state_copy))
+		if(MatchNode(node.next_sequence_end, state_copy))
 		{
 			state= state_copy;
 			return true;
@@ -274,11 +274,11 @@ bool MatchNodeImpl(const GraphElements::StateSave& node, State& state)
 {
 	State::SubroutineEnterSaveState state_to_save;
 
-	state_to_save.loop_counters.reserve(node.loop_counters_to_save.size());
-	for(const GraphElements::LoopId loop_id : node.loop_counters_to_save)
+	state_to_save.sequence_counters.reserve(node.sequence_counters_to_save.size());
+	for(const GraphElements::SequenceId sequence_id : node.sequence_counters_to_save)
 	{
-		state_to_save.loop_counters.emplace_back(loop_id, state.loop_counters[loop_id]);
-		state.loop_counters[loop_id]= 0; // TODO - do we need to zero it here?
+		state_to_save.sequence_counters.emplace_back(sequence_id, state.sequence_counters[sequence_id]);
+		state.sequence_counters[sequence_id]= 0; // TODO - do we need to zero it here?
 	}
 
 	state_to_save.groups.reserve(node.groups_to_save.size());
@@ -298,8 +298,8 @@ bool MatchNodeImpl(const GraphElements::StateRestore& node, State& state)
 {
 	assert(state.saved_state != nullptr);
 
-	for(const auto& loop_counter_pair : state.saved_state->loop_counters)
-		state.loop_counters[loop_counter_pair.first]= loop_counter_pair.second;
+	for(const auto& sequence_counter_pair : state.saved_state->sequence_counters)
+		state.sequence_counters[sequence_counter_pair.first]= sequence_counter_pair.second;
 
 	for(const auto& group_pair : state.saved_state->groups)
 		state.groups[group_pair.first]= group_pair.second;
