@@ -25,7 +25,8 @@ TEST_P(LlvmRegexMatchTest, TestMatch)
 			RegexFeatureFlag::Look |
 			RegexFeatureFlag::NoncapturingGroups |
 			RegexFeatureFlag::AtomicGroups |
-			RegexFeatureFlag::Subroutines)) != 0)
+			RegexFeatureFlag::Subroutines |
+			RegexFeatureFlag::SymbolClasses)) != 0)
 		return;
 
 	llvm::Regex regex(param.regex_str);

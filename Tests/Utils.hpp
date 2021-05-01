@@ -16,6 +16,7 @@ struct RegexFeatureFlag
 		AtomicGroups= 1 << 5,
 		ConditionalElements= 1 << 6,
 		Subroutines= 1 << 7,
+		SymbolClasses= 1 << 8,
 	};
 };
 
