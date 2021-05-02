@@ -47,6 +47,27 @@ struct StateFieldIndex
 		SequenceContersArray,
 		GroupsArray,
 		SubroutineCallReturnChainHead,
+		SubroutineCallStateSaveChainHead,
+	};
+};
+
+struct SubroutineCallReturnChainNodeFieldIndex
+{
+	enum
+	{
+		NextFunction,
+		Prev,
+	};
+};
+
+
+struct SubroutineCallStateSaveChainNodeFieldIndex
+{
+	enum
+	{
+		SequenceContersArray,
+		GroupsArray,
+		Prev,
 	};
 };
 
@@ -112,10 +133,11 @@ private:
 	void BuildNodeFunctionBodyImpl(
 		llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::SubroutineLeave& node);
 
-	template<typename T>
 	void BuildNodeFunctionBodyImpl(
-		llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* const state_ptr,
-		const T&);
+		llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::StateSave& node);
+
+	void BuildNodeFunctionBodyImpl(
+		llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::StateRestore& node);
 
 	void CreateNextCallRet(
 		llvm::IRBuilder<>& llvm_ir_builder,
@@ -140,6 +162,7 @@ private:
 	llvm::StructType* state_type_= nullptr;
 	llvm::FunctionType* node_function_type_= nullptr;
 	llvm::StructType* subroutine_call_return_chain_node_type_= nullptr;
+	llvm::StructType* subroutine_call_state_save_chain_node_type_= nullptr;
 
 	std::unordered_map<GraphElements::SequenceId, uint32_t> sequence_id_to_counter_filed_number_;
 	std::unordered_map<size_t, uint32_t> group_number_to_field_number_;
@@ -221,6 +244,12 @@ void Generator::GenerateMatcherFunction(const RegexGraphBuildResult& regex_graph
 		const auto null= llvm::Constant::getNullValue(llvm::PointerType::get(subroutine_call_return_chain_node_type_, 0));
 		llvm_ir_builder.CreateStore(null, ptr);
 	}
+	{
+		// Zero subroutine call state save chain head.
+		const auto ptr= llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::SubroutineCallStateSaveChainHead)});
+		const auto null= llvm::Constant::getNullValue(llvm::PointerType::get(subroutine_call_state_save_chain_node_type_, 0));
+		llvm_ir_builder.CreateStore(null, ptr);
+	}
 
 	// Call match function.
 	const auto match_res= llvm_ir_builder.CreateCall(GetOrCreateNodeFunction(regex_graph.root), {state_ptr}, "root_call_res");
@@ -274,6 +303,21 @@ void Generator::CreateStateType(const RegexGraphBuildResult& regex_graph)
 		subroutine_call_return_chain_node_type_= llvm::StructType::create(context_, "SubroutineCallReturnChainNode");
 		const auto node_ptr_type= llvm::PointerType::get(subroutine_call_return_chain_node_type_, 0);
 		subroutine_call_return_chain_node_type_->setBody({llvm::PointerType::get(node_function_type_, 0), node_ptr_type});
+
+		members.push_back(node_ptr_type);
+	}
+	{
+		// TODO - create this field only if state save nodes are used.
+		subroutine_call_state_save_chain_node_type_= llvm::StructType::create(context_, "SubroutineCallStateSaveChainNode");
+		const auto node_ptr_type= llvm::PointerType::get(subroutine_call_state_save_chain_node_type_, 0);
+
+		llvm::Type* const elements[]
+		{
+			members[StateFieldIndex::SequenceContersArray],
+			members[StateFieldIndex::GroupsArray],
+			node_ptr_type,
+		};
+		subroutine_call_state_save_chain_node_type_->setBody(elements);
 
 		members.push_back(node_ptr_type);
 	}
@@ -962,7 +1006,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 		next_function,
 		llvm_ir_builder.CreateGEP(
 			subroutine_call_return_chain_node,
-			{GetZeroGEPIndex(), GetFieldGEPIndex(0)}));
+			{GetZeroGEPIndex(), GetFieldGEPIndex(SubroutineCallReturnChainNodeFieldIndex::NextFunction)}));
 
 	const auto prev_node_ptr= llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::SubroutineCallReturnChainHead)});
 	const auto prev_node_value= llvm_ir_builder.CreateLoad(prev_node_ptr);
@@ -971,7 +1015,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 		prev_node_value,
 		llvm_ir_builder.CreateGEP(
 			subroutine_call_return_chain_node,
-			{GetZeroGEPIndex(), GetFieldGEPIndex(1)}));
+			{GetZeroGEPIndex(), GetFieldGEPIndex(SubroutineCallReturnChainNodeFieldIndex::Prev)}));
 
 	llvm_ir_builder.CreateStore(subroutine_call_return_chain_node, prev_node_ptr);
 
@@ -989,13 +1033,13 @@ void Generator::BuildNodeFunctionBodyImpl(
 	const auto next_function_ptr=
 		llvm_ir_builder.CreateGEP(
 			node_value,
-			{GetZeroGEPIndex(), GetFieldGEPIndex(0)});
+			{GetZeroGEPIndex(), GetFieldGEPIndex(SubroutineCallReturnChainNodeFieldIndex::NextFunction)});
 	const auto next_function= llvm_ir_builder.CreateLoad(next_function_ptr);
 
 	const auto prev_node_ptr=
 		llvm_ir_builder.CreateGEP(
 			node_value,
-			{GetZeroGEPIndex(), GetFieldGEPIndex(1)});
+			{GetZeroGEPIndex(), GetFieldGEPIndex(SubroutineCallReturnChainNodeFieldIndex::Prev)});
 	const auto prev_node_value= llvm_ir_builder.CreateLoad(prev_node_ptr);
 
 	llvm_ir_builder.CreateStore(prev_node_value, node_ptr);
@@ -1004,10 +1048,168 @@ void Generator::BuildNodeFunctionBodyImpl(
 	llvm_ir_builder.CreateRet(call_res);
 }
 
-template<typename T>
-void Generator::BuildNodeFunctionBodyImpl(llvm::IRBuilder<>&, llvm::Value* const, const T&)
+void Generator::BuildNodeFunctionBodyImpl(
+	llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::StateSave& node)
 {
-	assert(false && "not implemented yet!");
+	// Allocate node.
+	const auto subroutine_state_save_chain_node=
+		llvm_ir_builder.CreateAlloca(subroutine_call_state_save_chain_node_type_, 0, "subroutine_state_save_chain_node");
+
+	// Save prev value.
+	const auto prev_node_ptr= llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::SubroutineCallStateSaveChainHead)});
+	const auto prev_node_value= llvm_ir_builder.CreateLoad(prev_node_ptr);
+
+	llvm_ir_builder.CreateStore(
+		prev_node_value,
+		llvm_ir_builder.CreateGEP(
+			subroutine_state_save_chain_node,
+			{GetZeroGEPIndex(), GetFieldGEPIndex(SubroutineCallStateSaveChainNodeFieldIndex::Prev)}));
+
+	llvm_ir_builder.CreateStore(subroutine_state_save_chain_node, prev_node_ptr);
+
+	// Save payload.
+	for(const GraphElements::SequenceId sequence_id : node.sequence_counters_to_save)
+	{
+		const auto sequence_field_index= GetFieldGEPIndex(sequence_id_to_counter_filed_number_.at(sequence_id));
+
+		const auto sequence_counter_ptr=
+			llvm_ir_builder.CreateGEP(
+				state_ptr,
+				{
+					GetZeroGEPIndex(),
+					GetFieldGEPIndex(StateFieldIndex::SequenceContersArray),
+					sequence_field_index,
+				});
+
+		const auto sequence_counter= llvm_ir_builder.CreateLoad(sequence_counter_ptr, "sequence_counter");
+
+		llvm_ir_builder.CreateStore(
+			sequence_counter,
+			llvm_ir_builder.CreateGEP(
+				subroutine_state_save_chain_node,
+				{
+					GetZeroGEPIndex(),
+					GetFieldGEPIndex(SubroutineCallStateSaveChainNodeFieldIndex::SequenceContersArray),
+					sequence_field_index,
+				}));
+	}
+	for(const size_t group_id : node.groups_to_save)
+	{
+		const auto group_index= GetFieldGEPIndex(group_number_to_field_number_.at(group_id));
+
+		const auto group_ptr_src=
+			llvm_ir_builder.CreateGEP(
+				state_ptr,
+				{
+					GetZeroGEPIndex(),
+					GetFieldGEPIndex(StateFieldIndex::GroupsArray),
+					group_index,
+				},
+				"group_ptr_src");
+
+		const auto group_ptr_dst=
+			llvm_ir_builder.CreateGEP(
+				subroutine_state_save_chain_node,
+				{
+					GetZeroGEPIndex(),
+					GetFieldGEPIndex(SubroutineCallStateSaveChainNodeFieldIndex::GroupsArray),
+					group_index,
+				},
+				"group_ptr_dst");
+
+		const llvm::DataLayout& data_layout= module_.getDataLayout();
+
+		const auto alignment= data_layout.getABITypeAlignment(group_type_); // TODO - is this right alignment?
+
+		llvm_ir_builder.CreateMemCpy(
+			group_ptr_dst, alignment,
+			group_ptr_src, alignment,
+			llvm::Constant::getIntegerValue(
+				gep_index_type_,
+				llvm::APInt(gep_index_type_->getBitWidth(), data_layout.getTypeAllocSize(group_type_))));
+	}
+
+	CreateNextCallRet(llvm_ir_builder, state_ptr, node.next);
+}
+
+void Generator::BuildNodeFunctionBodyImpl(
+	llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::StateRestore& node)
+{
+	const auto node_ptr= llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::SubroutineCallStateSaveChainHead)});
+	const auto node_value= llvm_ir_builder.CreateLoad(node_ptr);
+
+	// Restore prev chain state.
+	const auto prev_node_ptr=
+		llvm_ir_builder.CreateGEP(
+			node_value,
+			{GetZeroGEPIndex(), GetFieldGEPIndex(SubroutineCallStateSaveChainNodeFieldIndex::Prev)});
+	const auto prev_node_value= llvm_ir_builder.CreateLoad(prev_node_ptr);
+
+	llvm_ir_builder.CreateStore(prev_node_value, node_ptr);
+
+	// Restore payload.
+	for(const GraphElements::SequenceId sequence_id : node.sequence_counters_to_restore)
+	{
+		const auto sequence_field_index= GetFieldGEPIndex(sequence_id_to_counter_filed_number_.at(sequence_id));
+
+		const auto sequence_counter_ptr=
+			llvm_ir_builder.CreateGEP(
+				node_value,
+				{
+					GetZeroGEPIndex(),
+					GetFieldGEPIndex(SubroutineCallStateSaveChainNodeFieldIndex::SequenceContersArray),
+					sequence_field_index,
+				});
+
+		const auto sequence_counter= llvm_ir_builder.CreateLoad(sequence_counter_ptr, "sequence_counter");
+
+		llvm_ir_builder.CreateStore(
+			sequence_counter,
+			llvm_ir_builder.CreateGEP(
+				state_ptr,
+				{
+					GetZeroGEPIndex(),
+					GetFieldGEPIndex(StateFieldIndex::SequenceContersArray),
+					sequence_field_index,
+				}));
+	}
+	for(const size_t group_id : node.groups_to_restore)
+	{
+		const auto group_index= GetFieldGEPIndex(group_number_to_field_number_.at(group_id));
+
+		const auto group_ptr_src=
+			llvm_ir_builder.CreateGEP(
+				node_value,
+				{
+					GetZeroGEPIndex(),
+					GetFieldGEPIndex(SubroutineCallStateSaveChainNodeFieldIndex::GroupsArray),
+					group_index,
+				},
+				"group_ptr_src");
+
+		const auto group_ptr_dst=
+			llvm_ir_builder.CreateGEP(
+				state_ptr,
+				{
+					GetZeroGEPIndex(),
+					GetFieldGEPIndex(StateFieldIndex::GroupsArray),
+					group_index,
+				},
+				"group_ptr_dst");
+
+		const llvm::DataLayout& data_layout= module_.getDataLayout();
+
+		const auto alignment= data_layout.getABITypeAlignment(group_type_); // TODO - is this right alignment?
+
+		llvm_ir_builder.CreateMemCpy(
+			group_ptr_dst, alignment,
+			group_ptr_src, alignment,
+			llvm::Constant::getIntegerValue(
+				gep_index_type_,
+				llvm::APInt(gep_index_type_->getBitWidth(), data_layout.getTypeAllocSize(group_type_))));
+	}
+
+	CreateNextCallRet(llvm_ir_builder, state_ptr, node.next);
 }
 
 void Generator::CreateNextCallRet(
