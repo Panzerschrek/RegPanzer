@@ -1,5 +1,4 @@
 #include "RegexGraph.hpp"
-#include <unordered_map>
 
 namespace RegPanzer
 {
@@ -15,19 +14,6 @@ GraphElements::SequenceId GetSequenceId(const RegexElementFull& element)
 {
 	return &element;
 }
-
-using GroupIdSet= std::unordered_set<size_t>;
-using CallTargetSet= std::unordered_set<size_t>;
-
-struct GroupStat
-{
-	bool recursive= false; // Both directly and indirectly.
-	size_t backreference_count= 0;
-	size_t indirect_call_count= 0; // (?1), (?R), etc.
-	GraphElements::SequenceIdSet internal_sequences; // Only sequences where "SequenceCounter" collected here.
-	GroupIdSet internal_groups; // All (include children of children and futrher).
-	CallTargetSet internal_calls; // All (include children of children and futrher).
-};
 
 void CollectGroupInternalsForRegexChain(const RegexElementsChain& regex_chain, GroupStat&);
 
@@ -105,8 +91,6 @@ void CollectGroupInternalsForRegexChain(const RegexElementsChain& regex_chain, G
 //
 // CollectGroupStatsForRegexChain
 //
-
-using GroupStats= std::unordered_map<size_t, GroupStat>;
 
 void CollectGroupStatsForRegexChain(const RegexElementsChain& regex_chain, GroupStats& group_stats);
 
@@ -555,27 +539,27 @@ void SetupSubroutineCalls(const GraphElements::NodePtr& node, const OutRegexData
 
 } // namespace
 
-GraphElements::NodePtr BuildRegexGraph(const RegexElementsChain& regex_chain)
+RegexGraphBuildResult BuildRegexGraph(const RegexElementsChain& regex_chain)
 {
-	GroupStats group_stats;
-	CollectGroupInternalsForRegexChain(regex_chain, group_stats[0]);
-	CollectGroupStatsForRegexChain(regex_chain, group_stats);
-	SearchRecursiveGroupCalls(group_stats);
+	RegexGraphBuildResult res;
 
-	GraphElements::NodePtr result_root;
+	CollectGroupInternalsForRegexChain(regex_chain, res.group_stats[0]);
+	CollectGroupStatsForRegexChain(regex_chain, res.group_stats);
+	SearchRecursiveGroupCalls(res.group_stats);
+
 	OutRegexData out_regex_data;
-	if(group_stats.at(0).indirect_call_count == 0)
-		result_root= BuildRegexGraphChain(group_stats, out_regex_data, regex_chain, nullptr);
+	if(res.group_stats.at(0).indirect_call_count == 0)
+		res.root= BuildRegexGraphChain(res.group_stats, out_regex_data, regex_chain, nullptr);
 	else
 	{
 		const auto end_node= std::make_shared<GraphElements::Node>(GraphElements::SubroutineLeave{});
-		const auto node= BuildRegexGraphChain(group_stats, out_regex_data, regex_chain, end_node);
+		const auto node= BuildRegexGraphChain(res.group_stats, out_regex_data, regex_chain, end_node);
 		out_regex_data.group_nodes[0]= node;
-		result_root= std::make_shared<GraphElements::Node>(GraphElements::SubroutineEnter{nullptr, node, 0u});
+		res.root= std::make_shared<GraphElements::Node>(GraphElements::SubroutineEnter{nullptr, node, 0u});
 	}
 
-	SetupSubroutineCalls(result_root, out_regex_data);
-	return result_root;
+	SetupSubroutineCalls(res.root, out_regex_data);
+	return res;
 }
 
 } // namespace RegPanzer

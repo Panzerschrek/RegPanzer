@@ -9,7 +9,7 @@ namespace RegPanzer
 
 void GenerateMatcherFunction(
 	llvm::Module& module,
-	const GraphElements::NodePtr& regex_graph_root,
+	const RegexGraphBuildResult& regex_graph,
 	const std::string& function_name);
 
 } // namespace RegPanzer

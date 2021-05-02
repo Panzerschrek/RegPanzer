@@ -1,6 +1,7 @@
 #pragma once
 #include "RegexElements.hpp"
 #include <memory>
+#include <unordered_map>
 #include <unordered_set>
 #include <variant>
 #include <vector>
@@ -178,6 +179,27 @@ struct StateRestore
 
 } // GraphElements
 
-GraphElements::NodePtr BuildRegexGraph(const RegexElementsChain& regex_chain);
+using GroupIdSet= std::unordered_set<size_t>;
+using CallTargetSet= std::unordered_set<size_t>;
+
+struct GroupStat
+{
+	bool recursive= false; // Both directly and indirectly.
+	size_t backreference_count= 0;
+	size_t indirect_call_count= 0; // (?1), (?R), etc.
+	GraphElements::SequenceIdSet internal_sequences; // Only sequences where "SequenceCounter" collected here.
+	GroupIdSet internal_groups; // All (include children of children and futrher).
+	CallTargetSet internal_calls; // All calls (include calls in children groups and children of children and futrher).
+};
+
+using GroupStats= std::unordered_map<size_t, GroupStat>;
+
+struct RegexGraphBuildResult
+{
+	GroupStats group_stats;
+	GraphElements::NodePtr root;
+};
+
+RegexGraphBuildResult BuildRegexGraph(const RegexElementsChain& regex_chain);
 
 } // namespace RegPanzer

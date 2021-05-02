@@ -52,7 +52,7 @@ class Generator
 public:
 	explicit Generator(llvm::Module& module);
 
-	void GenerateMatcherFunction(const GraphElements::NodePtr& regex_graph_root, const std::string& function_name);
+	void GenerateMatcherFunction(const RegexGraphBuildResult& regex_graph, const std::string& function_name);
 
 private:
 	llvm::Function* GetOrCreateNodeFunction(const GraphElements::NodePtr& node);
@@ -111,7 +111,7 @@ Generator::Generator(llvm::Module& module)
 	, char_type_ptr_(llvm::PointerType::get(char_type_, 0))
 {}
 
-void Generator::GenerateMatcherFunction(const GraphElements::NodePtr& regex_graph_root, const std::string& function_name)
+void Generator::GenerateMatcherFunction(const RegexGraphBuildResult& regex_graph, const std::string& function_name)
 {
 	// Body of state struct depends on actual regex.
 	state_type_= llvm::StructType::create(context_, "State");
@@ -153,7 +153,7 @@ void Generator::GenerateMatcherFunction(const GraphElements::NodePtr& regex_grap
 	}
 
 	// Call match function.
-	const auto match_res= llvm_ir_builder.CreateCall(GetOrCreateNodeFunction(regex_graph_root), {state_ptr}, "root_call_res");
+	const auto match_res= llvm_ir_builder.CreateCall(GetOrCreateNodeFunction(regex_graph.root), {state_ptr}, "root_call_res");
 	llvm_ir_builder.CreateCondBr(match_res, found_block, not_found_block);
 
 	// Return result.
@@ -455,11 +455,11 @@ llvm::Constant* Generator::GetFieldGEPIndex(const uint32_t field_index) const
 
 void GenerateMatcherFunction(
 	llvm::Module& module,
-	const GraphElements::NodePtr& regex_graph_root,
+	const RegexGraphBuildResult& regex_graph,
 	const std::string& function_name)
 {
 	Generator generator(module);
-	generator.GenerateMatcherFunction(regex_graph_root, function_name);
+	generator.GenerateMatcherFunction(regex_graph, function_name);
 }
 
 } // namespace RegPanzer

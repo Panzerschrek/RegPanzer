@@ -28,7 +28,7 @@ TEST_P(MatchTest, TestMatch)
 		std::string_view str= c.input_str;
 		while(true)
 		{
-			const MatchResult res= Match(regex_graph, str);
+			const MatchResult res= Match(regex_graph.root, str);
 			if(res == std::nullopt || res->empty())
 				break;
 
