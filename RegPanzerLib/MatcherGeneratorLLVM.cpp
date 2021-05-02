@@ -174,6 +174,18 @@ llvm::Function* Generator::GetOrCreateNodeFunction(const GraphElements::NodePtr&
 	if(const auto it= node_functions_.find(node); it != node_functions_.end())
 		return it->second;
 
+	if(node != nullptr)
+	{
+		if(const auto next_weak_node= std::get_if<GraphElements::NextWeakNode>(node.get()))
+		{
+			const auto next= next_weak_node->next.lock();
+			assert(next != nullptr);
+			const auto function= GetOrCreateNodeFunction(next);
+			node_functions_.emplace(node, function);
+			return function;
+		}
+	}
+
 	const auto function= llvm::Function::Create(node_function_type_, llvm::GlobalValue::ExternalLinkage, GetNodeName(node), module_);
 	node_functions_.emplace(node, function);
 	BuildNodeFunctionBody(node, function);
