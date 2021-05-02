@@ -44,6 +44,7 @@ struct StateFieldIndex
 	{
 		StrBegin,
 		StrEnd,
+		SequenceContersArray,
 	};
 };
 
@@ -55,6 +56,8 @@ public:
 	void GenerateMatcherFunction(const RegexGraphBuildResult& regex_graph, const std::string& function_name);
 
 private:
+	void CreateStateType(const RegexGraphBuildResult& regex_graph);
+
 	llvm::Function* GetOrCreateNodeFunction(const GraphElements::NodePtr& node);
 
 	void BuildNodeFunctionBody(const GraphElements::NodePtr& node, llvm::Function* function);
@@ -94,11 +97,13 @@ private:
 	llvm::Module& module_;
 
 	llvm::IntegerType* const gep_index_type_;
+	llvm::IntegerType* const ptr_size_int_type_;
 	llvm::IntegerType* const char_type_;
 	llvm::PointerType* const char_type_ptr_;
 
 	llvm::StructType* state_type_= nullptr;
 	llvm::FunctionType* node_function_type_= nullptr;
+	std::unordered_map<GraphElements::SequenceId, uint32_t> sequence_id_to_counter_filed_number_;
 
 	std::unordered_map<GraphElements::NodePtr, llvm::Function*> node_functions_;
 };
@@ -107,6 +112,7 @@ Generator::Generator(llvm::Module& module)
 	: context_(module.getContext())
 	, module_(module)
 	, gep_index_type_(llvm::IntegerType::getInt32Ty(context_))
+	, ptr_size_int_type_(module.getDataLayout().getIntPtrType(context_, 0))
 	, char_type_(llvm::Type::getInt8Ty(context_))
 	, char_type_ptr_(llvm::PointerType::get(char_type_, 0))
 {}
@@ -114,9 +120,7 @@ Generator::Generator(llvm::Module& module)
 void Generator::GenerateMatcherFunction(const RegexGraphBuildResult& regex_graph, const std::string& function_name)
 {
 	// Body of state struct depends on actual regex.
-	state_type_= llvm::StructType::create(context_, "State");
-	state_type_->setBody({char_type_ptr_, char_type_ptr_});
-
+	CreateStateType(regex_graph);
 	const auto state_ptr_type= llvm::PointerType::get(state_type_, 0);
 
 	// All match node functions looks like this:
@@ -167,6 +171,28 @@ void Generator::GenerateMatcherFunction(const RegexGraphBuildResult& regex_graph
 		llvm_ir_builder.SetInsertPoint(not_found_block);
 		llvm_ir_builder.CreateRet(llvm::ConstantPointerNull::get(char_type_ptr_));
 	}
+}
+
+void Generator::CreateStateType(const RegexGraphBuildResult& regex_graph)
+{
+	state_type_= llvm::StructType::create(context_, "State");
+
+	llvm::SmallVector<llvm::Type*, 6> members;
+
+	members.push_back(char_type_ptr_); // StrBegin
+	members.push_back(char_type_ptr_); // StrEnd
+
+	{
+		const GroupStat& regex_stat= regex_graph.group_stats.at(0);
+		const size_t number_of_counters= regex_stat.internal_sequences.size();
+		const auto sequence_counters_array= llvm::ArrayType::get(ptr_size_int_type_, uint64_t(number_of_counters));
+		members.push_back(sequence_counters_array);
+
+		for(const GraphElements::SequenceId sequence_id : regex_stat.internal_sequences)
+			sequence_id_to_counter_filed_number_.emplace(sequence_id, uint32_t(sequence_id_to_counter_filed_number_.size()));
+	}
+
+	state_type_->setBody(members);
 }
 
 llvm::Function* Generator::GetOrCreateNodeFunction(const GraphElements::NodePtr& node)
