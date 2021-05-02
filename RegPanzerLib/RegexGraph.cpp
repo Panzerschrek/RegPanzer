@@ -330,7 +330,7 @@ GraphElements::NodePtr BuildRegexGraphNodeImpl(const GroupStats& group_stats, Ou
 		sequences= stat.internal_sequences;
 
 	// Save group state itself and state of its subgroups, but only if they used in backreferences.
-	// TODO - save groups also if we match also subexpressions.
+	// TODO - save groups also if we match subexpressions.
 	GroupIdSet groups;
 
 	for(const size_t& internal_group_id : stat.internal_groups)
@@ -340,10 +340,15 @@ GraphElements::NodePtr BuildRegexGraphNodeImpl(const GroupStats& group_stats, Ou
 	if(group_stats.at(subroutine_call.index).backreference_count > 0)
 		groups.insert(subroutine_call.index);
 
-	const auto state_restore= std::make_shared<GraphElements::Node>(GraphElements::StateRestore{next, sequences, groups});
+	if(sequences.empty() && groups.empty())
+		return std::make_shared<GraphElements::Node>(GraphElements::SubroutineEnter{next, nullptr /*Set actual pointer value later*/, subroutine_call.index});
+	else
+	{
+		const auto state_restore= std::make_shared<GraphElements::Node>(GraphElements::StateRestore{next, sequences, groups});
 
-	const auto enter_node= std::make_shared<GraphElements::Node>(GraphElements::SubroutineEnter{state_restore, nullptr /*Set actual pointer value later*/, subroutine_call.index});
-	return std::make_shared<GraphElements::Node>(GraphElements::StateSave{enter_node, sequences, groups});
+		const auto enter_node= std::make_shared<GraphElements::Node>(GraphElements::SubroutineEnter{state_restore, nullptr /*Set actual pointer value later*/, subroutine_call.index});
+		return std::make_shared<GraphElements::Node>(GraphElements::StateSave{enter_node, sequences, groups});
+	}
 }
 
 GraphElements::NodePtr BuildRegexGraphNode(const GroupStats& group_stats, OutRegexData& out_data, const RegexElementFull::ElementType& element, const GraphElements::NodePtr& next)
