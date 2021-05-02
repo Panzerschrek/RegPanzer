@@ -71,6 +71,8 @@ struct SubroutineCallStateSaveChainNodeFieldIndex
 	};
 };
 
+using IRBuilder= llvm::IRBuilder<>;
+
 class Generator
 {
 public:
@@ -86,66 +88,65 @@ private:
 	void BuildNodeFunctionBody(const GraphElements::NodePtr& node, llvm::Function* function);
 
 	void BuildNodeFunctionBodyImpl(
-		llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::AnySymbol& node);
+		IRBuilder& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::AnySymbol& node);
 
 	void BuildNodeFunctionBodyImpl(
-		llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::SpecificSymbol& node);
+		IRBuilder& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::SpecificSymbol& node);
 
 	void BuildNodeFunctionBodyImpl(
-		llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::OneOf& node);
+		IRBuilder& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::OneOf& node);
 
 	void BuildNodeFunctionBodyImpl(
-		llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::Alternatives& node);
+		IRBuilder& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::Alternatives& node);
 
 	void BuildNodeFunctionBodyImpl(
-		llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::GroupStart& node);
+		IRBuilder& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::GroupStart& node);
 
 	void BuildNodeFunctionBodyImpl(
-		llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::GroupEnd& node);
+		IRBuilder& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::GroupEnd& node);
 
 	void BuildNodeFunctionBodyImpl(
-		llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::BackReference& node);
+		IRBuilder& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::BackReference& node);
 
 	void BuildNodeFunctionBodyImpl(
-		llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::Look& node);
+		IRBuilder& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::Look& node);
 
 	void BuildNodeFunctionBodyImpl(
-		llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::ConditionalElement& node);
+		IRBuilder& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::ConditionalElement& node);
 
 	void BuildNodeFunctionBodyImpl(
-		llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::SequenceCounterReset& node);
+		IRBuilder& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::SequenceCounterReset& node);
 
 	void BuildNodeFunctionBodyImpl(
-		llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::SequenceCounter& node);
+		IRBuilder& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::SequenceCounter& node);
 
 	void BuildNodeFunctionBodyImpl(
-		llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::NextWeakNode& node);
+		IRBuilder& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::NextWeakNode& node);
 
 	void BuildNodeFunctionBodyImpl(
-		llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::PossessiveSequence& node);
+		IRBuilder& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::PossessiveSequence& node);
 
 	void BuildNodeFunctionBodyImpl(
-		llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::AtomicGroup& node);
+		IRBuilder& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::AtomicGroup& node);
 
 	void BuildNodeFunctionBodyImpl(
-		llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::SubroutineEnter& node);
+		IRBuilder& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::SubroutineEnter& node);
 
 	void BuildNodeFunctionBodyImpl(
-		llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::SubroutineLeave& node);
+		IRBuilder& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::SubroutineLeave& node);
 
 	void BuildNodeFunctionBodyImpl(
-		llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::StateSave& node);
+		IRBuilder& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::StateSave& node);
 
 	void BuildNodeFunctionBodyImpl(
-		llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::StateRestore& node);
+		IRBuilder& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::StateRestore& node);
 
 	void CreateNextCallRet(
-		llvm::IRBuilder<>& llvm_ir_builder,
-		llvm::Value* state_ptr,
-		const GraphElements::NodePtr& next_node);
+		IRBuilder& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::NodePtr& next_node);
 
-	void CopyState(llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* dst, llvm::Value* src);
+	void CopyState(IRBuilder& llvm_ir_builder, llvm::Value* dst, llvm::Value* src);
 
+	llvm::ConstantInt* GetConstant(llvm::IntegerType* type, uint64_t value) const;
 	llvm::Constant* GetZeroGEPIndex() const;
 	llvm::Constant* GetFieldGEPIndex(uint32_t field_index) const;
 
@@ -201,7 +202,7 @@ void Generator::GenerateMatcherFunction(const RegexGraphBuildResult& regex_graph
 	const auto found_block= llvm::BasicBlock::Create(context_, "found", root_function);
 	const auto not_found_block= llvm::BasicBlock::Create(context_, "not_found", root_function);
 
-	llvm::IRBuilder<> llvm_ir_builder(start_basic_block);
+	IRBuilder llvm_ir_builder(start_basic_block);
 
 	const auto state_ptr= llvm_ir_builder.CreateAlloca(state_type_, 0, "state");
 
@@ -351,7 +352,7 @@ llvm::Function* Generator::GetOrCreateNodeFunction(const GraphElements::NodePtr&
 void Generator::BuildNodeFunctionBody(const GraphElements::NodePtr& node, llvm::Function* const function)
 {
 	const auto basic_block= llvm::BasicBlock::Create(context_, "", function);
-	llvm::IRBuilder<> llvm_ir_builder(basic_block);
+	IRBuilder llvm_ir_builder(basic_block);
 
 	if(node == nullptr)
 	{
@@ -367,7 +368,7 @@ void Generator::BuildNodeFunctionBody(const GraphElements::NodePtr& node, llvm::
 }
 
 void Generator::BuildNodeFunctionBodyImpl(
-	llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::AnySymbol& node)
+	IRBuilder& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::AnySymbol& node)
 {
 	const auto function= llvm_ir_builder.GetInsertBlock()->getParent();
 
@@ -398,7 +399,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 }
 
 void Generator::BuildNodeFunctionBodyImpl(
-	llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::SpecificSymbol& node)
+	IRBuilder& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::SpecificSymbol& node)
 {
 	const auto function= llvm_ir_builder.GetInsertBlock()->getParent();
 
@@ -423,10 +424,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 	// TODO - support UTF-8.
 
 	const auto char_value= llvm_ir_builder.CreateLoad(str_begin_value, "char_value");
-	const auto is_same_symbol=
-		llvm_ir_builder.CreateICmpEQ(
-			char_value,
-			llvm::ConstantInt::get(char_type_, llvm::APInt(char_type_->getBitWidth(), node.code)));
+	const auto is_same_symbol= llvm_ir_builder.CreateICmpEQ(char_value, GetConstant(char_type_, node.code));
 
 	const auto ne_block= llvm::BasicBlock::Create(context_, "ne", function);
 	const auto eq_block= llvm::BasicBlock::Create(context_, "eq", function);
@@ -445,7 +443,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 }
 
 void Generator::BuildNodeFunctionBodyImpl(
-	llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::OneOf& node)
+	IRBuilder& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::OneOf& node)
 {
 	const auto function= llvm_ir_builder.GetInsertBlock()->getParent();
 
@@ -475,10 +473,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 
 	for(const CharType c : node.variants)
 	{
-		const auto is_same_symbol=
-			llvm_ir_builder.CreateICmpEQ(
-				char_value,
-				llvm::ConstantInt::get(char_type_, llvm::APInt(char_type_->getBitWidth(), c)));
+		const auto is_same_symbol= llvm_ir_builder.CreateICmpEQ(char_value, GetConstant(char_type_, c));
 
 		const auto next_block= llvm::BasicBlock::Create(context_, "next", function);
 
@@ -488,11 +483,8 @@ void Generator::BuildNodeFunctionBodyImpl(
 
 	for(const auto& range : node.ranges)
 	{
-		const auto range_begin_constant= llvm::ConstantInt::get(char_type_, llvm::APInt(char_type_->getBitWidth(), range.first ));
-		const auto range_end_constant  = llvm::ConstantInt::get(char_type_, llvm::APInt(char_type_->getBitWidth(), range.second));
-
-		const auto ge= llvm_ir_builder.CreateICmpUGE(char_value, range_begin_constant);
-		const auto le= llvm_ir_builder.CreateICmpULE(char_value, range_end_constant  );
+		const auto ge= llvm_ir_builder.CreateICmpUGE(char_value, GetConstant(char_type_, range.first ));
+		const auto le= llvm_ir_builder.CreateICmpULE(char_value, GetConstant(char_type_, range.second));
 		const auto in_range= llvm_ir_builder.CreateAnd(ge, le);
 
 		const auto next_block= llvm::BasicBlock::Create(context_, "next", function);
@@ -501,11 +493,10 @@ void Generator::BuildNodeFunctionBodyImpl(
 		llvm_ir_builder.SetInsertPoint(next_block);
 	}
 
+	llvm_ir_builder.GetInsertBlock()->setName("not_found");
 	if(node.inverse_flag)
 	{
 		// Not found anything - continue.
-		llvm_ir_builder.GetInsertBlock()->setName("not_found");
-
 		const auto new_str_begin_value= llvm_ir_builder.CreateGEP(str_begin_value, GetFieldGEPIndex(1));
 		llvm_ir_builder.CreateStore(new_str_begin_value, str_begin_ptr);
 		CreateNextCallRet(llvm_ir_builder, state_ptr, node.next);
@@ -518,7 +509,6 @@ void Generator::BuildNodeFunctionBodyImpl(
 	else
 	{
 		// Not found anything - return false.
-		llvm_ir_builder.GetInsertBlock()->setName("not_found");
 		llvm_ir_builder.CreateRet(llvm::ConstantInt::getFalse(context_));
 
 		// Found - continue.
@@ -533,7 +523,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 }
 
 void Generator::BuildNodeFunctionBodyImpl(
-	llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::Alternatives& node)
+	IRBuilder& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::Alternatives& node)
 {
 	const auto function= llvm_ir_builder.GetInsertBlock()->getParent();
 
@@ -563,7 +553,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 }
 
 void Generator::BuildNodeFunctionBodyImpl(
-	llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::GroupStart& node)
+	IRBuilder& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::GroupStart& node)
 {
 	const auto group_ptr=
 		llvm_ir_builder.CreateGEP(
@@ -587,7 +577,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 }
 
 void Generator::BuildNodeFunctionBodyImpl(
-	llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::GroupEnd& node)
+	IRBuilder& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::GroupEnd& node)
 {
 	const auto group_end_ptr=
 		llvm_ir_builder.CreateGEP(
@@ -608,7 +598,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 }
 
 void Generator::BuildNodeFunctionBodyImpl(
-	llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::BackReference& node)
+	IRBuilder& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::BackReference& node)
 {
 	// Generate here code, equivalent to.
 	/*
@@ -692,9 +682,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 	const auto loop_counter_next=
 		llvm_ir_builder.CreateAdd(
 			loop_counter_current,
-			llvm::ConstantInt::get(
-				loop_counter_current->getType(),
-				llvm::APInt(loop_counter_current->getType()->getIntegerBitWidth(), 1)),
+			llvm::ConstantInt::get(loop_counter_current->getType(), 1),
 			"loop_counter_next");
 	loop_counter_current->addIncoming(loop_counter_next, loop_counter_increase_block);
 	llvm_ir_builder.CreateBr(loop_counter_check_block);
@@ -711,7 +699,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 }
 
 void Generator::BuildNodeFunctionBodyImpl(
-	llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::Look& node)
+	IRBuilder& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::Look& node)
 {
 	const auto function= llvm_ir_builder.GetInsertBlock()->getParent();
 
@@ -744,7 +732,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 }
 
 void Generator::BuildNodeFunctionBodyImpl(
-	llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::ConditionalElement& node)
+	IRBuilder& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::ConditionalElement& node)
 {
 	const auto function= llvm_ir_builder.GetInsertBlock()->getParent();
 
@@ -767,7 +755,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 }
 
 void Generator::BuildNodeFunctionBodyImpl(
-	llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::SequenceCounterReset& node)
+	IRBuilder& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::SequenceCounterReset& node)
 {
 	const auto counter_ptr=
 		llvm_ir_builder.CreateGEP(
@@ -784,7 +772,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 }
 
 void Generator::BuildNodeFunctionBodyImpl(
-	llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::SequenceCounter& node)
+	IRBuilder& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::SequenceCounter& node)
 {
 	const auto function= llvm_ir_builder.GetInsertBlock()->getParent();
 
@@ -801,10 +789,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 
 	const auto counter_value= llvm_ir_builder.CreateLoad(counter_ptr, "counter_value");
 	const auto counter_value_next=
-		llvm_ir_builder.CreateAdd(
-			counter_value,
-			llvm::ConstantInt::get(ptr_size_int_type_, llvm::APInt(ptr_size_int_type_->getBitWidth(), 1)),
-			"counter_value_next");
+		llvm_ir_builder.CreateAdd(counter_value, GetConstant(ptr_size_int_type_, 1), "counter_value_next");
 	llvm_ir_builder.CreateStore(counter_value_next, counter_ptr);
 
 	if(node.min_elements > 0)
@@ -812,19 +797,17 @@ void Generator::BuildNodeFunctionBodyImpl(
 		const auto less=
 			llvm_ir_builder.CreateICmpULT(
 				counter_value,
-				llvm::ConstantInt::get(ptr_size_int_type_, llvm::APInt(ptr_size_int_type_->getBitWidth(), node.min_elements)),
+				GetConstant(ptr_size_int_type_, node.min_elements),
 				"less");
 
-		const auto less_block= llvm::BasicBlock::Create(context_, "less");
-		const auto next_block= llvm::BasicBlock::Create(context_);
+		const auto less_block= llvm::BasicBlock::Create(context_, "less", function);
+		const auto next_block= llvm::BasicBlock::Create(context_, "", function);
 
 		llvm_ir_builder.CreateCondBr(less, less_block, next_block);
 
-		less_block->insertInto(function);
 		llvm_ir_builder.SetInsertPoint(less_block);
 		CreateNextCallRet(llvm_ir_builder, state_ptr, node.next_iteration);
 
-		next_block->insertInto(function);
 		llvm_ir_builder.SetInsertPoint(next_block);
 	}
 	if(node.max_elements < Sequence::c_max)
@@ -832,19 +815,17 @@ void Generator::BuildNodeFunctionBodyImpl(
 		const auto greater_equal=
 			llvm_ir_builder.CreateICmpUGE(
 				counter_value,
-				llvm::ConstantInt::get(ptr_size_int_type_, llvm::APInt(ptr_size_int_type_->getBitWidth(), node.max_elements)),
+				GetConstant(ptr_size_int_type_, node.max_elements),
 				"greater_equal");
 
-		const auto greater_equal_block= llvm::BasicBlock::Create(context_, "greater_equal");
-		const auto next_block= llvm::BasicBlock::Create(context_);
+		const auto greater_equal_block= llvm::BasicBlock::Create(context_, "greater_equal", function);
+		const auto next_block= llvm::BasicBlock::Create(context_, "", function);
 
 		llvm_ir_builder.CreateCondBr(greater_equal, greater_equal_block, next_block);
 
-		greater_equal_block->insertInto(function);
 		llvm_ir_builder.SetInsertPoint(greater_equal_block);
 		CreateNextCallRet(llvm_ir_builder, state_ptr, node.next_sequence_end);
 
-		next_block->insertInto(function);
 		llvm_ir_builder.SetInsertPoint(next_block);
 	}
 
@@ -863,23 +844,21 @@ void Generator::BuildNodeFunctionBodyImpl(
 	CopyState(llvm_ir_builder, state_copy_ptr, state_ptr);
 	const auto first_call_res= llvm_ir_builder.CreateCall(GetOrCreateNodeFunction(branches[0]), {state_copy_ptr});
 
-	const auto ok_block= llvm::BasicBlock::Create(context_);
-	const auto next_block= llvm::BasicBlock::Create(context_);
+	const auto ok_block= llvm::BasicBlock::Create(context_, "", function);
+	const auto next_block= llvm::BasicBlock::Create(context_, "", function);
 
 	llvm_ir_builder.CreateCondBr(first_call_res, ok_block, next_block);
 
-	ok_block->insertInto(function);
 	llvm_ir_builder.SetInsertPoint(ok_block);
 	CopyState(llvm_ir_builder, state_ptr, state_copy_ptr);
 	llvm_ir_builder.CreateRet(llvm::ConstantInt::getTrue(context_));
 
-	next_block->insertInto(function);
 	llvm_ir_builder.SetInsertPoint(next_block);
 	CreateNextCallRet(llvm_ir_builder, state_ptr, branches[1]);
 }
 
 void Generator::BuildNodeFunctionBodyImpl(
-	llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::NextWeakNode& node)
+	IRBuilder& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::NextWeakNode& node)
 {
 	const auto next= node.next.lock();
 	assert(next != nullptr);
@@ -887,7 +866,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 }
 
 void Generator::BuildNodeFunctionBodyImpl(
-	llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::PossessiveSequence& node)
+	IRBuilder& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::PossessiveSequence& node)
 {
 	const auto function= llvm_ir_builder.GetInsertBlock()->getParent();
 
@@ -895,15 +874,14 @@ void Generator::BuildNodeFunctionBodyImpl(
 
 	const auto counter_value_initial= llvm::ConstantInt::getNullValue(ptr_size_int_type_);
 
-	const auto counter_check_block= llvm::BasicBlock::Create(context_, "counter_check");
-	const auto iteration_block= llvm::BasicBlock::Create(context_, "iteration");
+	const auto counter_check_block= llvm::BasicBlock::Create(context_, "counter_check", function);
+	const auto iteration_block= llvm::BasicBlock::Create(context_, "iteration", function);
 	const auto end_block= llvm::BasicBlock::Create(context_, "end");
 
 	const auto start_block= llvm_ir_builder.GetInsertBlock();
 	llvm_ir_builder.CreateBr(counter_check_block);
 
 	// Counter check block.
-	counter_check_block->insertInto(function);
 	llvm_ir_builder.SetInsertPoint(counter_check_block);
 
 	const auto counter_value_current= llvm_ir_builder.CreatePHI(ptr_size_int_type_, 2, "counter_value_current");
@@ -913,7 +891,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 		const auto loop_end_condition=
 			llvm_ir_builder.CreateICmpULT(
 				counter_value_current,
-				llvm::ConstantInt::get(ptr_size_int_type_, llvm::APInt(ptr_size_int_type_->getBitWidth(), node.max_elements)),
+				GetConstant(ptr_size_int_type_, node.max_elements),
 				"less");
 		llvm_ir_builder.CreateCondBr(loop_end_condition, iteration_block, end_block);
 	}
@@ -921,48 +899,38 @@ void Generator::BuildNodeFunctionBodyImpl(
 		llvm_ir_builder.CreateBr(iteration_block);
 
 	// Iteration block.
-	iteration_block->insertInto(function);
 	llvm_ir_builder.SetInsertPoint(iteration_block);
 
 	CopyState(llvm_ir_builder, state_copy_ptr, state_ptr);
 	const auto call_res= llvm_ir_builder.CreateCall(GetOrCreateNodeFunction(node.sequence_element), {state_copy_ptr});
 
-	const auto ok_block= llvm::BasicBlock::Create(context_, "ok");
-	const auto fail_block= llvm::BasicBlock::Create(context_, "fail");
+	const auto ok_block= llvm::BasicBlock::Create(context_, "ok", function);
+	const auto fail_block= llvm::BasicBlock::Create(context_, "fail", function);
 
 	llvm_ir_builder.CreateCondBr(call_res, ok_block, fail_block);
 
 	// Ok block.
-	ok_block->insertInto(function);
 	llvm_ir_builder.SetInsertPoint(ok_block);
 
 	const auto counter_value_next=
-		llvm_ir_builder.CreateAdd(
-			counter_value_current,
-			llvm::ConstantInt::get(ptr_size_int_type_, llvm::APInt(ptr_size_int_type_->getBitWidth(), 1)),
-			"counter_value_next");
+		llvm_ir_builder.CreateAdd(counter_value_current, GetConstant(ptr_size_int_type_, 1), "counter_value_next");
 	counter_value_current->addIncoming(counter_value_next, ok_block);
 
 	CopyState(llvm_ir_builder, state_ptr, state_copy_ptr);
 	llvm_ir_builder.CreateBr(counter_check_block);
 
 	// Fail block.
-	fail_block->insertInto(function);
 	llvm_ir_builder.SetInsertPoint(fail_block);
 
 	if(node.min_elements > 0)
 	{
 		const auto not_enough_elements_condition=
-			llvm_ir_builder.CreateICmpULT(
-				counter_value_current,
-				llvm::ConstantInt::get(ptr_size_int_type_, llvm::APInt(ptr_size_int_type_->getBitWidth(), node.min_elements)),
-				"less_than_needed");
+			llvm_ir_builder.CreateICmpULT(counter_value_current, GetConstant(ptr_size_int_type_, node.min_elements), "less_than_needed");
 
-		const auto ret_false_block= llvm::BasicBlock::Create(context_, "ret_false");
+		const auto ret_false_block= llvm::BasicBlock::Create(context_, "ret_false", function);
 		llvm_ir_builder.CreateCondBr(not_enough_elements_condition, ret_false_block, end_block);
 
 		// Ret false block.
-		ret_false_block->insertInto(function);
 		llvm_ir_builder.SetInsertPoint(ret_false_block);
 		llvm_ir_builder.CreateRet(llvm::ConstantInt::getFalse(context_));
 	}
@@ -976,7 +944,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 }
 
 void Generator::BuildNodeFunctionBodyImpl(
-	llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::AtomicGroup& node)
+	IRBuilder& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::AtomicGroup& node)
 {
 	const auto function= llvm_ir_builder.GetInsertBlock()->getParent();
 
@@ -996,7 +964,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 }
 
 void Generator::BuildNodeFunctionBodyImpl(
-	llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::SubroutineEnter& node)
+	IRBuilder& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::SubroutineEnter& node)
 {
 	const auto subroutine_call_return_chain_node=
 		llvm_ir_builder.CreateAlloca(subroutine_call_return_chain_node_type_, 0, "subroutine_call_return_chain_node");
@@ -1023,7 +991,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 }
 
 void Generator::BuildNodeFunctionBodyImpl(
-	llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::SubroutineLeave& node)
+	IRBuilder& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::SubroutineLeave& node)
 {
 	(void)node;
 
@@ -1049,7 +1017,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 }
 
 void Generator::BuildNodeFunctionBodyImpl(
-	llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::StateSave& node)
+	IRBuilder& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::StateSave& node)
 {
 	// Allocate node.
 	const auto subroutine_state_save_chain_node=
@@ -1124,16 +1092,14 @@ void Generator::BuildNodeFunctionBodyImpl(
 		llvm_ir_builder.CreateMemCpy(
 			group_ptr_dst, alignment,
 			group_ptr_src, alignment,
-			llvm::Constant::getIntegerValue(
-				gep_index_type_,
-				llvm::APInt(gep_index_type_->getBitWidth(), data_layout.getTypeAllocSize(group_type_))));
+			GetConstant(gep_index_type_, data_layout.getTypeAllocSize(group_type_)));
 	}
 
 	CreateNextCallRet(llvm_ir_builder, state_ptr, node.next);
 }
 
 void Generator::BuildNodeFunctionBodyImpl(
-	llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::StateRestore& node)
+	IRBuilder& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::StateRestore& node)
 {
 	const auto node_ptr= llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::SubroutineCallStateSaveChainHead)});
 	const auto node_value= llvm_ir_builder.CreateLoad(node_ptr);
@@ -1204,24 +1170,20 @@ void Generator::BuildNodeFunctionBodyImpl(
 		llvm_ir_builder.CreateMemCpy(
 			group_ptr_dst, alignment,
 			group_ptr_src, alignment,
-			llvm::Constant::getIntegerValue(
-				gep_index_type_,
-				llvm::APInt(gep_index_type_->getBitWidth(), data_layout.getTypeAllocSize(group_type_))));
+			GetConstant(gep_index_type_, data_layout.getTypeAllocSize(group_type_)));
 	}
 
 	CreateNextCallRet(llvm_ir_builder, state_ptr, node.next);
 }
 
 void Generator::CreateNextCallRet(
-	llvm::IRBuilder<>& llvm_ir_builder,
-	llvm::Value* const state_ptr,
-	const GraphElements::NodePtr& next_node)
+	IRBuilder& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::NodePtr& next_node)
 {
 	const auto next_call= llvm_ir_builder.CreateCall(GetOrCreateNodeFunction(next_node), {state_ptr}, "next_call_res");
 	llvm_ir_builder.CreateRet(next_call);
 }
 
-void Generator::CopyState(llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* const dst, llvm::Value* const src)
+void Generator::CopyState(IRBuilder& llvm_ir_builder, llvm::Value* const dst, llvm::Value* const src)
 {
 	const llvm::DataLayout& data_layout= module_.getDataLayout();
 
@@ -1230,9 +1192,12 @@ void Generator::CopyState(llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* const
 	llvm_ir_builder.CreateMemCpy(
 		dst, alignment,
 		src, alignment,
-		llvm::Constant::getIntegerValue(
-			gep_index_type_,
-			llvm::APInt(gep_index_type_->getBitWidth(), data_layout.getTypeAllocSize(state_type_))));
+		GetConstant(gep_index_type_, data_layout.getTypeAllocSize(state_type_)));
+}
+
+llvm::ConstantInt* Generator::GetConstant(llvm::IntegerType* const type, const uint64_t value) const
+{
+	return llvm::ConstantInt::get(type, value);
 }
 
 llvm::Constant* Generator::GetZeroGEPIndex() const
@@ -1242,15 +1207,13 @@ llvm::Constant* Generator::GetZeroGEPIndex() const
 
 llvm::Constant* Generator::GetFieldGEPIndex(const uint32_t field_index) const
 {
-	return llvm::Constant::getIntegerValue(gep_index_type_, llvm::APInt(gep_index_type_->getBitWidth(), field_index));
+	return GetConstant(gep_index_type_, field_index);
 }
 
 } // namespace
 
 void GenerateMatcherFunction(
-	llvm::Module& module,
-	const RegexGraphBuildResult& regex_graph,
-	const std::string& function_name)
+	llvm::Module& module, const RegexGraphBuildResult& regex_graph, const std::string& function_name)
 {
 	Generator generator(module);
 	generator.GenerateMatcherFunction(regex_graph, function_name);
