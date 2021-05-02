@@ -180,11 +180,36 @@ void Generator::GenerateMatcherFunction(const RegexGraphBuildResult& regex_graph
 
 	// Initialize state.
 	{
+		// Set begin/end pointers.
+
 		const auto str_begin_ptr= llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrBegin)});
 		llvm_ir_builder.CreateStore(&*root_function->arg_begin(), str_begin_ptr);
 
 		const auto str_end_ptr= llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrEnd)});
 		llvm_ir_builder.CreateStore(&*std::next(root_function->arg_begin()), str_end_ptr);
+	}
+	{
+		// Zero groups.
+
+		const uint64_t groups_array_size= state_type_->elements()[StateFieldIndex::GroupsArray]->getArrayNumElements();
+		for(uint64_t i= 0; i < groups_array_size; ++i)
+		{
+			const auto group_ptr=
+				llvm_ir_builder.CreateGEP(
+					state_ptr,
+					{
+						GetZeroGEPIndex(),
+						GetFieldGEPIndex(StateFieldIndex::GroupsArray),
+						GetFieldGEPIndex(uint32_t(i)),
+					});
+
+			const auto group_begin_ptr= llvm_ir_builder.CreateGEP(group_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(0)});
+			const auto group_end_ptr  = llvm_ir_builder.CreateGEP(group_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(1)});
+
+			const auto null= llvm::Constant::getNullValue(char_type_ptr_);
+			llvm_ir_builder.CreateStore(null, group_begin_ptr);
+			llvm_ir_builder.CreateStore(null, group_end_ptr);
+		}
 	}
 
 	// Call match function.
