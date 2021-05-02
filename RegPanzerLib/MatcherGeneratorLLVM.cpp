@@ -75,6 +75,9 @@ private:
 		llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::Alternatives& node);
 
 	void BuildNodeFunctionBodyImpl(
+		llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::Look& node);
+
+	void BuildNodeFunctionBodyImpl(
 		llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::SequenceCounterReset& node);
 
 	void BuildNodeFunctionBodyImpl(
@@ -442,6 +445,39 @@ void Generator::BuildNodeFunctionBodyImpl(
 }
 
 void Generator::BuildNodeFunctionBodyImpl(
+	llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::Look& node)
+{
+	const auto function= llvm_ir_builder.GetInsertBlock()->getParent();
+
+	const auto state_copy_ptr= llvm_ir_builder.CreateAlloca(state_type_, 0, "state_copy");
+	if(node.forward)
+	{
+		CopyState(llvm_ir_builder, state_copy_ptr, state_ptr);
+		const auto call_res= llvm_ir_builder.CreateCall(GetOrCreateNodeFunction(node.look_graph), {state_copy_ptr});
+
+		const auto ok_block= llvm::BasicBlock::Create(context_, "ok", function);
+		const auto fail_block= llvm::BasicBlock::Create(context_, "fail", function);
+
+		if(node.positive)
+			llvm_ir_builder.CreateCondBr(call_res, ok_block, fail_block);
+		else
+			llvm_ir_builder.CreateCondBr(call_res, fail_block, ok_block);
+
+		// Ok block.
+		llvm_ir_builder.SetInsertPoint(ok_block);
+		CreateNextCallRet(llvm_ir_builder, state_ptr, node.next);
+
+		// Fail block.
+		llvm_ir_builder.SetInsertPoint(fail_block);
+		llvm_ir_builder.CreateRet(llvm::ConstantInt::getFalse(context_));
+	}
+	else
+	{
+		assert(false && "not implemented yet!");
+	}
+}
+
+void Generator::BuildNodeFunctionBodyImpl(
 	llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::SequenceCounterReset& node)
 {
 	const auto counter_ptr=
@@ -560,7 +596,6 @@ void Generator::BuildNodeFunctionBodyImpl(
 	assert(next != nullptr);
 	CreateNextCallRet(llvm_ir_builder, state_ptr, next);
 }
-
 
 void Generator::BuildNodeFunctionBodyImpl(
 	llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::PossessiveSequence& node)

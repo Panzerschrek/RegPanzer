@@ -124,6 +124,12 @@ const MatcherTestDataElement g_this_test_data[]
 	g_matcher_test_data[34],
 	g_matcher_test_data[35],
 	g_matcher_test_data[36],
+	g_matcher_test_data[37],
+	g_matcher_test_data[38],
+	g_matcher_test_data[39],
+	g_matcher_test_data[40],
+	g_matcher_test_data[41],
+	g_matcher_test_data[42],
 };
 
 INSTANTIATE_TEST_CASE_P(M, GeneratedLLVMMatcherTest, testing::ValuesIn(g_this_test_data));
