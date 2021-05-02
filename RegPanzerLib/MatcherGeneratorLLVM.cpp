@@ -88,6 +88,9 @@ private:
 		llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::Look& node);
 
 	void BuildNodeFunctionBodyImpl(
+		llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::ConditionalElement& node);
+
+	void BuildNodeFunctionBodyImpl(
 		llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::SequenceCounterReset& node);
 
 	void BuildNodeFunctionBodyImpl(
@@ -647,6 +650,29 @@ void Generator::BuildNodeFunctionBodyImpl(
 	{
 		assert(false && "not implemented yet!");
 	}
+}
+
+void Generator::BuildNodeFunctionBodyImpl(
+	llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::ConditionalElement& node)
+{
+	const auto function= llvm_ir_builder.GetInsertBlock()->getParent();
+
+	const auto state_copy_ptr= llvm_ir_builder.CreateAlloca(state_type_, 0, "state_copy");
+
+	CopyState(llvm_ir_builder, state_copy_ptr, state_ptr);
+	const auto call_res= llvm_ir_builder.CreateCall(GetOrCreateNodeFunction(node.condition_node), {state_copy_ptr});
+
+	const auto true_block = llvm::BasicBlock::Create(context_, "true_block" , function);
+	const auto false_block= llvm::BasicBlock::Create(context_, "false_block", function);
+	llvm_ir_builder.CreateCondBr(call_res, true_block, false_block);
+
+	// True block.
+	llvm_ir_builder.SetInsertPoint(true_block );
+	CreateNextCallRet(llvm_ir_builder, state_ptr, node.next_true);
+
+	// False block.
+	llvm_ir_builder.SetInsertPoint(false_block);
+	CreateNextCallRet(llvm_ir_builder, state_ptr, node.next_false);
 }
 
 void Generator::BuildNodeFunctionBodyImpl(
