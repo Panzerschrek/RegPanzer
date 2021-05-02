@@ -99,6 +99,9 @@ private:
 	void BuildNodeFunctionBodyImpl(
 		llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::PossessiveSequence& node);
 
+	void BuildNodeFunctionBodyImpl(
+		llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::AtomicGroup& node);
+
 	template<typename T>
 	void BuildNodeFunctionBodyImpl(
 		llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* const state_ptr,
@@ -853,6 +856,26 @@ void Generator::BuildNodeFunctionBodyImpl(
 	end_block->insertInto(function);
 	llvm_ir_builder.SetInsertPoint(end_block);
 	CreateNextCallRet(llvm_ir_builder, state_ptr, node.next);
+}
+
+void Generator::BuildNodeFunctionBodyImpl(
+	llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::AtomicGroup& node)
+{
+	const auto function= llvm_ir_builder.GetInsertBlock()->getParent();
+
+	const auto call_res= llvm_ir_builder.CreateCall(GetOrCreateNodeFunction(node.group_element), {state_ptr});
+
+	const auto ok_block= llvm::BasicBlock::Create(context_, "ok", function);
+	const auto fail_block= llvm::BasicBlock::Create(context_, "fail", function);
+	llvm_ir_builder.CreateCondBr(call_res, ok_block, fail_block);
+
+	// Ok block.
+	llvm_ir_builder.SetInsertPoint(ok_block);
+	CreateNextCallRet(llvm_ir_builder, state_ptr, node.next);
+
+	// Fail block.
+	llvm_ir_builder.SetInsertPoint(fail_block);
+	llvm_ir_builder.CreateRet(llvm::ConstantInt::getFalse(context_));
 }
 
 template<typename T>
