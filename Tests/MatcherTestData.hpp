@@ -167,6 +167,25 @@ inline const MatcherTestDataElement g_matcher_test_data[]
 		}
 	},
 
+	// Match NOT word symbol class.
+	{
+		"\\W",
+		{
+			{ // Empty string - no matches.
+				"",
+				{},
+			},
+			{ // All possible matches.
+				"ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz0123456789",
+				{}
+			},
+			{ // All matches - symbols outside range.
+				"%& ()!-`",
+				{ {0, 1}, {1, 2}, {2, 3}, {3, 4}, {4, 5}, {5, 6}, {6, 7}, {7, 8} }
+			},
+		}
+	},
+
 	// Match space symbol class.
 	{
 		"\\s",
@@ -201,25 +220,6 @@ inline const MatcherTestDataElement g_matcher_test_data[]
 			{ // No matches for non-space symbols.
 				"wbA2#9-=~`",
 				{ {0, 1}, {1, 2}, {2, 3}, {3, 4}, {4, 5}, {5, 6}, {6, 7}, {7, 8}, {8, 9}, {9, 10} }
-			},
-		}
-	},
-
-	// Match NOT word symbol class.
-	{
-		"\\W",
-		{
-			{ // Empty string - no matches.
-				"",
-				{},
-			},
-			{ // All possible matches.
-				"ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz0123456789",
-				{}
-			},
-			{ // All matches - symbols outside range.
-				"%& ()!-`",
-				{ {0, 1}, {1, 2}, {2, 3}, {3, 4}, {4, 5}, {5, 6}, {6, 7}, {7, 8} }
 			},
 		}
 	},

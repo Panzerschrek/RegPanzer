@@ -1,6 +1,7 @@
 #pragma once
 #include "RegexElements.hpp"
 #include <memory>
+#include <unordered_map>
 #include <unordered_set>
 #include <variant>
 #include <vector>
@@ -22,8 +23,9 @@ struct GroupEnd;
 struct BackReference;
 struct Look;
 struct ConditionalElement;
-struct LoopEnter;
-struct LoopCounterBlock;
+struct SequenceCounterReset;
+struct SequenceCounter;
+struct NextWeakNode;
 struct PossessiveSequence;
 struct AtomicGroup;
 struct SubroutineEnter;
@@ -41,8 +43,9 @@ using Node= std::variant<
 	BackReference,
 	Look,
 	ConditionalElement,
-	LoopEnter,
-	LoopCounterBlock,
+	SequenceCounterReset,
+	SequenceCounter,
+	NextWeakNode,
 	PossessiveSequence,
 	AtomicGroup,
 	SubroutineEnter,
@@ -110,24 +113,29 @@ struct ConditionalElement
 	NodePtr next_false;
 };
 
-using LoopId= const void*;
-using LoopIdSet= std::unordered_set<LoopId>;
+using SequenceId= const void*;
+using SequenceIdSet= std::unordered_set<SequenceId>;
 
-struct LoopEnter
+struct SequenceCounterReset
 {
-	NodePtr next; // To loop counter block.
-	NodePtr loop_iteration_node; // Used only to hold strong shared_pointer to it.
-	LoopId id= nullptr;
+	NodePtr next; // To sequence counter node.
+	SequenceId id= nullptr;
 };
 
-struct LoopCounterBlock
+struct SequenceCounter
 {
-	NodePtr::weak_type next_iteration;
-	NodePtr next_loop_end;
-	LoopId id= nullptr;
+	NodePtr next_iteration;
+	NodePtr next_sequence_end;
+	SequenceId id= nullptr;
 	size_t min_elements= 0u;
 	size_t max_elements= 0u;
 	bool greedy= true;
+};
+
+// Used for creation of back references (sequences, recursive calls, etc.)
+struct NextWeakNode
+{
+	NodePtr::weak_type next;
 };
 
 struct PossessiveSequence
@@ -147,7 +155,7 @@ struct AtomicGroup
 struct SubroutineEnter
 {
 	NodePtr next; // Next node after subroutine leave.
-	std::variant<NodePtr, NodePtr::weak_type> subroutine_node; // Strong pointer stored for direct "SubroutineEnter", weak pointer stored for indirect calls.
+	NodePtr subroutine_node;
 	size_t index= std::numeric_limits<size_t>::max(); // 0 - whole expression, 1 - first group, etc.
 };
 
@@ -158,19 +166,40 @@ struct SubroutineLeave
 struct StateSave
 {
 	NodePtr next;
-	LoopIdSet loop_counters_to_save;
+	SequenceIdSet sequence_counters_to_save;
 	std::unordered_set<size_t> groups_to_save;
 };
 
 struct StateRestore
 {
 	NodePtr next;
-	LoopIdSet loop_counters_to_restore;
+	SequenceIdSet sequence_counters_to_restore;
 	std::unordered_set<size_t> groups_to_restore;
 };
 
 } // GraphElements
 
-GraphElements::NodePtr BuildRegexGraph(const RegexElementsChain& regex_chain);
+using GroupIdSet= std::unordered_set<size_t>;
+using CallTargetSet= std::unordered_set<size_t>;
+
+struct GroupStat
+{
+	bool recursive= false; // Both directly and indirectly.
+	size_t backreference_count= 0;
+	size_t indirect_call_count= 0; // (?1), (?R), etc.
+	GraphElements::SequenceIdSet internal_sequences; // Only sequences where "SequenceCounter" collected here.
+	GroupIdSet internal_groups; // All (include children of children and futrher).
+	CallTargetSet internal_calls; // All calls (include calls in children groups and children of children and futrher).
+};
+
+using GroupStats= std::unordered_map<size_t, GroupStat>;
+
+struct RegexGraphBuildResult
+{
+	GroupStats group_stats;
+	GraphElements::NodePtr root;
+};
+
+RegexGraphBuildResult BuildRegexGraph(const RegexElementsChain& regex_chain);
 
 } // namespace RegPanzer

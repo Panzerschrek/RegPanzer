@@ -1,5 +1,4 @@
 #include "RegexGraph.hpp"
-#include <unordered_map>
 
 namespace RegPanzer
 {
@@ -11,23 +10,10 @@ namespace
 // CollectGroupInternalsForRegexChain
 //
 
-GraphElements::LoopId GetLoopId(const RegexElementFull& element)
+GraphElements::SequenceId GetSequenceId(const RegexElementFull& element)
 {
 	return &element;
 }
-
-using GroupIdSet= std::unordered_set<size_t>;
-using CallTargetSet= std::unordered_set<size_t>;
-
-struct GroupStat
-{
-	bool recursive= false; // Both directly and indirectly.
-	size_t backreference_count= 0;
-	size_t indirect_call_count= 0; // (?1), (?R), etc.
-	GraphElements::LoopIdSet internal_loops;
-	GroupIdSet internal_groups; // All (include children of children and futrher).
-	CallTargetSet internal_calls; // All (include children of children and futrher).
-};
 
 void CollectGroupInternalsForRegexChain(const RegexElementsChain& regex_chain, GroupStat&);
 
@@ -82,7 +68,17 @@ void CollectGroupIdsForElement(const RegexElementFull::ElementType& element, Gro
 
 void CollectGroupInternalsForRegexElement(const RegexElementFull& element_full, GroupStat& stat)
 {
-	stat.internal_loops.insert(GetLoopId(element_full));
+	// If this changed, "BuildRegexGraphChain" function must be changed too!
+	if(!(
+		element_full.seq.mode == SequenceMode::Possessive ||
+		(element_full.seq.min_elements == 1 && element_full.seq.max_elements == 1) ||
+		(element_full.seq.min_elements == 0 && element_full.seq.max_elements == 1) ||
+		(element_full.seq.min_elements == 0 && element_full.seq.max_elements == Sequence::c_max) ||
+		(element_full.seq.min_elements == 1 && element_full.seq.max_elements == Sequence::c_max)))
+	{
+		stat.internal_sequences.insert(GetSequenceId(element_full));
+	}
+
 	CollectGroupIdsForElement(element_full.el, stat);
 }
 
@@ -95,8 +91,6 @@ void CollectGroupInternalsForRegexChain(const RegexElementsChain& regex_chain, G
 //
 // CollectGroupStatsForRegexChain
 //
-
-using GroupStats= std::unordered_map<size_t, GroupStat>;
 
 void CollectGroupStatsForRegexChain(const RegexElementsChain& regex_chain, GroupStats& group_stats);
 
@@ -330,13 +324,13 @@ GraphElements::NodePtr BuildRegexGraphNodeImpl(const GroupStats& group_stats, Ou
 
 	const GroupStat& stat= group_stats.at(subroutine_call.index);
 
-	// Save loops only if recursive calls possible.
-	GraphElements::LoopIdSet loops;
+	// Save sequences only if recursive calls possible.
+	GraphElements::SequenceIdSet sequences;
 	if(stat.recursive)
-		loops= stat.internal_loops;
+		sequences= stat.internal_sequences;
 
 	// Save group state itself and state of its subgroups, but only if they used in backreferences.
-	// TODO - save groups also if we match also subexpressions.
+	// TODO - save groups also if we match subexpressions.
 	GroupIdSet groups;
 
 	for(const size_t& internal_group_id : stat.internal_groups)
@@ -346,11 +340,15 @@ GraphElements::NodePtr BuildRegexGraphNodeImpl(const GroupStats& group_stats, Ou
 	if(group_stats.at(subroutine_call.index).backreference_count > 0)
 		groups.insert(subroutine_call.index);
 
-	const auto state_restore= std::make_shared<GraphElements::Node>(GraphElements::StateRestore{next, loops, groups});
+	if(sequences.empty() && groups.empty())
+		return std::make_shared<GraphElements::Node>(GraphElements::SubroutineEnter{next, nullptr /*Set actual pointer value later*/, subroutine_call.index});
+	else
+	{
+		const auto state_restore= std::make_shared<GraphElements::Node>(GraphElements::StateRestore{next, sequences, groups});
 
-	const auto subroutine_node = GraphElements::NodePtr::weak_type(); // Use weak pointer for indirect calls. Set actual pointer value later.
-	const auto enter_node= std::make_shared<GraphElements::Node>(GraphElements::SubroutineEnter{state_restore, subroutine_node, subroutine_call.index});
-	return std::make_shared<GraphElements::Node>(GraphElements::StateSave{enter_node, loops, groups});
+		const auto enter_node= std::make_shared<GraphElements::Node>(GraphElements::SubroutineEnter{state_restore, nullptr /*Set actual pointer value later*/, subroutine_call.index});
+		return std::make_shared<GraphElements::Node>(GraphElements::StateSave{enter_node, sequences, groups});
+	}
 }
 
 GraphElements::NodePtr BuildRegexGraphNode(const GroupStats& group_stats, OutRegexData& out_data, const RegexElementFull::ElementType& element, const GraphElements::NodePtr& next)
@@ -364,6 +362,8 @@ GraphElements::NodePtr BuildRegexGraphChain(const GroupStats& group_stats, const
 {
 	if(begin == end)
 		return next;
+
+	// If this changed, "CollectGroupInternalsForRegexElement" function must be changed too!
 
 	const RegexElementFull& element= *begin;
 
@@ -380,13 +380,64 @@ GraphElements::NodePtr BuildRegexGraphChain(const GroupStats& group_stats, const
 					element.seq.min_elements,
 					element.seq.max_elements,
 					});
+	else if(element.seq.min_elements == 0 && element.seq.max_elements == 1)
+	{
+		// Implement optional element using alternatives node.
+		GraphElements::Alternatives alternatives;
+
+		const auto node= BuildRegexGraphNode(group_stats, out_data, element.el, next_node);
+		if(element.seq.mode == SequenceMode::Greedy)
+		{
+			alternatives.next.push_back(node);
+			alternatives.next.push_back(next_node);
+		}
+		else
+		{
+			alternatives.next.push_back(next_node);
+			alternatives.next.push_back(node);
+		}
+
+		return std::make_shared<GraphElements::Node>(std::move(alternatives));
+	}
+	else if(element.seq.min_elements == 1 && element.seq.max_elements == Sequence::c_max)
+	{
+		// In case of one or more elemenst first enter sequence body node, then alternatives node.
+
+		const auto alternatives_node= std::make_shared<GraphElements::Node>(GraphElements::Alternatives{{next_node}});
+		const auto node= BuildRegexGraphNode(group_stats, out_data, element.el, alternatives_node);
+		const auto node_weak= std::make_shared<GraphElements::Node>(GraphElements::NextWeakNode{node});
+
+		auto& alternatives= std::get<GraphElements::Alternatives>(*alternatives_node);
+		if(element.seq.mode == SequenceMode::Lazy)
+			alternatives.next.push_back(node_weak);
+		else
+			alternatives.next.insert(alternatives.next.begin(), node_weak);
+
+		return node;
+	}
+	else if(element.seq.min_elements == 0 && element.seq.max_elements == Sequence::c_max)
+	{
+		// In case of zero or more elements first enter alternatives node, than sequence body node.
+
+		const auto alternatives_node= std::make_shared<GraphElements::Node>(GraphElements::Alternatives{{next_node}});
+		const auto alternatives_node_node_weak= std::make_shared<GraphElements::Node>(GraphElements::NextWeakNode{alternatives_node});
+		const auto node= BuildRegexGraphNode(group_stats, out_data, element.el, alternatives_node_node_weak);
+
+		auto& alternatives= std::get<GraphElements::Alternatives>(*alternatives_node);
+		if(element.seq.mode == SequenceMode::Lazy)
+			alternatives.next.push_back(node);
+		else
+			alternatives.next.insert(alternatives.next.begin(), node);
+
+		return alternatives_node;
+	}
 	else
 	{
-		const GraphElements::LoopId id= GetLoopId(element);
+		const GraphElements::SequenceId id= GetSequenceId(element);
 
-		const auto loop_counter_block=
+		const auto sequence_counter_block=
 			std::make_shared<GraphElements::Node>(
-				GraphElements::LoopCounterBlock{
+				GraphElements::SequenceCounter{
 					GraphElements::NodePtr(),
 					next_node,
 					id,
@@ -395,11 +446,12 @@ GraphElements::NodePtr BuildRegexGraphChain(const GroupStats& group_stats, const
 					element.seq.mode != SequenceMode::Lazy,
 					});
 
-		const auto node= BuildRegexGraphNode(group_stats, out_data, element.el, loop_counter_block);
+		const auto sequence_counter_block_weak= std::make_shared<GraphElements::Node>(GraphElements::NextWeakNode{sequence_counter_block});
+		const auto node= BuildRegexGraphNode(group_stats, out_data, element.el, sequence_counter_block_weak);
 
-		std::get<GraphElements::LoopCounterBlock>(*loop_counter_block).next_iteration= node;
+		std::get<GraphElements::SequenceCounter>(*sequence_counter_block).next_iteration= node;
 
-		return std::make_shared<GraphElements::Node>(GraphElements::LoopEnter{loop_counter_block, node, id});
+		return std::make_shared<GraphElements::Node>(GraphElements::SequenceCounterReset{sequence_counter_block, id});
 	}
 }
 
@@ -439,16 +491,18 @@ void SetupSubroutineCallsImpl(const GraphElements::ConditionalElement& node, con
 	SetupSubroutineCalls(node.next_false, regex_data);
 }
 
-void SetupSubroutineCallsImpl(const GraphElements::LoopEnter& node, const OutRegexData& regex_data)
+void SetupSubroutineCallsImpl(const GraphElements::SequenceCounterReset& node, const OutRegexData& regex_data)
 {
 	SetupSubroutineCalls(node.next, regex_data);
-	SetupSubroutineCalls(node.loop_iteration_node, regex_data);
 }
 
-void SetupSubroutineCallsImpl(const GraphElements::LoopCounterBlock& node, const OutRegexData& regex_data)
+void SetupSubroutineCallsImpl(const GraphElements::SequenceCounter& node, const OutRegexData& regex_data)
 {
-	SetupSubroutineCalls(node.next_loop_end, regex_data);
+	SetupSubroutineCalls(node.next_iteration, regex_data);
+	SetupSubroutineCalls(node.next_sequence_end, regex_data);
 }
+
+void SetupSubroutineCallsImpl(const GraphElements::NextWeakNode&, const OutRegexData&){}
 
 void SetupSubroutineCallsImpl(const GraphElements::PossessiveSequence& node, const OutRegexData& regex_data)
 {
@@ -464,10 +518,8 @@ void SetupSubroutineCallsImpl(const GraphElements::AtomicGroup& node, const OutR
 
 void SetupSubroutineCallsImpl(const GraphElements::SubroutineEnter& node, const OutRegexData& regex_data)
 {
+	SetupSubroutineCalls(node.subroutine_node, regex_data);
 	SetupSubroutineCalls(node.next, regex_data);
-
-	if(const auto strong_ptr = std::get_if<GraphElements::NodePtr>(&node.subroutine_node))
-		SetupSubroutineCalls(*strong_ptr, regex_data);
 }
 
 void SetupSubroutineCallsImpl(const GraphElements::SubroutineLeave& node, const OutRegexData& regex_data)
@@ -482,35 +534,37 @@ void SetupSubroutineCalls(const GraphElements::NodePtr& node, const OutRegexData
 		return;
 
 	if(const auto subroutine_enter= std::get_if<GraphElements::SubroutineEnter>(node.get()))
-		if(const auto weak_ptr = std::get_if<GraphElements::NodePtr::weak_type>(&subroutine_enter->subroutine_node))
-			*weak_ptr= regex_data.group_nodes.at(subroutine_enter->index);
+		if(subroutine_enter->subroutine_node == nullptr)
+			subroutine_enter->subroutine_node=
+				std::make_shared<GraphElements::Node>(
+					GraphElements::NextWeakNode{regex_data.group_nodes.at(subroutine_enter->index)});
 
 	std::visit([&](const auto& el){ return SetupSubroutineCallsImpl(el, regex_data); }, *node);
 }
 
 } // namespace
 
-GraphElements::NodePtr BuildRegexGraph(const RegexElementsChain& regex_chain)
+RegexGraphBuildResult BuildRegexGraph(const RegexElementsChain& regex_chain)
 {
-	GroupStats group_stats;
-	CollectGroupInternalsForRegexChain(regex_chain, group_stats[0]);
-	CollectGroupStatsForRegexChain(regex_chain, group_stats);
-	SearchRecursiveGroupCalls(group_stats);
+	RegexGraphBuildResult res;
 
-	GraphElements::NodePtr result_root;
+	CollectGroupInternalsForRegexChain(regex_chain, res.group_stats[0]);
+	CollectGroupStatsForRegexChain(regex_chain, res.group_stats);
+	SearchRecursiveGroupCalls(res.group_stats);
+
 	OutRegexData out_regex_data;
-	if(group_stats.at(0).indirect_call_count == 0)
-		result_root= BuildRegexGraphChain(group_stats, out_regex_data, regex_chain, nullptr);
+	if(res.group_stats.at(0).indirect_call_count == 0)
+		res.root= BuildRegexGraphChain(res.group_stats, out_regex_data, regex_chain, nullptr);
 	else
 	{
 		const auto end_node= std::make_shared<GraphElements::Node>(GraphElements::SubroutineLeave{});
-		const auto node= BuildRegexGraphChain(group_stats, out_regex_data, regex_chain, end_node);
+		const auto node= BuildRegexGraphChain(res.group_stats, out_regex_data, regex_chain, end_node);
 		out_regex_data.group_nodes[0]= node;
-		result_root= std::make_shared<GraphElements::Node>(GraphElements::SubroutineEnter{nullptr, node, 0u});
+		res.root= std::make_shared<GraphElements::Node>(GraphElements::SubroutineEnter{nullptr, node, 0u});
 	}
 
-	SetupSubroutineCalls(result_root, out_regex_data);
-	return result_root;
+	SetupSubroutineCalls(res.root, out_regex_data);
+	return res;
 }
 
 } // namespace RegPanzer
