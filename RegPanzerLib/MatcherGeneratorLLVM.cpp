@@ -352,7 +352,8 @@ llvm::Function* Generator::GetOrCreateNodeFunction(const GraphElements::NodePtr&
 		}
 	}
 
-	const auto function= llvm::Function::Create(node_function_type_, llvm::GlobalValue::ExternalLinkage, GetNodeName(node), module_);
+	// Use private linkage for all node functions to avoid possible name conflicts.
+	const auto function= llvm::Function::Create(node_function_type_, llvm::GlobalValue::PrivateLinkage, GetNodeName(node), module_);
 	node_functions_.emplace(node, function);
 	BuildNodeFunctionBody(node, function);
 	return function;
