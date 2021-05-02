@@ -46,6 +46,7 @@ struct StateFieldIndex
 		StrEnd,
 		SequenceContersArray,
 		GroupsArray,
+		SubroutineCallReturnChainHead,
 	};
 };
 
@@ -105,6 +106,12 @@ private:
 	void BuildNodeFunctionBodyImpl(
 		llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::AtomicGroup& node);
 
+	void BuildNodeFunctionBodyImpl(
+		llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::SubroutineEnter& node);
+
+	void BuildNodeFunctionBodyImpl(
+		llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::SubroutineLeave& node);
+
 	template<typename T>
 	void BuildNodeFunctionBodyImpl(
 		llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* const state_ptr,
@@ -132,6 +139,8 @@ private:
 
 	llvm::StructType* state_type_= nullptr;
 	llvm::FunctionType* node_function_type_= nullptr;
+	llvm::StructType* subroutine_call_return_chain_node_type_= nullptr;
+
 	std::unordered_map<GraphElements::SequenceId, uint32_t> sequence_id_to_counter_filed_number_;
 	std::unordered_map<size_t, uint32_t> group_number_to_field_number_;
 
@@ -152,11 +161,6 @@ void Generator::GenerateMatcherFunction(const RegexGraphBuildResult& regex_graph
 {
 	// Body of state struct depends on actual regex.
 	CreateStateType(regex_graph);
-	const auto state_ptr_type= llvm::PointerType::get(state_type_, 0);
-
-	// All match node functions looks like this:
-	// bool MatchNode0123(State& state);
-	node_function_type_= llvm::FunctionType::get(llvm::Type::getInt1Ty(context_), {state_ptr_type}, false);
 
 	// Root function look like this:
 	// const char* Match(const char* begin, const char* end);
@@ -211,6 +215,12 @@ void Generator::GenerateMatcherFunction(const RegexGraphBuildResult& regex_graph
 			llvm_ir_builder.CreateStore(null, group_end_ptr);
 		}
 	}
+	{
+		// Zero subroutine call return chain head.
+		const auto ptr= llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::SubroutineCallReturnChainHead)});
+		const auto null= llvm::Constant::getNullValue(llvm::PointerType::get(subroutine_call_return_chain_node_type_, 0));
+		llvm_ir_builder.CreateStore(null, ptr);
+	}
 
 	// Call match function.
 	const auto match_res= llvm_ir_builder.CreateCall(GetOrCreateNodeFunction(regex_graph.root), {state_ptr}, "root_call_res");
@@ -233,6 +243,10 @@ void Generator::CreateStateType(const RegexGraphBuildResult& regex_graph)
 {
 	state_type_= llvm::StructType::create(context_, "State");
 
+	// All match node functions looks like this:
+	// bool MatchNode0123(State& state);
+	node_function_type_= llvm::FunctionType::get(llvm::Type::getInt1Ty(context_), {llvm::PointerType::get(state_type_, 0)}, false);
+
 	llvm::SmallVector<llvm::Type*, 6> members;
 
 	members.push_back(char_type_ptr_); // StrBegin
@@ -254,6 +268,14 @@ void Generator::CreateStateType(const RegexGraphBuildResult& regex_graph)
 
 		const auto groups_array= llvm::ArrayType::get(group_type_, uint64_t(group_number_to_field_number_.size()));
 		members.push_back(groups_array);
+	}
+	{
+		// TODO - create this field only if subroutine calls are needed.
+		subroutine_call_return_chain_node_type_= llvm::StructType::create(context_, "SubroutineCallReturnChainNode");
+		const auto node_ptr_type= llvm::PointerType::get(subroutine_call_return_chain_node_type_, 0);
+		subroutine_call_return_chain_node_type_->setBody({llvm::PointerType::get(node_function_type_, 0), node_ptr_type});
+
+		members.push_back(node_ptr_type);
 	}
 
 	state_type_->setBody(members);
@@ -927,6 +949,59 @@ void Generator::BuildNodeFunctionBodyImpl(
 	// Fail block.
 	llvm_ir_builder.SetInsertPoint(fail_block);
 	llvm_ir_builder.CreateRet(llvm::ConstantInt::getFalse(context_));
+}
+
+void Generator::BuildNodeFunctionBodyImpl(
+	llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::SubroutineEnter& node)
+{
+	const auto subroutine_call_return_chain_node=
+		llvm_ir_builder.CreateAlloca(subroutine_call_return_chain_node_type_, 0, "subroutine_call_return_chain_node");
+
+	const auto next_function= GetOrCreateNodeFunction(node.next);
+	llvm_ir_builder.CreateStore(
+		next_function,
+		llvm_ir_builder.CreateGEP(
+			subroutine_call_return_chain_node,
+			{GetZeroGEPIndex(), GetFieldGEPIndex(0)}));
+
+	const auto prev_node_ptr= llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::SubroutineCallReturnChainHead)});
+	const auto prev_node_value= llvm_ir_builder.CreateLoad(prev_node_ptr);
+
+	llvm_ir_builder.CreateStore(
+		prev_node_value,
+		llvm_ir_builder.CreateGEP(
+			subroutine_call_return_chain_node,
+			{GetZeroGEPIndex(), GetFieldGEPIndex(1)}));
+
+	llvm_ir_builder.CreateStore(subroutine_call_return_chain_node, prev_node_ptr);
+
+	CreateNextCallRet(llvm_ir_builder, state_ptr, node.subroutine_node);
+}
+
+void Generator::BuildNodeFunctionBodyImpl(
+	llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::SubroutineLeave& node)
+{
+	(void)node;
+
+	const auto node_ptr= llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::SubroutineCallReturnChainHead)});
+	const auto node_value= llvm_ir_builder.CreateLoad(node_ptr);
+
+	const auto next_function_ptr=
+		llvm_ir_builder.CreateGEP(
+			node_value,
+			{GetZeroGEPIndex(), GetFieldGEPIndex(0)});
+	const auto next_function= llvm_ir_builder.CreateLoad(next_function_ptr);
+
+	const auto prev_node_ptr=
+		llvm_ir_builder.CreateGEP(
+			node_value,
+			{GetZeroGEPIndex(), GetFieldGEPIndex(1)});
+	const auto prev_node_value= llvm_ir_builder.CreateLoad(prev_node_ptr);
+
+	llvm_ir_builder.CreateStore(prev_node_value, node_ptr);
+
+	const auto call_res= llvm_ir_builder.CreateCall(next_function, {state_ptr});
+	llvm_ir_builder.CreateRet(call_res);
 }
 
 template<typename T>
