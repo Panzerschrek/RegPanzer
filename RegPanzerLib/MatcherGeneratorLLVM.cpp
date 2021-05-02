@@ -431,14 +431,16 @@ void Generator::CreateNextCallRet(
 
 void Generator::CopyState(llvm::IRBuilder<>& llvm_ir_builder, llvm::Value* const dst, llvm::Value* const src)
 {
-	// TODO - use memcpy intrisinc?
-	for(uint32_t i= 0; i < state_type_->getNumElements(); ++i)
-	{
-		const auto dst_element_ptr= llvm_ir_builder.CreateGEP(dst, {GetZeroGEPIndex(), GetFieldGEPIndex(i)});
-		const auto src_element_ptr= llvm_ir_builder.CreateGEP(src, {GetZeroGEPIndex(), GetFieldGEPIndex(i)});
-		const auto value= llvm_ir_builder.CreateLoad(src_element_ptr);
-		llvm_ir_builder.CreateStore(value, dst_element_ptr);
-	}
+	const llvm::DataLayout& data_layout= module_.getDataLayout();
+
+	const auto alignment= data_layout.getABITypeAlignment(state_type_); // TODO - is this right alignment?
+
+	llvm_ir_builder.CreateMemCpy(
+		dst, alignment,
+		src, alignment,
+		llvm::Constant::getIntegerValue(
+			gep_index_type_,
+			llvm::APInt(gep_index_type_->getBitWidth(), data_layout.getTypeAllocSize(state_type_))));
 }
 
 llvm::Constant* Generator::GetZeroGEPIndex() const

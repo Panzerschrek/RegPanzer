@@ -12,6 +12,24 @@
 namespace RegPanzer
 {
 
+namespace
+{
+
+const std::string GetTestsDataLayout()
+{
+	std::string result;
+
+	result+= llvm::sys::IsBigEndianHost ? "E" : "e";
+	const bool is_32_bit= sizeof(void*) <= 4u;
+	result+= is_32_bit ? "-p:32:32" : "-p:64:64";
+	result+= is_32_bit ? "-n8:16:32" : "-n8:16:32:64";
+	result+= "-i8:8-i16:16-i32:32-i64:64";
+	result+= "-f32:32-f64:64";
+	result+= "-S128";
+
+	return result;
+}
+
 class GeneratedLLVMMatcherTest : public ::testing::TestWithParam<MatcherTestDataElement> {};
 
 TEST_P(GeneratedLLVMMatcherTest, TestMatch)
@@ -26,6 +44,8 @@ TEST_P(GeneratedLLVMMatcherTest, TestMatch)
 
 	llvm::LLVMContext llvm_context;
 	auto module= std::make_unique<llvm::Module>("id", llvm_context);
+	module->setDataLayout(GetTestsDataLayout());
+
 	GenerateMatcherFunction(*module, regex_graph, "Match");
 
 	llvm::EngineBuilder builder( std::move(module) );
@@ -84,9 +104,10 @@ const MatcherTestDataElement g_this_test_data[]
 	g_matcher_test_data[17],
 	g_matcher_test_data[18],
 	g_matcher_test_data[19],
-	g_matcher_test_data[20],
 };
 
 INSTANTIATE_TEST_CASE_P(M, GeneratedLLVMMatcherTest, testing::ValuesIn(g_this_test_data));
+
+} // namespace
 
 } // namespace RegPanzer
