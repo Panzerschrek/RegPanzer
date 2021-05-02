@@ -1,0 +1,28 @@
+This list contains not yet implemented features and possible improvements.
+Remve items from this list if it is implemented.
+
+General features:
+* Line end assertion ($)
+* Lookback
+* Obtaining groups of match result
+* Full string match
+* Unicode classes
+* Case-unsensetiveness
+* Modifiers (case turn/off, etc.)
+* Zero-lenght string match
+
+Library:
+* Compiler to object/ll/ir/asm files
+* UTF-16 and UTF-32 matchers
+* "OneOf" normalization/optimization
+* C++ functions generator
+
+LLVM Generator:
+* State save optimization - save only needed state parts
+* Optimization of state save chain node structure size
+* State struct optimization - do not add unused fields
+
+Tests:
+* Tests for generated binary code (including optimized version)
+* More Unicode tests
+* Performance tests (benchmarks)
