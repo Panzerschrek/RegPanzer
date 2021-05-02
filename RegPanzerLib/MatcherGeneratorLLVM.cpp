@@ -267,6 +267,15 @@ void Generator::GenerateMatcherFunction(const RegexGraphBuildResult& regex_graph
 		llvm_ir_builder.SetInsertPoint(not_found_block);
 		llvm_ir_builder.CreateRet(llvm::ConstantPointerNull::get(char_type_ptr_));
 	}
+
+	// Clear internal structures.
+	state_type_= nullptr;
+	node_function_type_= nullptr;
+	subroutine_call_return_chain_node_type_= nullptr;
+	subroutine_call_state_save_chain_node_type_= nullptr;
+	sequence_id_to_counter_filed_number_.clear();
+	group_number_to_field_number_.clear();
+	node_functions_.clear();
 }
 
 void Generator::CreateStateType(const RegexGraphBuildResult& regex_graph)
