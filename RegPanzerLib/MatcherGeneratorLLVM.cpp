@@ -765,27 +765,53 @@ void Generator::BuildNodeFunctionBodyImpl(
 
 	const auto state_copy_ptr= llvm_ir_builder.CreateAlloca(state_type_, 0, "state_copy");
 
-	const auto found_block= llvm::BasicBlock::Create(context_, "found");
-
-	for(const GraphElements::NodePtr& possible_next : node.next)
+	if(node.next.size() == 1)
+		CreateNextCallRet(llvm_ir_builder, state_ptr, node.next.front());
+	else if(node.next.size() == 2)
 	{
+		// Optimization for sequences - avoid unnecessary state save/restore.
+
+		const auto ok_block= llvm::BasicBlock::Create(context_, "ok", function);
+		const auto fail_block= llvm::BasicBlock::Create(context_, "fail", function);
+
+		// Try first alternative with state copy.
 		CopyState(llvm_ir_builder, state_copy_ptr, state_ptr);
-		const auto variant_res= llvm_ir_builder.CreateCall(GetOrCreateNodeFunction(possible_next), {state_copy_ptr});
-		const auto next_block= llvm::BasicBlock::Create(context_, "", function);
+		const auto variant_res= llvm_ir_builder.CreateCall(GetOrCreateNodeFunction(node.next[0]), {state_copy_ptr});
+		llvm_ir_builder.CreateCondBr(variant_res, ok_block, fail_block);
 
-		llvm_ir_builder.CreateCondBr(variant_res, found_block, next_block);
-		llvm_ir_builder.SetInsertPoint(next_block);
+		// First alternative is fine - copy state copy to original state.
+		llvm_ir_builder.SetInsertPoint(ok_block);
+		CopyState(llvm_ir_builder, state_ptr, state_copy_ptr);
+		llvm_ir_builder.CreateRet(llvm::ConstantInt::getTrue(context_));
+
+		// Fail block - try second alternative with initial state.
+		llvm_ir_builder.SetInsertPoint(fail_block);
+		CreateNextCallRet(llvm_ir_builder, state_ptr, node.next[1]);
 	}
+	else
+	{
+		const auto found_block= llvm::BasicBlock::Create(context_, "found");
 
-	// Return "false" in last "next" block.
-	llvm_ir_builder.GetInsertBlock()->setName("not_found");
-	llvm_ir_builder.CreateRet(llvm::ConstantInt::getFalse(context_));
+		for(const GraphElements::NodePtr& possible_next : node.next)
+		{
+			CopyState(llvm_ir_builder, state_copy_ptr, state_ptr);
+			const auto variant_res= llvm_ir_builder.CreateCall(GetOrCreateNodeFunction(possible_next), {state_copy_ptr});
+			const auto next_block= llvm::BasicBlock::Create(context_, "", function);
 
-	// Return true if one of next variants were successfull.
-	found_block->insertInto(function);
-	llvm_ir_builder.SetInsertPoint(found_block);
-	CopyState(llvm_ir_builder, state_ptr, state_copy_ptr);
-	llvm_ir_builder.CreateRet(llvm::ConstantInt::getTrue(context_));
+			llvm_ir_builder.CreateCondBr(variant_res, found_block, next_block);
+			llvm_ir_builder.SetInsertPoint(next_block);
+		}
+
+		// Return "false" in last "next" block.
+		llvm_ir_builder.GetInsertBlock()->setName("not_found");
+		llvm_ir_builder.CreateRet(llvm::ConstantInt::getFalse(context_));
+
+		// Return true if one of next variants were successfull.
+		found_block->insertInto(function);
+		llvm_ir_builder.SetInsertPoint(found_block);
+		CopyState(llvm_ir_builder, state_ptr, state_copy_ptr);
+		llvm_ir_builder.CreateRet(llvm::ConstantInt::getTrue(context_));
+	}
 }
 
 void Generator::BuildNodeFunctionBodyImpl(
