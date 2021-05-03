@@ -159,6 +159,7 @@ private:
 	llvm::IntegerType* const ptr_size_int_type_;
 	llvm::IntegerType* const char_type_;
 	llvm::PointerType* const char_type_ptr_;
+	llvm::IntegerType* const code_point_type_;
 	llvm::StructType* const group_type_;
 
 	llvm::StructType* state_type_= nullptr;
@@ -179,6 +180,7 @@ Generator::Generator(llvm::Module& module)
 	, ptr_size_int_type_(module.getDataLayout().getIntPtrType(context_, 0))
 	, char_type_(llvm::Type::getInt8Ty(context_))
 	, char_type_ptr_(llvm::PointerType::get(char_type_, 0))
+	, code_point_type_(llvm::Type::getInt32Ty(context_))
 	, group_type_(llvm::StructType::get(char_type_ptr_, char_type_ptr_))
 {}
 
@@ -482,6 +484,28 @@ void Generator::BuildNodeFunctionBodyImpl(
 void Generator::BuildNodeFunctionBodyImpl(
 	IRBuilder& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::OneOf& node)
 {
+	static const CharType c_bit_masks[9]=
+	{
+		(1 << 0) - 1,
+		(1 << 1) - 1,
+		(1 << 2) - 1,
+		(1 << 3) - 1,
+		(1 << 4) - 1,
+		(1 << 5) - 1,
+		(1 << 6) - 1,
+		(1 << 7) - 1,
+		(1 << 8) - 1,
+	};
+
+	bool has_multi_byte_code_points= false;
+	{
+		const CharType c_last_onle_byte_code_point= 0x7F;
+		for(const CharType c : node.variants)
+			has_multi_byte_code_points|= c > c_last_onle_byte_code_point;
+		for(const auto& range : node.ranges)
+			has_multi_byte_code_points= range.second >=c_last_onle_byte_code_point;
+	}
+
 	const auto function= llvm_ir_builder.GetInsertBlock()->getParent();
 
 	const auto str_begin_ptr= llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrBegin)});
@@ -490,51 +514,238 @@ void Generator::BuildNodeFunctionBodyImpl(
 	const auto str_end_ptr= llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrEnd)});
 	const auto str_end_value= llvm_ir_builder.CreateLoad(str_end_ptr);
 
+	const auto found_block= llvm::BasicBlock::Create(context_, "found");
+
 	const auto is_empty= llvm_ir_builder.CreateICmpEQ(str_begin_value, str_end_value);
 
-	const auto empty_block= llvm::BasicBlock::Create(context_, "empty", function);
+	const auto empty_block= llvm::BasicBlock::Create(context_, "empty");
 	const auto non_empty_block= llvm::BasicBlock::Create(context_, "non_empty", function);
 
 	llvm_ir_builder.CreateCondBr(is_empty, empty_block, non_empty_block);
 
-	llvm_ir_builder.SetInsertPoint(empty_block);
-	llvm_ir_builder.CreateRet(llvm::ConstantInt::getFalse(context_));
-
+	// Non-empty block.
 	llvm_ir_builder.SetInsertPoint(non_empty_block);
-
-	// TODO - support UTF-8.
-
 	const auto char_value= llvm_ir_builder.CreateLoad(str_begin_value, "char_value");
 
-	const auto found_block= llvm::BasicBlock::Create(context_, "found");
-
-	for(const CharType c : node.variants)
+	llvm::Value* new_str_begin_value= nullptr;
+	if(has_multi_byte_code_points || node.inverse_flag)
 	{
-		const auto is_same_symbol= llvm_ir_builder.CreateICmpEQ(char_value, GetConstant(char_type_, c));
+		// In negative checks of in checks with multi-byte code points extract code point from UTF-8 and compare it against UTF-32 constants.
 
-		const auto next_block= llvm::BasicBlock::Create(context_, "next", function);
+		const auto block_0= llvm::BasicBlock::Create(context_, "block_0", function);
+		const auto block_1_check= llvm::BasicBlock::Create(context_, "block_check1", function);
+		const auto block_1= llvm::BasicBlock::Create(context_, "block_1", function);
+		const auto block_1_after_size_check= llvm::BasicBlock::Create(context_, "block_1_after_size_check", function);
+		const auto block_2_check= llvm::BasicBlock::Create(context_, "block_2_check", function);
+		const auto block_2= llvm::BasicBlock::Create(context_, "block_2", function);
+		const auto block_2_after_size_check= llvm::BasicBlock::Create(context_, "block_2_after_size_check", function);
+		const auto block_3_check= llvm::BasicBlock::Create(context_, "block_3_check", function);
+		const auto block_3= llvm::BasicBlock::Create(context_, "block_3", function);
+		const auto block_3_after_size_check= llvm::BasicBlock::Create(context_, "block_3_after_size_check", function);
+		const auto block_invalid_utf8= llvm::BasicBlock::Create(context_, "block_invalid_utf8", function);
+		const auto extract_end_block= llvm::BasicBlock::Create(context_, "extract_end", function);
 
-		llvm_ir_builder.CreateCondBr(is_same_symbol, found_block, next_block);
-		llvm_ir_builder.SetInsertPoint(next_block);
+		const auto first_char_value= llvm_ir_builder.CreateZExt(char_value, code_point_type_, "first_char_value");
+
+		// Block 0 check.
+		const auto and_mask0= llvm_ir_builder.CreateAnd(first_char_value, GetConstant(code_point_type_, 0b10000000));
+		const auto cond_0= llvm_ir_builder.CreateICmpEQ(and_mask0, GetConstant(code_point_type_, 0));
+		llvm_ir_builder.CreateCondBr(cond_0, block_0, block_1_check);
+
+		// Block 0.
+		llvm_ir_builder.SetInsertPoint(block_0);
+		const auto char_code0= first_char_value;
+		const auto str_begin0= llvm_ir_builder.CreateGEP(str_begin_value, GetFieldGEPIndex(1), "str_begin0");
+		llvm_ir_builder.CreateBr(extract_end_block);
+
+		// Block 1 check.
+		llvm_ir_builder.SetInsertPoint(block_1_check);
+		const auto and_mask1= llvm_ir_builder.CreateAnd(first_char_value, GetConstant(code_point_type_, 0b11100000));
+		const auto cond_1= llvm_ir_builder.CreateICmpEQ(and_mask1, GetConstant(code_point_type_, 0b11000000));
+		llvm_ir_builder.CreateCondBr(cond_1, block_1, block_2_check);
+
+		// Block 1.
+		llvm_ir_builder.SetInsertPoint(block_1);
+		const auto str_begin1= llvm_ir_builder.CreateGEP(str_begin_value, GetFieldGEPIndex(2), "str_begin1");
+		llvm_ir_builder.CreateCondBr(
+			llvm_ir_builder.CreateICmpULE(str_begin1, str_end_value),
+			block_1_after_size_check,
+			empty_block);
+
+		// Block 1 after size check.
+		llvm_ir_builder.SetInsertPoint(block_1_after_size_check);
+		const auto char_code1= [&]
+		{
+			const auto b0= first_char_value;
+			const auto b1=
+				llvm_ir_builder.CreateZExt(
+					llvm_ir_builder.CreateLoad(llvm_ir_builder.CreateGEP(str_begin_value, GetFieldGEPIndex(1))),
+					code_point_type_);
+			const auto and0= llvm_ir_builder.CreateAnd(b0, GetConstant(code_point_type_, c_bit_masks[5]));
+			const auto and1= llvm_ir_builder.CreateAnd(b1, GetConstant(code_point_type_, c_bit_masks[6]));
+			const auto shift0= llvm_ir_builder.CreateShl(and0, GetConstant(code_point_type_, 6));
+			const auto shift1= and1;
+			return llvm_ir_builder.CreateOr(shift0, shift1, "char_code1");
+		}();
+		llvm_ir_builder.CreateBr(extract_end_block);
+
+		// Block 2 check.
+		llvm_ir_builder.SetInsertPoint(block_2_check);
+		const auto and_mask2= llvm_ir_builder.CreateAnd(first_char_value, GetConstant(code_point_type_, 0b11110000));
+		const auto cond_2= llvm_ir_builder.CreateICmpEQ(and_mask2, GetConstant(code_point_type_, 0b11100000));
+		llvm_ir_builder.CreateCondBr(cond_2, block_2, block_3_check);
+
+		// Block 2.
+		llvm_ir_builder.SetInsertPoint(block_2);
+		const auto str_begin2= llvm_ir_builder.CreateGEP(str_begin_value, GetFieldGEPIndex(3), "str_begin2");
+		llvm_ir_builder.CreateCondBr(
+			llvm_ir_builder.CreateICmpULE(str_begin2, str_end_value),
+			block_2_after_size_check,
+			empty_block);
+
+		// Block 2 after size check.
+		llvm_ir_builder.SetInsertPoint(block_2_after_size_check);
+		const auto char_code2= [&]
+		{
+			const auto b0= first_char_value;
+			const auto b1=
+				llvm_ir_builder.CreateZExt(
+					llvm_ir_builder.CreateLoad(llvm_ir_builder.CreateGEP(str_begin_value, GetFieldGEPIndex(1))),
+					code_point_type_);
+			const auto b2=
+				llvm_ir_builder.CreateZExt(
+					llvm_ir_builder.CreateLoad(llvm_ir_builder.CreateGEP(str_begin_value, GetFieldGEPIndex(2))),
+					code_point_type_);
+			const auto and0= llvm_ir_builder.CreateAnd(b0, GetConstant(code_point_type_, c_bit_masks[4]));
+			const auto and1= llvm_ir_builder.CreateAnd(b1, GetConstant(code_point_type_, c_bit_masks[6]));
+			const auto and2= llvm_ir_builder.CreateAnd(b2, GetConstant(code_point_type_, c_bit_masks[6]));
+			const auto shift0= llvm_ir_builder.CreateShl(and0, GetConstant(code_point_type_, 12));
+			const auto shift1= llvm_ir_builder.CreateShl(and1, GetConstant(code_point_type_,  6));
+			const auto shift2= and2;
+			return llvm_ir_builder.CreateOr(llvm_ir_builder.CreateOr(shift0, shift1), shift2, "char_code2");
+		}();
+		llvm_ir_builder.CreateBr(extract_end_block);
+
+		// Block 3 check.
+		llvm_ir_builder.SetInsertPoint(block_3_check);
+		const auto and_mask3= llvm_ir_builder.CreateAnd(first_char_value, GetConstant(code_point_type_, 0b11111000));
+		const auto cond_3= llvm_ir_builder.CreateICmpEQ(and_mask3, GetConstant(code_point_type_, 0b11110000));
+		llvm_ir_builder.CreateCondBr(cond_3, block_3, block_invalid_utf8);
+
+		// Block 3.
+		llvm_ir_builder.SetInsertPoint(block_3);
+		const auto str_begin3= llvm_ir_builder.CreateGEP(str_begin_value, GetFieldGEPIndex(4), "str_begin2");
+		llvm_ir_builder.CreateCondBr(
+			llvm_ir_builder.CreateICmpULE(str_begin3, str_end_value),
+			block_3_after_size_check,
+			empty_block);
+
+		// Block 3 after size check.
+		llvm_ir_builder.SetInsertPoint(block_3_after_size_check);
+		const auto char_code3= [&]
+		{
+			const auto b0= first_char_value;
+			const auto b1=
+				llvm_ir_builder.CreateZExt(
+					llvm_ir_builder.CreateLoad(llvm_ir_builder.CreateGEP(str_begin_value, GetFieldGEPIndex(1))),
+					code_point_type_);
+			const auto b2=
+				llvm_ir_builder.CreateZExt(
+					llvm_ir_builder.CreateLoad(llvm_ir_builder.CreateGEP(str_begin_value, GetFieldGEPIndex(2))),
+					code_point_type_);
+			const auto b3=
+				llvm_ir_builder.CreateZExt(
+					llvm_ir_builder.CreateLoad(llvm_ir_builder.CreateGEP(str_begin_value, GetFieldGEPIndex(3))),
+					code_point_type_);
+			const auto and0= llvm_ir_builder.CreateAnd(b0, GetConstant(code_point_type_, c_bit_masks[3]));
+			const auto and1= llvm_ir_builder.CreateAnd(b1, GetConstant(code_point_type_, c_bit_masks[6]));
+			const auto and2= llvm_ir_builder.CreateAnd(b2, GetConstant(code_point_type_, c_bit_masks[6]));
+			const auto and3= llvm_ir_builder.CreateAnd(b3, GetConstant(code_point_type_, c_bit_masks[6]));
+			const auto shift0= llvm_ir_builder.CreateShl(and0, GetConstant(code_point_type_, 18));
+			const auto shift1= llvm_ir_builder.CreateShl(and1, GetConstant(code_point_type_, 12));
+			const auto shift2= llvm_ir_builder.CreateShl(and2, GetConstant(code_point_type_,  6));
+			const auto shift3= and3;
+			return llvm_ir_builder.CreateOr(llvm_ir_builder.CreateOr(shift0, shift1), llvm_ir_builder.CreateOr(shift2, shift3), "char_code3");
+		}();
+		llvm_ir_builder.CreateBr(extract_end_block);
+
+		// Invalid UTF-8 block.
+		llvm_ir_builder.SetInsertPoint(block_invalid_utf8);
+		const auto str_invalid_utf8= llvm_ir_builder.CreateGEP(str_begin_value, GetFieldGEPIndex(1), "str_invalid_utf8");
+		llvm_ir_builder.CreateBr(extract_end_block);
+
+		// Extract end block.
+		llvm_ir_builder.SetInsertPoint(extract_end_block);
+
+		const auto result_char_value= llvm_ir_builder.CreatePHI(code_point_type_, 5, "result_char_value");
+		result_char_value->addIncoming(char_code0, block_0);
+		result_char_value->addIncoming(char_code1, block_1_after_size_check);
+		result_char_value->addIncoming(char_code2, block_2_after_size_check);
+		result_char_value->addIncoming(char_code3, block_3_after_size_check);
+		result_char_value->addIncoming(first_char_value, block_invalid_utf8);
+
+		const auto new_str_begin_value_phi= llvm_ir_builder.CreatePHI(char_type_ptr_, 5, "new_str_begin_value");
+		new_str_begin_value= new_str_begin_value_phi;
+		new_str_begin_value_phi->addIncoming(str_begin0, block_0);
+		new_str_begin_value_phi->addIncoming(str_begin1, block_1_after_size_check);
+		new_str_begin_value_phi->addIncoming(str_begin2, block_2_after_size_check);
+		new_str_begin_value_phi->addIncoming(str_begin3, block_3_after_size_check);
+		new_str_begin_value_phi->addIncoming(str_invalid_utf8, block_invalid_utf8);
+
+		for(const CharType c : node.variants)
+		{
+			const auto is_same_symbol= llvm_ir_builder.CreateICmpEQ(result_char_value, GetConstant(code_point_type_, c));
+
+			const auto next_block= llvm::BasicBlock::Create(context_, "next", function);
+
+			llvm_ir_builder.CreateCondBr(is_same_symbol, found_block, next_block);
+			llvm_ir_builder.SetInsertPoint(next_block);
+		}
+
+		for(const auto& range : node.ranges)
+		{
+			const auto ge= llvm_ir_builder.CreateICmpUGE(result_char_value, GetConstant(code_point_type_, range.first ));
+			const auto le= llvm_ir_builder.CreateICmpULE(result_char_value, GetConstant(code_point_type_, range.second));
+			const auto in_range= llvm_ir_builder.CreateAnd(ge, le);
+
+			const auto next_block= llvm::BasicBlock::Create(context_, "next", function);
+
+			llvm_ir_builder.CreateCondBr(in_range, found_block, next_block);
+			llvm_ir_builder.SetInsertPoint(next_block);
+		}
 	}
-
-	for(const auto& range : node.ranges)
+	else
 	{
-		const auto ge= llvm_ir_builder.CreateICmpUGE(char_value, GetConstant(char_type_, range.first ));
-		const auto le= llvm_ir_builder.CreateICmpULE(char_value, GetConstant(char_type_, range.second));
-		const auto in_range= llvm_ir_builder.CreateAnd(ge, le);
+		// In positive checks with ASCII-only variants and ranges read only first byte and compare it ageins byte contants.
 
-		const auto next_block= llvm::BasicBlock::Create(context_, "next", function);
+		new_str_begin_value= llvm_ir_builder.CreateGEP(str_begin_value, GetFieldGEPIndex(1), "new_str_begin_value");
+		for(const CharType c : node.variants)
+		{
+			const auto is_same_symbol= llvm_ir_builder.CreateICmpEQ(char_value, GetConstant(char_type_, c));
 
-		llvm_ir_builder.CreateCondBr(in_range, found_block, next_block);
-		llvm_ir_builder.SetInsertPoint(next_block);
+			const auto next_block= llvm::BasicBlock::Create(context_, "next", function);
+
+			llvm_ir_builder.CreateCondBr(is_same_symbol, found_block, next_block);
+			llvm_ir_builder.SetInsertPoint(next_block);
+		}
+
+		for(const auto& range : node.ranges)
+		{
+			const auto ge= llvm_ir_builder.CreateICmpUGE(char_value, GetConstant(char_type_, range.first ));
+			const auto le= llvm_ir_builder.CreateICmpULE(char_value, GetConstant(char_type_, range.second));
+			const auto in_range= llvm_ir_builder.CreateAnd(ge, le);
+
+			const auto next_block= llvm::BasicBlock::Create(context_, "next", function);
+
+			llvm_ir_builder.CreateCondBr(in_range, found_block, next_block);
+			llvm_ir_builder.SetInsertPoint(next_block);
+		}
 	}
 
 	llvm_ir_builder.GetInsertBlock()->setName("not_found");
 	if(node.inverse_flag)
 	{
 		// Not found anything - continue.
-		const auto new_str_begin_value= llvm_ir_builder.CreateGEP(str_begin_value, GetFieldGEPIndex(1));
 		llvm_ir_builder.CreateStore(new_str_begin_value, str_begin_ptr);
 		CreateNextCallRet(llvm_ir_builder, state_ptr, node.next);
 
@@ -551,12 +762,14 @@ void Generator::BuildNodeFunctionBodyImpl(
 		// Found - continue.
 		found_block->insertInto(function);
 		llvm_ir_builder.SetInsertPoint(found_block);
-
-		const auto new_str_begin_value= llvm_ir_builder.CreateGEP(str_begin_value, GetFieldGEPIndex(1));
 		llvm_ir_builder.CreateStore(new_str_begin_value, str_begin_ptr);
-
 		CreateNextCallRet(llvm_ir_builder, state_ptr, node.next);
 	}
+
+	// Empty block.
+	empty_block->insertInto(function);
+	llvm_ir_builder.SetInsertPoint(empty_block);
+	llvm_ir_builder.CreateRet(llvm::ConstantInt::getFalse(context_));
 }
 
 void Generator::BuildNodeFunctionBodyImpl(
