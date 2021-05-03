@@ -383,32 +383,10 @@ void Generator::BuildNodeFunctionBody(const GraphElements::NodePtr& node, llvm::
 void Generator::BuildNodeFunctionBodyImpl(
 	IRBuilder& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::AnySymbol& node)
 {
-	const auto function= llvm_ir_builder.GetInsertBlock()->getParent();
-
-	const auto str_begin_ptr= llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrBegin)});
-	const auto str_begin_value= llvm_ir_builder.CreateLoad(str_begin_ptr);
-
-	const auto str_end_ptr= llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrEnd)});
-	const auto str_end_value= llvm_ir_builder.CreateLoad(str_end_ptr);
-
-	// TODO - support UTF-8.
-
-	const auto is_empty= llvm_ir_builder.CreateICmpEQ(str_begin_value, str_end_value);
-
-	const auto empty_block= llvm::BasicBlock::Create(context_, "empty", function);
-	const auto non_empty_block= llvm::BasicBlock::Create(context_, "non_empty", function);
-
-	llvm_ir_builder.CreateCondBr(is_empty, empty_block, non_empty_block);
-
-	llvm_ir_builder.SetInsertPoint(empty_block);
-	llvm_ir_builder.CreateRet(llvm::ConstantInt::getFalse(context_));
-
-	llvm_ir_builder.SetInsertPoint(non_empty_block);
-
-	const auto new_str_begin_value= llvm_ir_builder.CreateGEP(str_begin_value, GetFieldGEPIndex(1));
-	llvm_ir_builder.CreateStore(new_str_begin_value, str_begin_ptr);
-
-	CreateNextCallRet(llvm_ir_builder, state_ptr, node.next);
+	GraphElements::OneOf one_of;
+	one_of.next= node.next;
+	one_of.inverse_flag= true;
+	BuildNodeFunctionBodyImpl(llvm_ir_builder, state_ptr, one_of);
 }
 
 void Generator::BuildNodeFunctionBodyImpl(
@@ -514,7 +492,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 	const auto str_end_ptr= llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrEnd)});
 	const auto str_end_value= llvm_ir_builder.CreateLoad(str_end_ptr);
 
-	const auto found_block= llvm::BasicBlock::Create(context_, "found");
+	auto found_block= llvm::BasicBlock::Create(context_, "found");
 
 	const auto is_empty= llvm_ir_builder.CreateICmpEQ(str_begin_value, str_end_value);
 
@@ -742,6 +720,12 @@ void Generator::BuildNodeFunctionBodyImpl(
 		}
 	}
 
+	if(node.ranges.empty() && node.variants.empty())
+	{
+		delete found_block;
+		found_block= nullptr;
+	}
+
 	llvm_ir_builder.GetInsertBlock()->setName("not_found");
 	if(node.inverse_flag)
 	{
@@ -750,9 +734,12 @@ void Generator::BuildNodeFunctionBodyImpl(
 		CreateNextCallRet(llvm_ir_builder, state_ptr, node.next);
 
 		// Found something - return false.
-		found_block->insertInto(function);
-		llvm_ir_builder.SetInsertPoint(found_block);
-		llvm_ir_builder.CreateRet(llvm::ConstantInt::getFalse(context_));
+		if(found_block != nullptr)
+		{
+			found_block->insertInto(function);
+			llvm_ir_builder.SetInsertPoint(found_block);
+			llvm_ir_builder.CreateRet(llvm::ConstantInt::getFalse(context_));
+		}
 	}
 	else
 	{
@@ -760,10 +747,13 @@ void Generator::BuildNodeFunctionBodyImpl(
 		llvm_ir_builder.CreateRet(llvm::ConstantInt::getFalse(context_));
 
 		// Found - continue.
-		found_block->insertInto(function);
-		llvm_ir_builder.SetInsertPoint(found_block);
-		llvm_ir_builder.CreateStore(new_str_begin_value, str_begin_ptr);
-		CreateNextCallRet(llvm_ir_builder, state_ptr, node.next);
+		if(found_block != nullptr)
+		{
+			found_block->insertInto(function);
+			llvm_ir_builder.SetInsertPoint(found_block);
+			llvm_ir_builder.CreateStore(new_str_begin_value, str_begin_ptr);
+			CreateNextCallRet(llvm_ir_builder, state_ptr, node.next);
+		}
 	}
 
 	// Empty block.
