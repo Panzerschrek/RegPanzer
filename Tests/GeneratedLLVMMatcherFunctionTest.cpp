@@ -57,10 +57,6 @@ TEST_P(GeneratedLLVMMatcherTest, TestMatch)
 
 	for(const MatcherTestDataElement::Case& c : param.cases)
 	{
-		// TODO - remove this check when this matcher generator will support UTF-8.
-		if(StringContainsNonASCIISymbols(c.input_str))
-			continue;
-
 		MatcherTestDataElement::Ranges result_ranges;
 		for(size_t i= 0; i < c.input_str.size();)
 		{
