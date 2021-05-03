@@ -45,6 +45,11 @@ else()
 endif()
 
 llvm_map_components_to_libnames(LLVM_LIBS_FOR_REG_PANZER_LIB Core)
+llvm_map_components_to_libnames(LLVM_LIBS_FOR_REG_PANZER_COMPILER
+	Linker # for linking of multiple llvm modules
+	IPO # for pass manager builder, etc.
+	${LLVM_TARGETS_TO_BUILD}
+	)
 llvm_map_components_to_libnames(LLVM_LIBS_FOR_REG_PANZER_TEST Interpreter)
 
 # Setup our project compiler options.
@@ -77,6 +82,11 @@ file(GLOB REG_LIB_SOURCES "RegPanzerLib/*")
 add_library(RegPanzerLib ${REG_LIB_SOURCES})
 target_include_directories(RegPanzerLib PUBLIC ${Boost_INCLUDE_DIRS})
 target_link_libraries(RegPanzerLib PUBLIC ${LLVM_LIBS_FOR_REG_PANZER_LIB})
+
+# Compiler
+file(GLOB COMPILER_SOURCES "Compiler/*")
+add_executable(RegPanzerCompiler ${COMPILER_SOURCES})
+target_link_libraries(RegPanzerCompiler PRIVATE RegPanzerLib ${LLVM_LIBS_FOR_REG_PANZER_COMPILER})
 
 # Tests
 # Tests depends on gtest library which present only in LLVM sources but not in LLVM binary distribution.

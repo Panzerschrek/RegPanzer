@@ -12,7 +12,6 @@ General features:
 * Zero-lenght string match
 
 Library:
-* Compiler to object/ll/ir/asm files
 * UTF-16 and UTF-32 matchers
 * "OneOf" normalization/optimization
 * C++ functions generator
