@@ -404,12 +404,16 @@ void Generator::BuildNodeFunctionBodyImpl(
 	const auto ok_block= llvm::BasicBlock::Create(context_, "ok", function);
 	const auto fail_block= llvm::BasicBlock::Create(context_, "fail", function);
 
-	char buff[UNI_MAX_UTF8_BYTES_PER_CODE_POINT+1];
+	char buff[UNI_MAX_UTF8_BYTES_PER_CODE_POINT+4];
 	char* buff_ptr= buff;
 	llvm::ConvertCodePointToUTF8(node.code, buff_ptr);
-	const size_t char_size= size_t(buff_ptr - buff);
+	const auto char_size= uint32_t(buff_ptr - buff);
+
+	llvm::Value* next_str_begin_value= nullptr;
 	if(char_size == 1)
 	{
+		next_str_begin_value= llvm_ir_builder.CreateGEP(str_begin_value, GetFieldGEPIndex(1), "next_str_begin_value");
+
 		const auto is_empty= llvm_ir_builder.CreateICmpEQ(str_begin_value, str_end_value);
 		llvm_ir_builder.CreateCondBr(is_empty, fail_block, check_content_block);
 
@@ -418,27 +422,21 @@ void Generator::BuildNodeFunctionBodyImpl(
 		const auto char_value= llvm_ir_builder.CreateLoad(str_begin_value, "char_value");
 		const auto is_same_symbol= llvm_ir_builder.CreateICmpEQ(char_value, GetConstant(char_type_, node.code));
 		llvm_ir_builder.CreateCondBr(is_same_symbol, ok_block, fail_block);
-
-		// Ok block
-		llvm_ir_builder.SetInsertPoint(ok_block);
-		const auto new_str_begin_value= llvm_ir_builder.CreateGEP(str_begin_value, GetFieldGEPIndex(1));
-		llvm_ir_builder.CreateStore(new_str_begin_value, str_begin_ptr);
-		CreateNextCallRet(llvm_ir_builder, state_ptr, node.next);
 	}
 	else
 	{
-		const auto next_str_begin_value= llvm_ir_builder.CreateGEP(str_begin_value, GetFieldGEPIndex(uint32_t(char_size)));
-		const auto not_enough_condition= llvm_ir_builder.CreateICmpULT(str_begin_value, next_str_begin_value);
+		next_str_begin_value= llvm_ir_builder.CreateGEP(str_begin_value, GetFieldGEPIndex(char_size), "next_str_begin_value");
 
+		const auto not_enough_condition= llvm_ir_builder.CreateICmpULT(str_begin_value, next_str_begin_value);
 		llvm_ir_builder.CreateCondBr(not_enough_condition, check_content_block, fail_block);
 
 		// Check content block.
 		llvm_ir_builder.SetInsertPoint(check_content_block);
 
 		llvm::Value* all_eq_value= nullptr;
-		for(size_t i= 0; i < char_size; ++i)
+		for(uint32_t i= 0; i < char_size; ++i)
 		{
-			const auto char_ptr= llvm_ir_builder.CreateGEP(str_begin_value, GetFieldGEPIndex(uint32_t(i)));
+			const auto char_ptr= llvm_ir_builder.CreateGEP(str_begin_value, GetFieldGEPIndex(i));
 			const auto char_value= llvm_ir_builder.CreateLoad(char_ptr, "char_value");
 			const auto eq= llvm_ir_builder.CreateICmpEQ(char_value, GetConstant(char_type_, uint64_t(buff[i])), "eq");
 			if(all_eq_value == nullptr)
@@ -447,12 +445,12 @@ void Generator::BuildNodeFunctionBodyImpl(
 				all_eq_value= llvm_ir_builder.CreateAnd(all_eq_value, eq);
 		}
 		llvm_ir_builder.CreateCondBr(all_eq_value, ok_block, fail_block);
-
-		// Ok block.
-		llvm_ir_builder.SetInsertPoint(ok_block);
-		llvm_ir_builder.CreateStore(next_str_begin_value, str_begin_ptr);
-		CreateNextCallRet(llvm_ir_builder, state_ptr, node.next);
 	}
+
+	// Ok block.
+	llvm_ir_builder.SetInsertPoint(ok_block);
+	llvm_ir_builder.CreateStore(next_str_begin_value, str_begin_ptr);
+	CreateNextCallRet(llvm_ir_builder, state_ptr, node.next);
 
 	// Fail block
 	llvm_ir_builder.SetInsertPoint(fail_block);
@@ -493,12 +491,10 @@ void Generator::BuildNodeFunctionBodyImpl(
 	const auto str_end_value= llvm_ir_builder.CreateLoad(str_end_ptr);
 
 	auto found_block= llvm::BasicBlock::Create(context_, "found");
-
-	const auto is_empty= llvm_ir_builder.CreateICmpEQ(str_begin_value, str_end_value);
-
 	const auto empty_block= llvm::BasicBlock::Create(context_, "empty");
 	const auto non_empty_block= llvm::BasicBlock::Create(context_, "non_empty", function);
 
+	const auto is_empty= llvm_ir_builder.CreateICmpEQ(str_begin_value, str_end_value);
 	llvm_ir_builder.CreateCondBr(is_empty, empty_block, non_empty_block);
 
 	// Non-empty block.
@@ -508,7 +504,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 	llvm::Value* new_str_begin_value= nullptr;
 	if(has_multi_byte_code_points || node.inverse_flag)
 	{
-		// In negative checks of in checks with multi-byte code points extract code point from UTF-8 and compare it against UTF-32 constants.
+		// In negative checks or in checks with multi-byte code points extract code point from UTF-8 and compare it against UTF-32 constants.
 
 		const auto block_0= llvm::BasicBlock::Create(context_, "block_0", function);
 		const auto block_1_check= llvm::BasicBlock::Create(context_, "block_check1", function);
@@ -694,7 +690,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 	}
 	else
 	{
-		// In positive checks with ASCII-only variants and ranges read only first byte and compare it ageins byte contants.
+		// In positive checks with ASCII-only variants and ranges read only first byte and compare it against byte contants.
 
 		new_str_begin_value= llvm_ir_builder.CreateGEP(str_begin_value, GetFieldGEPIndex(1), "new_str_begin_value");
 		for(const CharType c : node.variants)
