@@ -97,6 +97,10 @@ inline const MatcherTestDataElement g_matcher_test_data[]
 				"rГwd",
 				{ {0, 5} }
 			},
+			{ // Match whole string with non-ascii "any" symbol.
+				"r굞wd",
+				{ {0, 6} }
+			},
 			{ // Multiple matches.
 				"warJwddr+wdd br/wadnr wd",
 				{ {2, 6}, {7, 11}, {20, 24} }
@@ -2373,6 +2377,75 @@ inline const MatcherTestDataElement g_matcher_test_data[]
 			},
 		},
 	},
+
+	// Non-ASCII code points inside "OneOf"
+	{
+		"[яИჂΩλ힒𐤈]",
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			// Matches for specified symbols.
+			{ "я", { {0, 2} } },
+			{ "И", { {0, 2} } },
+			{ "Ω", { {0, 2} } },
+			{ "λ", { {0, 2} } },
+			{ "Ⴢ", { {0, 3} } },
+			{ "힒", { {0, 3} } },
+			{ "𐤈", { {0, 4} } },
+			// No matches for symbols nearby.
+			{ "ђ", {} },
+			{ "ю", {} },
+			{ "Ж", {} },
+			{ "Ф", {} },
+			{ "Ⴣ", {} },
+			{ "Ⴠ", {} },
+			{ "μ", {} },
+			{ "θ", {} },
+			{ "Ψ", {} },
+			{ "Ϋ", {} },
+			{ "힎", {} },
+			{ "힘", {} },
+			{ "𐤇", {} },
+			{ "𐤌", {} },
+			// No matches for incomplete UTF-8.
+			{ "\xBC", {} },
+			{ "\xBC", {} },
+			{ "\xF1\x87", {} }
+		}
+	},
+
+	// Inverted "OneOf" should extract code points, not just chars.
+	{
+		"A[^B]C",
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // No match - contains forbidden symbol.
+				"ABC",
+				{}
+			},
+			{ // Simpliest match - non-forbidden ASCII symbol.
+				"AqC",
+				{ {0, 3} }
+			},
+			{ // Match with non-forbidden non-ASCII symbol.
+				"AфC",
+				{ {0, 4} }
+			},
+			{ // Match with non-forbidden non-ASCII symbol.
+				"A휅C",
+				{ {0, 5} }
+			},
+			{ // Match with non-forbidden non-ASCII symbol.
+				"A𐤒C",
+				{ {0, 6} }
+			},
+		}
+	}
 };
 
 } // namespace RegPanzer
