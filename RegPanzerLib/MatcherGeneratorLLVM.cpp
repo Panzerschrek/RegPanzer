@@ -47,6 +47,7 @@ struct StateFieldIndex
 		StrEnd,
 		SequenceContersArray,
 		GroupsArray,
+		// Optinal fields.
 		SubroutineCallReturnChainHead,
 		SubroutineCallStateSaveChainHead,
 	};
@@ -242,12 +243,14 @@ void Generator::GenerateMatcherFunction(const RegexGraphBuildResult& regex_graph
 			llvm_ir_builder.CreateStore(null, group_end_ptr);
 		}
 	}
+	if(state_type_->getNumElements() > StateFieldIndex::SubroutineCallReturnChainHead)
 	{
 		// Zero subroutine call return chain head.
 		const auto ptr= llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::SubroutineCallReturnChainHead)});
 		const auto null= llvm::Constant::getNullValue(llvm::PointerType::get(subroutine_call_return_chain_node_type_, 0));
 		llvm_ir_builder.CreateStore(null, ptr);
 	}
+	if(state_type_->getNumElements() > StateFieldIndex::SubroutineCallStateSaveChainHead)
 	{
 		// Zero subroutine call state save chain head.
 		const auto ptr= llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::SubroutineCallStateSaveChainHead)});
@@ -294,8 +297,8 @@ void Generator::CreateStateType(const RegexGraphBuildResult& regex_graph)
 	members.push_back(char_type_ptr_); // StrBegin
 	members.push_back(char_type_ptr_); // StrEnd
 
+	const GroupStat& regex_stat= regex_graph.group_stats.at(0);
 	{
-		const GroupStat& regex_stat= regex_graph.group_stats.at(0);
 		const size_t number_of_counters= regex_stat.internal_sequences.size();
 		const auto sequence_counters_array= llvm::ArrayType::get(ptr_size_int_type_, uint64_t(number_of_counters));
 		members.push_back(sequence_counters_array);
@@ -311,28 +314,31 @@ void Generator::CreateStateType(const RegexGraphBuildResult& regex_graph)
 		const auto groups_array= llvm::ArrayType::get(group_type_, uint64_t(group_number_to_field_number_.size()));
 		members.push_back(groups_array);
 	}
-	{
-		// TODO - create this field only if subroutine calls are needed.
-		subroutine_call_return_chain_node_type_= llvm::StructType::create(context_, "SubroutineCallReturnChainNode");
-		const auto node_ptr_type= llvm::PointerType::get(subroutine_call_return_chain_node_type_, 0);
-		subroutine_call_return_chain_node_type_->setBody({llvm::PointerType::get(node_function_type_, 0), node_ptr_type});
 
-		members.push_back(node_ptr_type);
-	}
+	// These fields needed only for regular expressions with subroutine calls.
+	if(!regex_stat.internal_calls.empty())
 	{
-		// TODO - create this field only if state save nodes are used.
-		subroutine_call_state_save_chain_node_type_= llvm::StructType::create(context_, "SubroutineCallStateSaveChainNode");
-		const auto node_ptr_type= llvm::PointerType::get(subroutine_call_state_save_chain_node_type_, 0);
-
-		llvm::Type* const elements[]
 		{
-			members[StateFieldIndex::SequenceContersArray],
-			members[StateFieldIndex::GroupsArray],
-			node_ptr_type,
-		};
-		subroutine_call_state_save_chain_node_type_->setBody(elements);
+			subroutine_call_return_chain_node_type_= llvm::StructType::create(context_, "SubroutineCallReturnChainNode");
+			const auto node_ptr_type= llvm::PointerType::get(subroutine_call_return_chain_node_type_, 0);
+			subroutine_call_return_chain_node_type_->setBody({llvm::PointerType::get(node_function_type_, 0), node_ptr_type});
 
-		members.push_back(node_ptr_type);
+			members.push_back(node_ptr_type);
+		}
+		{
+			subroutine_call_state_save_chain_node_type_= llvm::StructType::create(context_, "SubroutineCallStateSaveChainNode");
+			const auto node_ptr_type= llvm::PointerType::get(subroutine_call_state_save_chain_node_type_, 0);
+
+			llvm::Type* const elements[]
+			{
+				members[StateFieldIndex::SequenceContersArray],
+				members[StateFieldIndex::GroupsArray],
+				node_ptr_type,
+			};
+			subroutine_call_state_save_chain_node_type_->setBody(elements);
+
+			members.push_back(node_ptr_type);
+		}
 	}
 
 	state_type_->setBody(members);
