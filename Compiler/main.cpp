@@ -62,13 +62,12 @@ std::string GetNativeTargetFeaturesStr()
 	return features.getString();
 }
 
-
 namespace Options
 {
 
 namespace cl= llvm::cl;
 
-cl::OptionCategory options_category("RegPanzerCompier options");
+cl::OptionCategory options_category("RegPanzer Compier options");
 
 cl::opt<std::string> input_regex(
 	cl::Positional,
@@ -179,31 +178,28 @@ int Main(int argc, const char* argv[])
 	llvm::cl::ParseCommandLineOptions(argc, argv, "RegPanzer Compiler\n");
 
 	// Select optimization level.
-	unsigned int optimization_level= 0u;
-	unsigned int size_optimization_level= 0u;
-		 if(Options::optimization_level == '0')
-		optimization_level= 0u;
-	else if(Options::optimization_level == '1')
-		optimization_level= 1u;
-	else if(Options::optimization_level == '2')
-		optimization_level= 2u;
-	else if(Options::optimization_level == '3')
-		optimization_level= 3u;
-	else if(Options::optimization_level == 's')
+	uint32_t optimization_level= 0u, size_optimization_level= 0u;
+	const char opt_level_char= Options::optimization_level;
+	switch(opt_level_char)
 	{
+	case '0':
+	case '1':
+	case '2':
+	case '3':
+		optimization_level= uint32_t(opt_level_char - '0');
+		break;
+	case 's':
 		size_optimization_level= 1u;
 		optimization_level= 2u;
-	}
-	else if(Options::optimization_level == 'z')
-	{
+		break;
+	case 'z':
 		size_optimization_level= 2u;
 		optimization_level= 2u;
-	}
-	else
-	{
+		break;
+	default:
 		std::cout << "Unknown optimization: " << Options::optimization_level << std::endl;
 		return 1;
-	}
+	};
 
 	// LLVM stuff initialization.
 	llvm::InitializeAllTargets();
@@ -397,7 +393,6 @@ int Main(int argc, const char* argv[])
 }
 
 } // namespace
-
 
 } // namespace RegPanzer
 
