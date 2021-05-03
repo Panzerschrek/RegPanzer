@@ -14,12 +14,13 @@ General features:
 Library:
 * UTF-16 and UTF-32 matchers
 * "OneOf" normalization/optimization
+* Auto-possessification for sequences (replace recursion with loop if possible)
 * C++ functions generator
 
 LLVM Generator:
 * State save optimization - save only needed state parts
 * Optimization of state save chain node structure size
-* State struct optimization - do not add unused fields
+* Match optimization for symbol sequences
 
 Tests:
 * Tests for generated binary code (including optimized version)
