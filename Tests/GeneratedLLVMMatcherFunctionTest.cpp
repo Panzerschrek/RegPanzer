@@ -4,8 +4,11 @@
 #include "../RegPanzerLib/Parser.hpp"
 #include "../RegPanzerLib/PushDisableLLVMWarnings.hpp"
 #include <llvm/ExecutionEngine/ExecutionEngine.h>
-#include <llvm/ExecutionEngine/GenericValue.h>
-#include <llvm/ExecutionEngine/Interpreter.h>
+#include <llvm/ExecutionEngine/MCJIT.h>
+#include <llvm/ExecutionEngine/SectionMemoryManager.h>
+#include <llvm/Support/TargetSelect.h>
+#include <llvm/Support/TargetRegistry.h>
+#include <llvm/Target/TargetMachine.h>
 #include <gtest/gtest.h>
 #include "../RegPanzerLib/PopLLVMWarnings.hpp"
 
@@ -14,26 +17,60 @@ namespace RegPanzer
 
 namespace
 {
-
-const std::string GetTestsDataLayout()
+std::string GetNativeTargetFeaturesStr()
 {
-	std::string result;
+	llvm::SubtargetFeatures features;
 
-	result+= llvm::sys::IsBigEndianHost ? "E" : "e";
-	const bool is_32_bit= sizeof(void*) <= 4u;
-	result+= is_32_bit ? "-p:32:32" : "-p:64:64";
-	result+= is_32_bit ? "-n8:16:32" : "-n8:16:32:64";
-	result+= "-i8:8-i16:16-i32:32-i64:64";
-	result+= "-f32:32-f64:64";
-	result+= "-S128";
+	llvm::StringMap<bool> host_features;
+	if(llvm::sys::getHostCPUFeatures(host_features))
+	{
+		for(auto& f : host_features)
+			features.AddFeature(f.first(), f.second);
+	}
+	return features.getString();
+}
 
-	return result;
+std::unique_ptr<llvm::TargetMachine> CreateTargetMachine()
+{
+	llvm::InitializeAllTargets();
+	llvm::InitializeAllTargetMCs();
+	llvm::InitializeAllAsmPrinters();
+	llvm::InitializeAllAsmParsers();
+
+	const llvm::Triple target_triple(llvm::sys::getDefaultTargetTriple());
+	const std::string target_triple_str= target_triple.normalize();
+
+	std::string error_str;
+	const auto target= llvm::TargetRegistry::lookupTarget(target_triple_str, error_str);
+	if(target == nullptr)
+	{
+		std::cerr << "Error, selecting target: " << error_str << std::endl;
+		return nullptr;
+	}
+
+	llvm::TargetOptions target_options;
+
+	const auto code_gen_optimization_level= llvm::CodeGenOpt::Default;
+
+	return
+		std::unique_ptr<llvm::TargetMachine>(
+			target->createTargetMachine(
+				target_triple_str,
+				llvm::sys::getHostCPUName(),
+				GetNativeTargetFeaturesStr(),
+				target_options,
+				llvm::Reloc::Model::PIC_,
+				llvm::Optional<llvm::CodeModel::Model>(),
+				code_gen_optimization_level));
 }
 
 class GeneratedLLVMMatcherTest : public ::testing::TestWithParam<MatcherTestDataElement> {};
 
 TEST_P(GeneratedLLVMMatcherTest, TestMatch)
 {
+	auto target_machine= CreateTargetMachine();
+	ASSERT_TRUE(target_machine != nullptr);
+
 	const auto param= GetParam();
 	const auto regex_chain= RegPanzer::ParseRegexString(param.regex_str);
 	ASSERT_NE(regex_chain, std::nullopt);
@@ -44,15 +81,18 @@ TEST_P(GeneratedLLVMMatcherTest, TestMatch)
 
 	llvm::LLVMContext llvm_context;
 	auto module= std::make_unique<llvm::Module>("id", llvm_context);
-	module->setDataLayout(GetTestsDataLayout());
+	module->setDataLayout(target_machine->createDataLayout());
 
 	GenerateMatcherFunction(*module, regex_graph, "Match");
 
-	llvm::EngineBuilder builder( std::move(module) );
-	llvm::ExecutionEngine* const engine= builder.create();
+	llvm::EngineBuilder builder(std::move(module));
+	builder.setEngineKind(llvm::EngineKind::JIT);
+	builder.setMemoryManager(std::make_unique<llvm::SectionMemoryManager>());
+	llvm::ExecutionEngine* const engine= builder.create(target_machine.release()); // Engine takes ownership over target machine.
 	ASSERT_TRUE(engine != nullptr);
 
-	llvm::Function* const function= engine->FindFunctionNamed(function_name);
+	using FunctionType= const char*(*)(const char*, const char*);
+	const auto function= reinterpret_cast<FunctionType>(engine->getFunctionAddress(function_name));
 	ASSERT_TRUE(function != nullptr);
 
 	for(const MatcherTestDataElement::Case& c : param.cases)
@@ -60,12 +100,10 @@ TEST_P(GeneratedLLVMMatcherTest, TestMatch)
 		MatcherTestDataElement::Ranges result_ranges;
 		for(size_t i= 0; i < c.input_str.size();)
 		{
-			llvm::GenericValue args[2];
-			args[0].PointerVal= const_cast<char*>(c.input_str.data() + i);
-			args[1].PointerVal= const_cast<char*>(c.input_str.data() + c.input_str.size());
+			const char* const begin= c.input_str.data() + i;
+			const char* const end= c.input_str.data() + c.input_str.size();
 
-			const llvm::GenericValue result_value= engine->runFunction(function, args);
-			const char* const match_end_ptr= reinterpret_cast<const char*>(result_value.PointerVal);
+			const char* const match_end_ptr= function(begin, end);
 
 			if(match_end_ptr == nullptr)
 				++i;

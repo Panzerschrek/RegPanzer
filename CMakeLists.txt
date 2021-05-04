@@ -46,7 +46,7 @@ endif()
 
 llvm_map_components_to_libnames(LLVM_LIBS_FOR_REG_PANZER_LIB Core)
 llvm_map_components_to_libnames(LLVM_LIBS_FOR_REG_PANZER_COMPILER IPO ${LLVM_TARGETS_TO_BUILD})
-llvm_map_components_to_libnames(LLVM_LIBS_FOR_REG_PANZER_TEST Interpreter)
+llvm_map_components_to_libnames(LLVM_LIBS_FOR_REG_PANZER_TEST Interpreter MCJIT ${LLVM_TARGETS_TO_BUILD})
 
 # Setup our project compiler options.
 
