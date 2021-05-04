@@ -45,11 +45,7 @@ else()
 endif()
 
 llvm_map_components_to_libnames(LLVM_LIBS_FOR_REG_PANZER_LIB Core)
-llvm_map_components_to_libnames(LLVM_LIBS_FOR_REG_PANZER_COMPILER
-	Linker # for linking of multiple llvm modules
-	IPO # for pass manager builder, etc.
-	${LLVM_TARGETS_TO_BUILD}
-	)
+llvm_map_components_to_libnames(LLVM_LIBS_FOR_REG_PANZER_COMPILER IPO ${LLVM_TARGETS_TO_BUILD})
 llvm_map_components_to_libnames(LLVM_LIBS_FOR_REG_PANZER_TEST Interpreter)
 
 # Setup our project compiler options.
