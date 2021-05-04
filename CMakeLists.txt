@@ -88,6 +88,14 @@ target_link_libraries(RegPanzerCompiler PRIVATE RegPanzerLib ${LLVM_LIBS_FOR_REG
 # Tests depends on gtest library which present only in LLVM sources but not in LLVM binary distribution.
 
 if(DEFINED LLVM_SRC_DIR)
+
+	add_executable(TestsBinaryGenerator TestsBinaryGenerator/main.cpp)
+	target_link_libraries(TestsBinaryGenerator RegPanzerLib ${LLVM_LIBS_FOR_REG_PANZER_COMPILER})
+	add_custom_command(
+		OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/MatchersGenerated.o
+		COMMAND TestsBinaryGenerator -o ${CMAKE_CURRENT_BINARY_DIR}
+	)
+
 	file(GLOB REG_PANZER_TEST_SOURCES "Tests/*")
 
 	find_library(PCRE_LIBRARY pcrecpp)
@@ -98,9 +106,19 @@ if(DEFINED LLVM_SRC_DIR)
 		list(REMOVE_ITEM REG_PANZER_TEST_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/Tests/PcreRegexMatcherTest.cpp)
 	endif()
 
-	add_executable(RegPanzerTest ${REG_PANZER_TEST_SOURCES})
+	add_executable(
+		RegPanzerTest
+		${REG_PANZER_TEST_SOURCES}
+		${CMAKE_CURRENT_BINARY_DIR}/MatchersGenerated.o
+		)
+
 	target_link_libraries(RegPanzerTest PRIVATE RegPanzerLib gtest gtest_main ${LLVM_LIBS_FOR_REG_PANZER_TEST})
-	target_include_directories(RegPanzerTest PRIVATE ${LLVM_SRC_DIR}/utils/unittest/googletest/include/)
+	target_include_directories(
+		RegPanzerTest
+		PRIVATE
+			${LLVM_SRC_DIR}/utils/unittest/googletest/include/
+			${CMAKE_CURRENT_BINARY_DIR}
+		)
 	target_compile_definitions(RegPanzerTest PRIVATE -DGTEST_LANG_CXX11=1 -DGTEST_HAS_TR1_TUPLE=0)
 
 	if(PCRE_LIBRARY)
