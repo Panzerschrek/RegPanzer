@@ -23,7 +23,8 @@ TEST_P(StdRegexMatchTest, TestMatch)
 			RegexFeatureFlag::PossessiveSequences |
 			RegexFeatureFlag::AtomicGroups |
 			RegexFeatureFlag::ConditionalElements |
-			RegexFeatureFlag::Subroutines)) != 0)
+			RegexFeatureFlag::Subroutines |
+			RegexFeatureFlag::FourDigitHexCodes)) != 0)
 		return;
 
 	try
