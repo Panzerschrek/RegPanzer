@@ -50,10 +50,10 @@ TEST_P(GeneratedLLVMMatcherTest, TestMatch)
 
 	llvm::EngineBuilder builder( std::move(module) );
 	llvm::ExecutionEngine* const engine= builder.create();
-	ASSERT_NE(engine, nullptr);
+	ASSERT_TRUE(engine != nullptr);
 
 	llvm::Function* const function= engine->FindFunctionNamed(function_name);
-	ASSERT_NE(function, nullptr);
+	ASSERT_TRUE(function != nullptr);
 
 	for(const MatcherTestDataElement::Case& c : param.cases)
 	{

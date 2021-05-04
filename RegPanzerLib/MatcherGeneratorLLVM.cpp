@@ -309,7 +309,7 @@ void Generator::CreateStateType(const RegexGraphBuildResult& regex_graph)
 	{
 		for(const auto& group_pair : regex_graph.group_stats)
 			if(group_pair.second.backreference_count > 0)
-				group_number_to_field_number_.emplace(group_pair.first, size_t(group_number_to_field_number_.size()));
+				group_number_to_field_number_.emplace(group_pair.first, uint32_t(group_number_to_field_number_.size()));
 
 		const auto groups_array= llvm::ArrayType::get(group_type_, uint64_t(group_number_to_field_number_.size()));
 		members.push_back(groups_array);
