@@ -40,15 +40,16 @@ TEST_P(GeneratedLLVMMatcherTest, TestMatch)
 
 	const auto regex_graph= BuildRegexGraph(*regex_chain);
 
-	const std::string function_name= "Match";
 
 	llvm::LLVMContext llvm_context;
 	auto module= std::make_unique<llvm::Module>("id", llvm_context);
 	module->setDataLayout(GetTestsDataLayout());
 
-	GenerateMatcherFunction(*module, regex_graph, "Match");
+	const std::string function_name= "Match";
+	GenerateMatcherFunction(*module, regex_graph, function_name);
 
-	llvm::EngineBuilder builder( std::move(module) );
+	llvm::EngineBuilder builder(std::move(module));
+	builder.setEngineKind(llvm::EngineKind::Interpreter);
 	const std::unique_ptr<llvm::ExecutionEngine> engine(builder.create());
 	ASSERT_TRUE(engine != nullptr);
 
