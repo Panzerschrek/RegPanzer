@@ -49,7 +49,7 @@ TEST_P(GeneratedLLVMMatcherTest, TestMatch)
 	GenerateMatcherFunction(*module, regex_graph, "Match");
 
 	llvm::EngineBuilder builder( std::move(module) );
-	llvm::ExecutionEngine* const engine= builder.create();
+	const std::unique_ptr<llvm::ExecutionEngine> engine(builder.create());
 	ASSERT_TRUE(engine != nullptr);
 
 	llvm::Function* const function= engine->FindFunctionNamed(function_name);
