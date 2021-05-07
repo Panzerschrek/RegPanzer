@@ -11,20 +11,22 @@ namespace
 
 class Parser
 {
-
 public:
 	using StrView= std::basic_string_view<CharType>;
 
 	ParseResult Parse(StrView str);
 
 private:
-	std::optional<RegexElementFull::ElementType> ParseEscapeSequence();
-	std::optional<OneOf> ParseOneOf();
+	RegexElementFull::ElementType ParseEscapeSequence();
+	OneOf ParseOneOf();
 	SequenceMode ParseSequenceMode();
-	std::optional<Sequence> ParseSequence();
-	std::optional<Look> ParseLook();
+	Sequence ParseSequence();
+	Look ParseLook();
+	RegexElementsChain ParseChain();
 
-	std::optional<RegexElementsChain> ParseImpl();
+	void ReportUnexpectedEndOfLineError();
+	void ReportUnexpectedSymbol(CharType symbol);
+	void ReportError(std::string message);
 
 private:
 	size_t next_group_index_= 0;
@@ -39,21 +41,28 @@ ParseResult Parser::Parse(const StrView str)
 	str_initial_= str_;
 	str_= str;
 
-	if(auto parse_res= ParseImpl())
-		if(errors_.empty())
-			return *parse_res;
+	auto parse_res= ParseChain();
+
+	if(!str_.empty() && errors_.empty())
+		ReportError("Unexpected parse end");
+
+	if(errors_.empty())
+		return std::move(parse_res);
 
 	ParseErrors errors;
 	errors_.swap(errors);
 	return std::move(errors);
 }
 
-std::optional<RegexElementFull::ElementType> Parser::ParseEscapeSequence()
+RegexElementFull::ElementType Parser::ParseEscapeSequence()
 {
 	str_.remove_prefix(1); // Remove '\'
 
 	if(str_.empty())
-		return std::nullopt;
+	{
+		ReportUnexpectedEndOfLineError();
+		return AnySymbol();
+	}
 
 	const CharType c= str_.front();
 	str_.remove_prefix(1);
@@ -94,7 +103,10 @@ std::optional<RegexElementFull::ElementType> Parser::ParseEscapeSequence()
 	{
 		const size_t digiths= c == 'x' ? 2 : 4;
 		if(str_.size() < digiths)
-			return std::nullopt;
+		{
+			ReportUnexpectedEndOfLineError();
+			return AnySymbol();
+		}
 
 		CharType code= 0;
 		for(size_t i= 0; i < digiths; ++i)
@@ -108,7 +120,10 @@ std::optional<RegexElementFull::ElementType> Parser::ParseEscapeSequence()
 			else if(d >= 'A' && d <= 'F')
 				code|= (d - 'A' + 10) << shift;
 			else
-				return std::nullopt;
+			{
+				ReportError("Unexpected hex number: " + d);
+				return AnySymbol();
+			}
 		}
 		str_.remove_prefix(digiths);
 		return SpecificSymbol{ code };
@@ -127,13 +142,15 @@ std::optional<RegexElementFull::ElementType> Parser::ParseEscapeSequence()
 
 	case 'p':
 		// TODO - parse special symbol classes here.
-		return std::nullopt;
+		ReportError("Unicode classes not implemented yet.");
+		return AnySymbol();
 	}
 
-	return std::nullopt;
+	ReportError("Unknown escape sequence: " + c);
+	return AnySymbol();
 }
 
-std::optional<OneOf> Parser::ParseOneOf()
+OneOf Parser::ParseOneOf()
 {
 	str_.remove_prefix(1); // Remove [
 
@@ -174,31 +191,27 @@ std::optional<OneOf> Parser::ParseOneOf()
 
 		if(c == '\\')
 		{
-			if(const auto el= ParseEscapeSequence())
+			const auto el= ParseEscapeSequence();
+			if(const auto specific_symbol= std::get_if<SpecificSymbol>(&el))
+				c= specific_symbol->code;
+			else if(const auto inner_one_of= std::get_if<OneOf>(&el))
 			{
-				if(const auto specific_symbol= std::get_if<SpecificSymbol>(&*el))
-					c= specific_symbol->code;
-				else if(const auto inner_one_of= std::get_if<OneOf>(&*el))
-				{
-					// TODO - handle cases with invert flag for specific parts of "oneOf".
-					one_of.inverse_flag= inner_one_of->inverse_flag;
-					one_of.variants.insert(one_of.variants.end(), inner_one_of->variants.begin(), inner_one_of->variants.end());
-					one_of.ranges.insert(one_of.ranges.end(), inner_one_of->ranges.begin(), inner_one_of->ranges.end());
-					continue;
-				}
-				else
-					return std::nullopt;
+				// TODO - handle cases with invert flag for specific parts of "oneOf".
+				one_of.inverse_flag= inner_one_of->inverse_flag;
+				one_of.variants.insert(one_of.variants.end(), inner_one_of->variants.begin(), inner_one_of->variants.end());
+				one_of.ranges.insert(one_of.ranges.end(), inner_one_of->ranges.begin(), inner_one_of->ranges.end());
+				continue;
 			}
 			else
-				return std::nullopt;
+				ReportError("Unexpected excape sequence inside \"OneOf\"");
 		}
 		else
 			str_.remove_prefix(1);
 
 		if(str_.empty())
 		{
-			// TODO - handle error here
-			return std::nullopt;
+			ReportUnexpectedEndOfLineError();
+			return one_of;
 		}
 
 		if(str_.front() == '-')
@@ -206,8 +219,8 @@ std::optional<OneOf> Parser::ParseOneOf()
 			str_.remove_prefix(1);
 			if(str_.empty())
 			{
-				// TODO - handle error here
-				return std::nullopt;
+				ReportUnexpectedEndOfLineError();
+				return one_of;
 			}
 			const CharType end_c= str_.front();
 			// TODO - validate range
@@ -218,10 +231,15 @@ std::optional<OneOf> Parser::ParseOneOf()
 			one_of.variants.push_back(c);
 	}
 
-	if(str_.empty() || str_.front() != ']')
+	if(str_.empty())
 	{
-		// TODO - handle error here
-		return std::nullopt;
+		ReportUnexpectedEndOfLineError();
+		return one_of;
+	}
+	if(str_.front() != ']')
+	{
+		ReportUnexpectedSymbol(']');
+		return one_of;
 	}
 	str_.remove_prefix(1);
 
@@ -247,7 +265,7 @@ SequenceMode Parser::ParseSequenceMode()
 	return SequenceMode::Greedy;
 }
 
-std::optional<Sequence> Parser::ParseSequence()
+Sequence Parser::ParseSequence()
 {
 	Sequence seq;
 	seq.min_elements= 1;
@@ -295,8 +313,8 @@ std::optional<Sequence> Parser::ParseSequence()
 
 		if(str_.empty())
 		{
-			// TODO - handle error here
-			return std::nullopt;
+			ReportUnexpectedEndOfLineError();
+			return seq;
 		}
 		if(str_.front() == ',')
 		{
@@ -318,10 +336,15 @@ std::optional<Sequence> Parser::ParseSequence()
 		else
 			seq.max_elements= seq.min_elements;
 
-		if(str_.empty() || str_.front() != '}')
+		if(str_.empty())
 		{
-			// TODO - handle error here
-			return std::nullopt;
+			ReportUnexpectedEndOfLineError();
+			return seq;
+		}
+		if(str_.front() != '}')
+		{
+			ReportUnexpectedSymbol('}');
+			return seq;
 		}
 		str_.remove_prefix(1); // Skip }
 
@@ -336,12 +359,15 @@ std::optional<Sequence> Parser::ParseSequence()
 	return seq;
 }
 
-std::optional<Look> Parser::ParseLook()
+Look Parser::ParseLook()
 {
 	Look look;
 
 	if(str_.empty())
-		return std::nullopt;
+	{
+		ReportUnexpectedEndOfLineError();
+		return look;
+	}
 
 	if(str_.front() == '<')
 	{
@@ -352,30 +378,42 @@ std::optional<Look> Parser::ParseLook()
 		look.forward= true;
 
 	if(str_.empty())
-		return std::nullopt;
+	{
+		ReportUnexpectedEndOfLineError();
+		return look;
+	}
 
 	if(str_.front() == '=')
 		look.positive= true;
 	else if(str_.front() == '!')
 		look.positive= false;
 	else
-		return std::nullopt;
+	{
+		ReportError("Unexpected look direction: " + str_.front());
+		return look;
+	}
 
 	str_.remove_prefix(1);
 
-	auto sub_elements= ParseImpl();
-	if(sub_elements == std::nullopt)
-		return std::nullopt;
+	auto sub_elements= ParseChain();
 
-	if(str_.empty() || str_.front() != ')')
-		return std::nullopt;
+	if(str_.empty())
+	{
+		ReportUnexpectedEndOfLineError();
+		return look;
+	}
+	if(str_.front() != ')')
+	{
+		ReportUnexpectedSymbol(')');
+		return look;
+	}
 	str_.remove_prefix(1);
 
-	look.elements= std::move(*sub_elements);
+	look.elements= std::move(sub_elements);
 	return look;
 }
 
-std::optional<RegexElementsChain> Parser::ParseImpl()
+RegexElementsChain Parser::ParseChain()
 {
 	RegexElementsChain chain;
 
@@ -391,22 +429,19 @@ std::optional<RegexElementsChain> Parser::ParseImpl()
 		{
 			str_.remove_prefix(1);
 
-			auto remaining_expression= ParseImpl();
-			if(remaining_expression == std::nullopt)
-				return std::nullopt;
-
-			if(remaining_expression->size() == 1u)
+			auto remaining_expression= ParseChain();
+			if(remaining_expression.size() == 1u)
 			{
-				if(const auto alternative= std::get_if<Alternatives>(&remaining_expression->front().el))
+				if(const auto alternative= std::get_if<Alternatives>(&remaining_expression.front().el))
 				{
 					alternative->alternatives.insert(alternative->alternatives.begin(), std::move(chain));
-					return std::move(*remaining_expression);
+					return remaining_expression;
 				}
 			}
 
 			Alternatives alternatives;
 			alternatives.alternatives.push_back(std::move(chain));
-			alternatives.alternatives.push_back(std::move(*remaining_expression));
+			alternatives.alternatives.push_back(std::move(remaining_expression));
 
 			res.el = std::move(alternatives);
 			res.seq.min_elements= 1;
@@ -419,20 +454,34 @@ std::optional<RegexElementsChain> Parser::ParseImpl()
 			str_.remove_prefix(1);
 
 			if(str_.empty())
-				return std::nullopt;
+			{
+				ReportUnexpectedEndOfLineError();
+				return chain;
+			}
 
 			if(str_.front() == '?')
 			{
 				str_.remove_prefix(1);
 				if(str_.empty())
-					return std::nullopt;
+				{
+					ReportUnexpectedEndOfLineError();
+					return chain;
+				}
 
 				if(str_.front() == 'R')
 				{
 					str_.remove_prefix(1);
 
-					if(str_.empty() || str_.front() != ')')
-						return std::nullopt;
+					if(str_.empty())
+					{
+						ReportUnexpectedEndOfLineError();
+						return chain;
+					}
+					if(str_.front() != ')')
+					{
+						ReportUnexpectedSymbol(')');
+						return chain;
+					}
 					str_.remove_prefix(1);
 
 					res.el= SubroutineCall{ 0 };
@@ -442,8 +491,16 @@ std::optional<RegexElementsChain> Parser::ParseImpl()
 					const auto index= size_t(str_.front() - '0');
 					str_.remove_prefix(1);
 
-					if(str_.empty() || str_.front() != ')')
-						return std::nullopt;
+					if(str_.empty())
+					{
+						ReportUnexpectedEndOfLineError();
+						return chain;
+					}
+					if(str_.front() != ')')
+					{
+						ReportUnexpectedSymbol(')');
+						return chain;
+					}
 					str_.remove_prefix(1);
 
 					res.el= SubroutineCall{ index };
@@ -452,80 +509,101 @@ std::optional<RegexElementsChain> Parser::ParseImpl()
 				{
 					str_.remove_prefix(1);
 
-					auto sub_elements= ParseImpl();
-					if(sub_elements == std::nullopt)
-						return std::nullopt;
+					auto sub_elements= ParseChain();
 
-					if(str_.empty() || str_.front() != ')')
-						return std::nullopt;
+					if(str_.empty())
+					{
+						ReportUnexpectedEndOfLineError();
+						return chain;
+					}
+					if(str_.front() != ')')
+					{
+						ReportUnexpectedSymbol(')');
+						return chain;
+					}
 					str_.remove_prefix(1);
 
-					res.el= NonCapturingGroup{ std::move(*sub_elements) };
+					res.el= NonCapturingGroup{ std::move(sub_elements) };
 				}
 				else if(str_.front() == '>')
 				{
 					str_.remove_prefix(1);
 
-					auto sub_elements= ParseImpl();
-					if(sub_elements == std::nullopt)
-						return std::nullopt;
+					auto sub_elements= ParseChain();
 
-					if(str_.empty() || str_.front() != ')')
-						return std::nullopt;
+					if(str_.empty())
+					{
+						ReportUnexpectedEndOfLineError();
+						return chain;
+					}
+					if(str_.front() != ')')
+					{
+						ReportUnexpectedSymbol(')');
+						return chain;
+					}
 					str_.remove_prefix(1);
 
-					res.el= AtomicGroup{ std::move(*sub_elements) };
+					res.el= AtomicGroup{ std::move(sub_elements) };
 				}
 				else if(str_.size() >= 2 && str_[0] == '(' && str_[1] == '?')
 				{
 					str_.remove_prefix(2);
 					auto look= ParseLook();
-					if(look == std::nullopt)
-						return std::nullopt;
 
-					auto sub_elements= ParseImpl();
-					if(str_.empty() || str_.front() != ')')
-						return std::nullopt;
+					auto sub_elements= ParseChain();
+					if(str_.empty())
+					{
+						ReportUnexpectedEndOfLineError();
+						return chain;
+					}
+					if(str_.front() != ')')
+					{
+						ReportUnexpectedSymbol(')');
+						return chain;
+					}
 					str_.remove_prefix(1);
 
-					if(sub_elements == std::nullopt || sub_elements->size() != 1)
-						return std::nullopt;
-					auto* const alternatives= std::get_if<Alternatives>(&sub_elements->front().el);
+					if(sub_elements.size() != 1)
+					{
+						ReportError("Unexpected subelements size: " + std::to_string(sub_elements.size()));
+						return chain;
+					}
+					auto* const alternatives= std::get_if<Alternatives>(&sub_elements.front().el);
 					if(alternatives == nullptr || alternatives->alternatives.size() != 2)
-						return std::nullopt;
+					{
+						ReportError("Unexpected subelements kind");
+						return chain;
+					}
 
 					ConditionalElement conditional_element;
-					conditional_element.look= *look;
+					conditional_element.look= std::move(look);
 					conditional_element.alternatives= std::move(*alternatives);
 
 					res.el= std::move(conditional_element);
 				}
 				else
-				{
-					auto look= ParseLook();
-					if(look == std::nullopt)
-						return std::nullopt;
-
-					res.el= std::move(*look);
-				}
+					res.el= ParseLook();
 			}
 			else
 			{
 				const size_t current_group_index= next_group_index_;
 				++next_group_index_;
 
-				auto sub_elements= ParseImpl();
-				if(sub_elements == std::nullopt)
-					return std::nullopt;
+				auto sub_elements= ParseChain();
 
-				if(str_.empty() || str_.front() != ')')
+				if(str_.empty())
 				{
-					// TODO - handle error here
-					return std::nullopt;
+					ReportUnexpectedEndOfLineError();
+					return chain;
+				}
+				if(str_.front() != ')')
+				{
+					ReportUnexpectedSymbol(')');
+					return chain;
 				}
 				str_.remove_prefix(1);
 
-				res.el= Group{ current_group_index, std::move(*sub_elements) };
+				res.el= Group{ current_group_index, std::move(sub_elements) };
 			}
 			break;
 
@@ -538,21 +616,11 @@ std::optional<RegexElementsChain> Parser::ParseImpl()
 			break;
 
 		case '[':
-		{
-			auto one_of= ParseOneOf();
-			if(one_of == std::nullopt)
-				return std::nullopt;
-			res.el= std::move(*one_of);
-		}
+			res.el= ParseOneOf();
 			break;
 
 		case '\\':
-		{
-			auto symbol= ParseEscapeSequence();
-			if(symbol == std::nullopt)
-				return std::nullopt;
-			res.el= std::move(*symbol);
-		}
+			res.el= ParseEscapeSequence();
 			break;
 
 		default:
@@ -561,15 +629,28 @@ std::optional<RegexElementsChain> Parser::ParseImpl()
 			break;
 		};
 
-		auto seq= ParseSequence();
-		if(seq == std::nullopt)
-			return std::nullopt;
-		res.seq= *seq;
+		res.seq= ParseSequence();
 
 		chain.push_back(std::move(res));
 	}
 
 	return chain;
+}
+
+void Parser::ReportUnexpectedEndOfLineError()
+{
+	ReportError("Unexpected end of line");
+}
+
+void Parser::ReportUnexpectedSymbol(const CharType symbol)
+{
+	ReportError(std::string("Unexpected symbol \'") + char(str_.front()) + "\', expected \'" + char(symbol) + "\'");
+}
+
+void Parser::ReportError(std::string message)
+{
+	const auto pos= size_t(str_.data() - str_initial_.data());
+	errors_.push_back(ParseError{pos, std::move(message)});
 }
 
 } // namespace
