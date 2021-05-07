@@ -223,7 +223,10 @@ OneOf Parser::ParseOneOf()
 				return one_of;
 			}
 			const CharType end_c= str_.front();
-			// TODO - validate range
+
+			if(end_c < c)
+				ReportError("Invalid char range");
+
 			one_of.ranges.emplace_back(c, end_c);
 			str_.remove_prefix(1);
 		}
