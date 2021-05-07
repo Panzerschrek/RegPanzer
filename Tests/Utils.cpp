@@ -107,7 +107,8 @@ RegexFeatureFlags GetRegexFeatures(const std::string& regex_str)
 
 	flags|= GetExcapeSequencesFlags(regex_str);
 
-	if(const auto res= ParseRegexString(regex_str))
+	const auto parse_res= ParseRegexString(regex_str);
+	if(const auto res= std::get_if<RegexElementsChain>(&parse_res))
 		flags|= GetSequeneFeatures(*res);
 
 	return flags;

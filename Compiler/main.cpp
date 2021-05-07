@@ -291,13 +291,18 @@ int Main(int argc, const char* argv[])
 	module.setTargetTriple(target_triple_str);
 
 	// Parse and build regex.
-	const std::optional<RegexElementsChain> regex_chain= ParseRegexString(Options::input_regex);
-	if(regex_chain == std::nullopt)
+	const auto parse_res= ParseRegexString(Options::input_regex);
+	if(const auto parse_errors= std::get_if<ParseErrors>(&parse_res))
 	{
 		// TODO - show exact error what went wrong.
-		std::cerr << "Error, parsing regex." << std::endl;
+		std::cerr << "Errors, parsing regex:\n";
+		for(const ParseError& e : *parse_errors)
+			std::cerr << e.pos << ": " << e.message << "\n";
+		std::cerr << std::endl;
 		return 1;
 	}
+	const auto regex_chain= std::get_if<RegexElementsChain>(&parse_res);
+	assert(regex_chain != nullptr);
 
 	const RegexGraphBuildResult regex_graph= BuildRegexGraph(*regex_chain);
 	GenerateMatcherFunction(module, regex_graph, Options::result_function_name);

@@ -66,8 +66,9 @@ TEST_P(GeneratedLLVMBinaryMatcherTest, TestMatch)
 	ASSERT_TRUE(target_machine != nullptr);
 
 	const auto param= GetParam();
-	const auto regex_chain= RegPanzer::ParseRegexString(param.regex_str);
-	ASSERT_NE(regex_chain, std::nullopt);
+	const auto parse_res= RegPanzer::ParseRegexString(param.regex_str);
+	const auto regex_chain= std::get_if<RegexElementsChain>(&parse_res);
+	ASSERT_TRUE(regex_chain != nullptr);
 
 	const auto regex_graph= BuildRegexGraph(*regex_chain);
 

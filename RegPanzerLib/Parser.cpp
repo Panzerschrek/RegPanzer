@@ -9,19 +9,54 @@ namespace RegPanzer
 namespace
 {
 
-using StrView= std::basic_string_view<CharType>;
-
-std::optional<RegexElementsChain> ParseRegexStringImpl(size_t& next_group_index, StrView& str);
-
-std::optional<RegexElementFull::ElementType> ParseEscapeSequence(StrView& str)
+class Parser
 {
-	str.remove_prefix(1); // Remove '\'
 
-	if(str.empty())
+public:
+	using StrView= std::basic_string_view<CharType>;
+
+	ParseResult Parse(StrView str);
+
+private:
+	std::optional<RegexElementFull::ElementType> ParseEscapeSequence();
+	std::optional<OneOf> ParseOneOf();
+	SequenceMode ParseSequenceMode();
+	std::optional<Sequence> ParseSequence();
+	std::optional<Look> ParseLook();
+
+	std::optional<RegexElementsChain> ParseImpl();
+
+private:
+	size_t next_group_index_= 0;
+	StrView str_initial_;
+	StrView str_;
+	ParseErrors errors_;
+};
+
+ParseResult Parser::Parse(const StrView str)
+{
+	next_group_index_= 1;
+	str_initial_= str_;
+	str_= str;
+
+	if(auto parse_res= ParseImpl())
+		if(errors_.empty())
+			return *parse_res;
+
+	ParseErrors errors;
+	errors_.swap(errors);
+	return std::move(errors);
+}
+
+std::optional<RegexElementFull::ElementType> Parser::ParseEscapeSequence()
+{
+	str_.remove_prefix(1); // Remove '\'
+
+	if(str_.empty())
 		return std::nullopt;
 
-	const CharType c= str.front();
-	str.remove_prefix(1);
+	const CharType c= str_.front();
+	str_.remove_prefix(1);
 
 	switch(c)
 	{
@@ -58,24 +93,24 @@ std::optional<RegexElementFull::ElementType> ParseEscapeSequence(StrView& str)
 	case 'u':
 	{
 		const size_t digiths= c == 'x' ? 2 : 4;
-		if(str.size() < digiths)
+		if(str_.size() < digiths)
 			return std::nullopt;
 
 		CharType code= 0;
 		for(size_t i= 0; i < digiths; ++i)
 		{
-			const CharType d= str[i];
+			const CharType d= str_[i];
 			const size_t shift= (digiths - 1 - i) << 2;
 			if(d >= '0' && d <= '9')
 				code|= (d - '0') << shift;
 			else if(d >= 'a' && d <= 'f')
 				code|= (d - 'a' + 10) << shift;
-			else if(str[i] >= 'A' && str[i] <= 'F')
+			else if(d >= 'A' && d <= 'F')
 				code|= (d - 'A' + 10) << shift;
 			else
 				return std::nullopt;
 		}
-		str.remove_prefix(digiths);
+		str_.remove_prefix(digiths);
 		return SpecificSymbol{ code };
 	}
 
@@ -98,24 +133,24 @@ std::optional<RegexElementFull::ElementType> ParseEscapeSequence(StrView& str)
 	return std::nullopt;
 }
 
-std::optional<OneOf> ParseOneOf(StrView& str)
+std::optional<OneOf> Parser::ParseOneOf()
 {
-	str.remove_prefix(1); // Remove [
+	str_.remove_prefix(1); // Remove [
 
 	OneOf one_of;
 
-	if(!str.empty() && str.front() == '^')
+	if(!str_.empty() && str_.front() == '^')
 	{
-		str.remove_prefix(1); // Remove ^
+		str_.remove_prefix(1); // Remove ^
 		one_of.inverse_flag= true;
 	}
 
-	while(!str.empty() && str.front() != ']')
+	while(!str_.empty() && str_.front() != ']')
 	{
 		constexpr StrView word_class = U"[:word:]";
-		if(str.size() >= word_class.size() && str.substr(0, word_class.size()) == word_class)
+		if(str_.size() >= word_class.size() && str_.substr(0, word_class.size()) == word_class)
 		{
-			str.remove_prefix(word_class.size());
+			str_.remove_prefix(word_class.size());
 			one_of.variants.push_back('_');
 			one_of.ranges.emplace_back('a', 'z');
 			one_of.ranges.emplace_back('A', 'Z');
@@ -124,9 +159,9 @@ std::optional<OneOf> ParseOneOf(StrView& str)
 		}
 
 		constexpr StrView not_word_class = U"^[:word:]";
-		if(str.size() >= not_word_class.size() && str.substr(0, not_word_class.size()) == not_word_class)
+		if(str_.size() >= not_word_class.size() && str_.substr(0, not_word_class.size()) == not_word_class)
 		{
-			str.remove_prefix(not_word_class.size());
+			str_.remove_prefix(not_word_class.size());
 			one_of.inverse_flag= true;
 			one_of.variants.push_back('_');
 			one_of.ranges.emplace_back('a', 'z');
@@ -135,11 +170,11 @@ std::optional<OneOf> ParseOneOf(StrView& str)
 			continue;
 		}
 
-		CharType c= str.front();
+		CharType c= str_.front();
 
 		if(c == '\\')
 		{
-			if(const auto el= ParseEscapeSequence(str))
+			if(const auto el= ParseEscapeSequence())
 			{
 				if(const auto specific_symbol= std::get_if<SpecificSymbol>(&*el))
 					c= specific_symbol->code;
@@ -158,124 +193,124 @@ std::optional<OneOf> ParseOneOf(StrView& str)
 				return std::nullopt;
 		}
 		else
-			str.remove_prefix(1);
+			str_.remove_prefix(1);
 
-		if(str.empty())
+		if(str_.empty())
 		{
 			// TODO - handle error here
 			return std::nullopt;
 		}
 
-		if(str.front() == '-')
+		if(str_.front() == '-')
 		{
-			str.remove_prefix(1);
-			if(str.empty())
+			str_.remove_prefix(1);
+			if(str_.empty())
 			{
 				// TODO - handle error here
 				return std::nullopt;
 			}
-			const CharType end_c= str.front();
+			const CharType end_c= str_.front();
 			// TODO - validate range
 			one_of.ranges.emplace_back(c, end_c);
-			str.remove_prefix(1);
+			str_.remove_prefix(1);
 		}
 		else
 			one_of.variants.push_back(c);
 	}
 
-	if(str.empty() || str.front() != ']')
+	if(str_.empty() || str_.front() != ']')
 	{
 		// TODO - handle error here
 		return std::nullopt;
 	}
-	str.remove_prefix(1);
+	str_.remove_prefix(1);
 
 	return one_of;
 }
 
-SequenceMode ParseSequenceMode(StrView& str)
+SequenceMode Parser::ParseSequenceMode()
 {
-	if(str.empty())
+	if(str_.empty())
 		return SequenceMode::Greedy;
 
-	switch(str.front())
+	switch(str_.front())
 	{
 	case '?':
-		str.remove_prefix(1);
+		str_.remove_prefix(1);
 		return SequenceMode::Lazy;
 
 	case '+':
-		str.remove_prefix(1);
+		str_.remove_prefix(1);
 		return SequenceMode::Possessive;
 	};
 
 	return SequenceMode::Greedy;
 }
 
-std::optional<Sequence> ParseSequence(StrView& str)
+std::optional<Sequence> Parser::ParseSequence()
 {
 	Sequence seq;
 	seq.min_elements= 1;
 	seq.max_elements= 1;
 
-	if(str.empty())
+	if(str_.empty())
 		return seq;
 
 	// Try extract sequence.
-	switch(str.front())
+	switch(str_.front())
 	{
 	case '+':
 		seq.min_elements= 1;
 		seq.max_elements= std::numeric_limits<decltype(seq.max_elements)>::max();
-		str.remove_prefix(1);
-		seq.mode= ParseSequenceMode(str);
+		str_.remove_prefix(1);
+		seq.mode= ParseSequenceMode();
 		break;
 
 	case '*':
 		seq.min_elements= 0;
 		seq.max_elements= std::numeric_limits<decltype(seq.max_elements)>::max();
-		str.remove_prefix(1);
-		seq.mode= ParseSequenceMode(str);
+		str_.remove_prefix(1);
+		seq.mode= ParseSequenceMode();
 		break;
 
 	case '?':
 		seq.min_elements= 0;
 		seq.max_elements= 1;
-		str.remove_prefix(1);
-		seq.mode= ParseSequenceMode(str);
+		str_.remove_prefix(1);
+		seq.mode= ParseSequenceMode();
 		break;
 
 	case '{':
-		str.remove_prefix(1); // skip {
+		str_.remove_prefix(1); // skip {
 
 		// TODO - skip whitespaces inside {}
 
 		seq.min_elements= 0;
-		while(!str.empty() && str.front() >= '0' && str.front() <= '9')
+		while(!str_.empty() && str_.front() >= '0' && str_.front() <= '9')
 		{
 			seq.min_elements*= 10;
-			seq.min_elements+= str.front() - '0';
-			str.remove_prefix(1);
+			seq.min_elements+= str_.front() - '0';
+			str_.remove_prefix(1);
 		}
 
-		if(str.empty())
+		if(str_.empty())
 		{
 			// TODO - handle error here
 			return std::nullopt;
 		}
-		if(str.front() == ',')
+		if(str_.front() == ',')
 		{
-			str.remove_prefix(1); // Skip ,
+			str_.remove_prefix(1); // Skip ,
 
-			if(!str.empty() && str.front() >= '0' && str.front() <= '9')
+			if(!str_.empty() && str_.front() >= '0' && str_.front() <= '9')
 			{
 				seq.max_elements= 0;
 				do
 				{
 					seq.max_elements*= 10;
-					seq.max_elements+= str.front() - '0';
-					str.remove_prefix(1);
-				}while(!str.empty() && str.front() >= '0' && str.front() <= '9');
+					seq.max_elements+= str_.front() - '0';
+					str_.remove_prefix(1);
+				}while(!str_.empty() && str_.front() >= '0' && str_.front() <= '9');
 			}
 			else
 				seq.max_elements= Sequence::c_max;
@@ -283,14 +318,14 @@ std::optional<Sequence> ParseSequence(StrView& str)
 		else
 			seq.max_elements= seq.min_elements;
 
-		if(str.empty() || str.front() != '}')
+		if(str_.empty() || str_.front() != '}')
 		{
 			// TODO - handle error here
 			return std::nullopt;
 		}
-		str.remove_prefix(1); // Skip }
+		str_.remove_prefix(1); // Skip }
 
-		seq.mode= ParseSequenceMode(str);
+		seq.mode= ParseSequenceMode();
 
 		break;
 
@@ -301,62 +336,62 @@ std::optional<Sequence> ParseSequence(StrView& str)
 	return seq;
 }
 
-std::optional<Look> ParseLook(size_t& next_group_index, StrView& str)
+std::optional<Look> Parser::ParseLook()
 {
 	Look look;
 
-	if(str.empty())
+	if(str_.empty())
 		return std::nullopt;
 
-	if(str.front() == '<')
+	if(str_.front() == '<')
 	{
-		str.remove_prefix(1);
+		str_.remove_prefix(1);
 		look.forward= false;
 	}
 	else
 		look.forward= true;
 
-	if(str.empty())
+	if(str_.empty())
 		return std::nullopt;
 
-	if(str.front() == '=')
+	if(str_.front() == '=')
 		look.positive= true;
-	else if(str.front() == '!')
+	else if(str_.front() == '!')
 		look.positive= false;
 	else
 		return std::nullopt;
 
-	str.remove_prefix(1);
+	str_.remove_prefix(1);
 
-	auto sub_elements= ParseRegexStringImpl(next_group_index, str);
+	auto sub_elements= ParseImpl();
 	if(sub_elements == std::nullopt)
 		return std::nullopt;
 
-	if(str.empty() || str.front() != ')')
+	if(str_.empty() || str_.front() != ')')
 		return std::nullopt;
-	str.remove_prefix(1);
+	str_.remove_prefix(1);
 
 	look.elements= std::move(*sub_elements);
 	return look;
 }
 
-std::optional<RegexElementsChain> ParseRegexStringImpl(size_t& next_group_index, StrView& str)
+std::optional<RegexElementsChain> Parser::ParseImpl()
 {
 	RegexElementsChain chain;
 
-	while(!str.empty())
+	while(!str_.empty())
 	{
 		RegexElementFull res;
 
 		// Extract element.
 		// TODO - porcess escape sequences.
-		switch(str.front())
+		switch(str_.front())
 		{
 		case '|':
 		{
-			str.remove_prefix(1);
+			str_.remove_prefix(1);
 
-			auto remaining_expression= ParseRegexStringImpl(next_group_index, str);
+			auto remaining_expression= ParseImpl();
 			if(remaining_expression == std::nullopt)
 				return std::nullopt;
 
@@ -381,77 +416,77 @@ std::optional<RegexElementsChain> ParseRegexStringImpl(size_t& next_group_index,
 		}
 
 		case '(':
-			str.remove_prefix(1);
+			str_.remove_prefix(1);
 
-			if(str.empty())
+			if(str_.empty())
 				return std::nullopt;
 
-			if(str.front() == '?')
+			if(str_.front() == '?')
 			{
-				str.remove_prefix(1);
-				if(str.empty())
+				str_.remove_prefix(1);
+				if(str_.empty())
 					return std::nullopt;
 
-				if(str.front() == 'R')
+				if(str_.front() == 'R')
 				{
-					str.remove_prefix(1);
+					str_.remove_prefix(1);
 
-					if(str.empty() || str.front() != ')')
+					if(str_.empty() || str_.front() != ')')
 						return std::nullopt;
-					str.remove_prefix(1);
+					str_.remove_prefix(1);
 
 					res.el= SubroutineCall{ 0 };
 				}
-				else if(str.front() >= '0' && str.front() <= '9')
+				else if(str_.front() >= '0' && str_.front() <= '9')
 				{
-					const auto index= size_t(str.front() - '0');
-					str.remove_prefix(1);
+					const auto index= size_t(str_.front() - '0');
+					str_.remove_prefix(1);
 
-					if(str.empty() || str.front() != ')')
+					if(str_.empty() || str_.front() != ')')
 						return std::nullopt;
-					str.remove_prefix(1);
+					str_.remove_prefix(1);
 
 					res.el= SubroutineCall{ index };
 				}
-				else if(str.front() == ':')
+				else if(str_.front() == ':')
 				{
-					str.remove_prefix(1);
+					str_.remove_prefix(1);
 
-					auto sub_elements= ParseRegexStringImpl(next_group_index, str);
+					auto sub_elements= ParseImpl();
 					if(sub_elements == std::nullopt)
 						return std::nullopt;
 
-					if(str.empty() || str.front() != ')')
+					if(str_.empty() || str_.front() != ')')
 						return std::nullopt;
-					str.remove_prefix(1);
+					str_.remove_prefix(1);
 
 					res.el= NonCapturingGroup{ std::move(*sub_elements) };
 				}
-				else if(str.front() == '>')
+				else if(str_.front() == '>')
 				{
-					str.remove_prefix(1);
+					str_.remove_prefix(1);
 
-					auto sub_elements= ParseRegexStringImpl(next_group_index, str);
+					auto sub_elements= ParseImpl();
 					if(sub_elements == std::nullopt)
 						return std::nullopt;
 
-					if(str.empty() || str.front() != ')')
+					if(str_.empty() || str_.front() != ')')
 						return std::nullopt;
-					str.remove_prefix(1);
+					str_.remove_prefix(1);
 
 					res.el= AtomicGroup{ std::move(*sub_elements) };
 				}
-				else if(str.size() >= 2 && str[0] == '(' && str[1] == '?')
+				else if(str_.size() >= 2 && str_[0] == '(' && str_[1] == '?')
 				{
-					str.remove_prefix(2);
-					auto look= ParseLook(next_group_index, str);
+					str_.remove_prefix(2);
+					auto look= ParseLook();
 					if(look == std::nullopt)
 						return std::nullopt;
 
-					auto sub_elements= ParseRegexStringImpl(next_group_index, str);
-					if(str.empty() || str.front() != ')')
+					auto sub_elements= ParseImpl();
+					if(str_.empty() || str_.front() != ')')
 						return std::nullopt;
-					str.remove_prefix(1);
+					str_.remove_prefix(1);
 
 					if(sub_elements == std::nullopt || sub_elements->size() != 1)
 						return std::nullopt;
@@ -467,7 +502,7 @@ std::optional<RegexElementsChain> ParseRegexStringImpl(size_t& next_group_index,
 				}
 				else
 				{
-					auto look= ParseLook(next_group_index, str);
+					auto look= ParseLook();
 					if(look == std::nullopt)
 						return std::nullopt;
 
@@ -476,19 +511,19 @@ std::optional<RegexElementsChain> ParseRegexStringImpl(size_t& next_group_index,
 			}
 			else
 			{
-				const size_t current_group_index= next_group_index;
-				++next_group_index;
+				const size_t current_group_index= next_group_index_;
+				++next_group_index_;
 
-				auto sub_elements= ParseRegexStringImpl(next_group_index, str);
+				auto sub_elements= ParseImpl();
 				if(sub_elements == std::nullopt)
 					return std::nullopt;
 
-				if(str.empty() || str.front() != ')')
+				if(str_.empty() || str_.front() != ')')
 				{
 					// TODO - handle error here
 					return std::nullopt;
 				}
-				str.remove_prefix(1);
+				str_.remove_prefix(1);
 
 				res.el= Group{ current_group_index, std::move(*sub_elements) };
 			}
@@ -499,12 +534,12 @@ std::optional<RegexElementsChain> ParseRegexStringImpl(size_t& next_group_index,
 
 		case '.':
 			res.el= AnySymbol{};
-			str.remove_prefix(1);
+			str_.remove_prefix(1);
 			break;
 
 		case '[':
 		{
-			auto one_of= ParseOneOf(str);
+			auto one_of= ParseOneOf();
 			if(one_of == std::nullopt)
 				return std::nullopt;
 			res.el= std::move(*one_of);
@@ -513,7 +548,7 @@ std::optional<RegexElementsChain> ParseRegexStringImpl(size_t& next_group_index,
 
 		case '\\':
 		{
-			auto symbol= ParseEscapeSequence(str);
+			auto symbol= ParseEscapeSequence();
 			if(symbol == std::nullopt)
 				return std::nullopt;
 			res.el= std::move(*symbol);
@@ -521,12 +556,12 @@ std::optional<RegexElementsChain> ParseRegexStringImpl(size_t& next_group_index,
 			break;
 
 		default:
-			res.el= SpecificSymbol{ str.front() };
-			str.remove_prefix(1);
+			res.el= SpecificSymbol{ str_.front() };
+			str_.remove_prefix(1);
 			break;
 		};
 
-		auto seq= ParseSequence(str);
+		auto seq= ParseSequence();
 		if(seq == std::nullopt)
 			return std::nullopt;
 		res.seq= *seq;
@@ -539,7 +574,7 @@ std::optional<RegexElementsChain> ParseRegexStringImpl(size_t& next_group_index,
 
 } // namespace
 
-std::optional<RegexElementsChain> ParseRegexString(const std::string_view str)
+ParseResult ParseRegexString(const std::string_view str)
 {
 	// Do internal parsing in UTF-32 format (with fixed codepoint size). Convert input string into UTF-32.
 
@@ -555,14 +590,17 @@ std::optional<RegexElementsChain> ParseRegexString(const std::string_view str)
 		const auto res= llvm::ConvertUTF8toUTF32(&src_start, src_end, &target_start, target_end, llvm::strictConversion);
 
 		if(res != llvm::conversionOK)
-			return std::nullopt;
+		{
+			ParseErrors errors;
+			errors.push_back(ParseError{0, "Invalid UTF-8"});
+			return std::move(errors);
+		}
 
 		str_utf32.resize(size_t(target_start - target_start_initial));
 	}
 
-	StrView s= str_utf32;
-	size_t next_group_index= 1;
-	return ParseRegexStringImpl(next_group_index, s);
+	Parser parser;
+	return parser.Parse(str_utf32);
 }
 
 } // namespace RegPanzer

@@ -6,7 +6,17 @@
 namespace RegPanzer
 {
 
+struct ParseError
+{
+	size_t pos;
+	std::string message;
+};
+
+using ParseErrors= std::vector<ParseError>;
+
+using ParseResult= std::variant<RegexElementsChain, ParseErrors>;
+
 // Parse regex in UTF-8 format.
-std::optional<RegexElementsChain> ParseRegexString(std::string_view str);
+ParseResult ParseRegexString(std::string_view str);
 
 } // namespace RegPanzer

@@ -35,11 +35,11 @@ class GeneratedLLVMMatcherTest : public ::testing::TestWithParam<MatcherTestData
 TEST_P(GeneratedLLVMMatcherTest, TestMatch)
 {
 	const auto param= GetParam();
-	const auto regex_chain= RegPanzer::ParseRegexString(param.regex_str);
-	ASSERT_NE(regex_chain, std::nullopt);
+	const auto parse_res= RegPanzer::ParseRegexString(param.regex_str);
+	const auto regex_chain= std::get_if<RegexElementsChain>(&parse_res);
+	ASSERT_TRUE(regex_chain != nullptr);
 
 	const auto regex_graph= BuildRegexGraph(*regex_chain);
-
 
 	llvm::LLVMContext llvm_context;
 	auto module= std::make_unique<llvm::Module>("id", llvm_context);

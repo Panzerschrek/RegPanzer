@@ -15,11 +15,10 @@ class ParseTest : public ::testing::TestWithParam<TestDataElement> {};
 TEST_P(ParseTest, CheckParse)
 {
 	const auto param= GetParam();
-	const auto res = RegPanzer::ParseRegexString(param.first);
-	if(res != param.second)
-	{
-		ASSERT_EQ(res, param.second);
-	}
+	const auto parse_res= RegPanzer::ParseRegexString(param.first);
+	const auto regex_chain= std::get_if<RegexElementsChain>(&parse_res);
+	ASSERT_TRUE(regex_chain != nullptr);
+	ASSERT_EQ(*regex_chain, param.second);
 }
 
 const TestDataElement c_test_data[]
