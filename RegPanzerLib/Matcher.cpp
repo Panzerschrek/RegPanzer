@@ -16,6 +16,7 @@ namespace
 struct State
 {
 	std::string_view str;
+	std::string_view str_initial;
 	std::string_view groups[10];
 	llvm::DenseMap<GraphElements::SequenceId, size_t> sequence_counters;
 	llvm::SmallVector<GraphElements::NodePtr, 8> subroutines_return_stack;
@@ -290,14 +291,15 @@ bool MatchNode(const GraphElements::NodePtr& node, State& state)
 
 } // namespace
 
-MatchResult Match(const GraphElements::NodePtr& node, std::string_view str)
+MatchResult Match(const GraphElements::NodePtr& node, const std::string_view str, const size_t start_pos)
 {
-	for(size_t i= 0; i < str.size(); ++i)
+	for(size_t i= start_pos; i < str.size(); ++i)
 	{
 		State state;
-		state.str= str.substr(i, str.size() - i);
+		state.str= str.substr(i);
+		state.str_initial = str;
 		if(MatchNode(node, state))
-			return str.substr(i, str.size() - state.str.size() - i);
+			return str.substr(i, str.size() - i - state.str.size());
 	}
 
 	return std::nullopt;
