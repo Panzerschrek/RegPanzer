@@ -9,6 +9,16 @@ namespace RegPanzer
 namespace
 {
 
+std::string CharTypeToString(const CharType c)
+{
+	char buff[UNI_MAX_UTF8_BYTES_PER_CODE_POINT+4];
+	char* buff_ptr= buff;
+	llvm::ConvertCodePointToUTF8(c, buff_ptr);
+	const auto char_size= uint32_t(buff_ptr - buff);
+	buff[char_size]= '\0';
+	return buff;
+}
+
 class Parser
 {
 public:
@@ -121,7 +131,7 @@ RegexElementFull::ElementType Parser::ParseEscapeSequence()
 				code|= (d - 'A' + 10) << shift;
 			else
 			{
-				ReportError("Unexpected hex number: " + d);
+				ReportError("Unexpected hex number: " + CharTypeToString(d));
 				return AnySymbol();
 			}
 		}
@@ -146,7 +156,7 @@ RegexElementFull::ElementType Parser::ParseEscapeSequence()
 		return AnySymbol();
 	}
 
-	ReportError("Unknown escape sequence: " + c);
+	ReportError("Unknown escape sequence: " + CharTypeToString(c));
 	return AnySymbol();
 }
 
@@ -392,7 +402,7 @@ Look Parser::ParseLook()
 		look.positive= false;
 	else
 	{
-		ReportError("Unexpected look direction: " + str_.front());
+		ReportError("Unexpected look direction: " + CharTypeToString(str_.front()));
 		return look;
 	}
 
