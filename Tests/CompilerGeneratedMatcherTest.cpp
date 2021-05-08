@@ -1,7 +1,5 @@
 #include "MatcherTestData.hpp"
 #include "Utils.hpp"
-#include "../RegPanzerLib/MatcherGeneratorLLVM.hpp"
-#include "../RegPanzerLib/Parser.hpp"
 #include "../RegPanzerLib/PushDisableLLVMWarnings.hpp"
 #include <llvm/ExecutionEngine/ExecutionEngine.h>
 #include <llvm/ExecutionEngine/MCJIT.h>
@@ -15,33 +13,65 @@ namespace RegPanzer
 namespace
 {
 
-class GeneratedLLVMBinaryMatcherTest : public ::testing::TestWithParam<MatcherTestDataElement> {};
-
-TEST_P(GeneratedLLVMBinaryMatcherTest, TestMatch)
+std::string EscapeShellString(const std::string& str)
 {
-	auto target_machine= CreateTargetMachine();
-	ASSERT_TRUE(target_machine != nullptr);
+	std::string res;
+	res+= "\"";
+	for(const char c : str)
+	{
+		if(c == '\\')
+			res+= "\\\\";
+		else if(c == '"')
+			res+= "\\\"";
+		else
+			res.push_back(c);
+	}
+	res+= "\"";
+	return res;
+}
+
+class CompilerGeneratedMatcherTest : public ::testing::TestWithParam<MatcherTestDataElement> {};
+
+TEST_P(CompilerGeneratedMatcherTest, TestMatch)
+{
+	// Launch compiler, produce object file, load it into MCJIT Execition engine and run function from it.
 
 	const auto param= GetParam();
-	const auto parse_res= RegPanzer::ParseRegexString(param.regex_str);
-	const auto regex_chain= std::get_if<RegexElementsChain>(&parse_res);
-	ASSERT_TRUE(regex_chain != nullptr);
 
-	const auto regex_graph= BuildRegexGraph(*regex_chain);
+	const std::string function_name= "test_match";
+	const std::string object_file_path= "test.o";
+	{
+		// This test must be launched from build directory, where also located the Compiler executable.
 
-	const std::string function_name= "Match";
+		const std::string compiler_path= "./RegPanzerCompiler";
+		const std::string command=
+			compiler_path + " " +
+			EscapeShellString(param.regex_str) + " " +
+			"--function-name " + function_name + " " +
+			"-o " + object_file_path + " " +
+			"-O2";
+
+		const auto res= std::system(command.c_str());
+		ASSERT_EQ(res, 0);
+	}
+
+	auto target_machine= CreateTargetMachine();
+	ASSERT_TRUE(target_machine != nullptr);
 
 	llvm::LLVMContext llvm_context;
 	auto module= std::make_unique<llvm::Module>("id", llvm_context);
 	module->setDataLayout(target_machine->createDataLayout());
-
-	GenerateMatcherFunction(*module, regex_graph, function_name);
 
 	llvm::EngineBuilder builder(std::move(module));
 	builder.setEngineKind(llvm::EngineKind::JIT);
 	builder.setMemoryManager(std::make_unique<llvm::SectionMemoryManager>());
 	const std::unique_ptr<llvm::ExecutionEngine> engine(builder.create(target_machine.release())); // Engine takes ownership over target machine.
 	ASSERT_TRUE(engine != nullptr);
+
+	auto object_file= llvm::object::ObjectFile::createObjectFile(object_file_path);
+	ASSERT_TRUE(static_cast<bool>(object_file));
+
+	engine->addObjectFile(std::move(*object_file));
 
 	using FunctionType= const char*(*)(const char*, const char*);
 	const auto function= reinterpret_cast<FunctionType>(engine->getFunctionAddress(function_name));
@@ -68,7 +98,7 @@ TEST_P(GeneratedLLVMBinaryMatcherTest, TestMatch)
 	}
 }
 
-INSTANTIATE_TEST_CASE_P(M, GeneratedLLVMBinaryMatcherTest, testing::ValuesIn(g_matcher_test_data));
+INSTANTIATE_TEST_CASE_P(M, CompilerGeneratedMatcherTest, testing::ValuesIn(g_matcher_test_data));
 
 } // namespace
 

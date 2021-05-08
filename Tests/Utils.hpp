@@ -1,4 +1,7 @@
 #pragma once
+#include "../RegPanzerLib/PushDisableLLVMWarnings.hpp"
+#include <llvm/Target/TargetMachine.h>
+#include "../RegPanzerLib/PopLLVMWarnings.hpp"
 #include <string>
 
 namespace RegPanzer
@@ -25,5 +28,7 @@ using RegexFeatureFlags= size_t;
 
 RegexFeatureFlags GetRegexFeatures(const std::string& regex_str);
 bool StringContainsNonASCIISymbols(const std::string& str);
+
+std::unique_ptr<llvm::TargetMachine> CreateTargetMachine();
 
 } // namespace RegPanzer

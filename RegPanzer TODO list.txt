@@ -23,6 +23,5 @@ LLVM Generator:
 * Match optimization for symbol sequences
 
 Tests:
-* Tests for generated binary code (including optimized version)
 * More Unicode tests
 * Performance tests (benchmarks)

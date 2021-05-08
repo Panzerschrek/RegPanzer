@@ -1,5 +1,12 @@
 #include "../RegPanzerLib/Parser.hpp"
 #include "Utils.hpp"
+#include "../RegPanzerLib/PushDisableLLVMWarnings.hpp"
+#include <llvm/MC/SubtargetFeature.h>
+#include <llvm/Support/TargetSelect.h>
+#include <llvm/Support/TargetRegistry.h>
+#include <llvm/Target/TargetMachine.h>
+#include "../RegPanzerLib/PopLLVMWarnings.hpp"
+#include <iostream>
 
 namespace RegPanzer
 {
@@ -121,6 +128,46 @@ bool StringContainsNonASCIISymbols(const std::string& str)
 			return true;
 
 	return false;
+}
+
+std::unique_ptr<llvm::TargetMachine> CreateTargetMachine()
+{
+	llvm::InitializeAllTargets();
+	llvm::InitializeAllTargetMCs();
+	llvm::InitializeAllAsmPrinters();
+	llvm::InitializeAllAsmParsers();
+
+	const llvm::Triple target_triple(llvm::sys::getDefaultTargetTriple());
+	const std::string target_triple_str= target_triple.normalize();
+
+	std::string error_str;
+	const auto target= llvm::TargetRegistry::lookupTarget(target_triple_str, error_str);
+	if(target == nullptr)
+	{
+		std::cerr << "Error, selecting target: " << error_str << std::endl;
+		return nullptr;
+	}
+
+	llvm::SubtargetFeatures features;
+	llvm::StringMap<bool> host_features;
+	if(llvm::sys::getHostCPUFeatures(host_features))
+		for(auto& f : host_features)
+			features.AddFeature(f.first(), f.second);
+
+	llvm::TargetOptions target_options;
+
+	const auto code_gen_optimization_level= llvm::CodeGenOpt::Default;
+
+	return
+		std::unique_ptr<llvm::TargetMachine>(
+			target->createTargetMachine(
+				target_triple_str,
+				llvm::sys::getHostCPUName(),
+				features.getString(),
+				target_options,
+				llvm::Reloc::Model::PIC_,
+				llvm::Optional<llvm::CodeModel::Model>(),
+				code_gen_optimization_level));
 }
 
 } // namespace RegPanzer
