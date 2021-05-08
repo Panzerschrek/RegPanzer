@@ -20,7 +20,10 @@ template<typename T> RegexFeatureFlags GetSequeneFeaturesForElement(const T&){ r
 
 RegexFeatureFlags GetSequeneFeaturesForElement(const Look& look)
 {
-	return RegexFeatureFlag::Look | GetSequeneFeatures(look.elements);
+	return
+		RegexFeatureFlag::Look |
+		(look.forward ? 0 : RegexFeatureFlag::LookBehind) |
+		GetSequeneFeatures(look.elements);
 }
 
 RegexFeatureFlags GetSequeneFeaturesForElement(const Group& group)

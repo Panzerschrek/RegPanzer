@@ -21,6 +21,7 @@ struct RegexFeatureFlag
 		Subroutines= 1 << 7,
 		SymbolClasses= 1 << 8,
 		FourDigitHexCodes= 1 << 9,
+		LookBehind= 1 << 10,
 	};
 };
 

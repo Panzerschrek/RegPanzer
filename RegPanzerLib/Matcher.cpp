@@ -138,10 +138,14 @@ bool MatchNodeImpl(const GraphElements::LookAhead& node, State& state)
 
 bool MatchNodeImpl(const GraphElements::LookBehind& node, State& state)
 {
-	// TODO
-	(void)node;
-	(void)state;
-	return false;
+	const auto current_pos= size_t(state.str.data() - state.str_initial.data());
+	if(current_pos < node.size)
+		return (!node.positive) && MatchNode(node.next, state);
+
+	State state_copy= state;
+	state_copy.str= state_copy.str_initial.substr(current_pos - node.size);
+
+	return (!node.positive ^ MatchNode(node.look_graph, state_copy)) && MatchNode(node.next, state);
 }
 
 bool MatchNodeImpl(const GraphElements::ConditionalElement& node, State& state)
