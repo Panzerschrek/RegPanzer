@@ -19,7 +19,8 @@ const char* GetNodeName(const GraphElements::Alternatives&) { return "alternativ
 const char* GetNodeName(const GraphElements::GroupStart&) { return "group_start"; }
 const char* GetNodeName(const GraphElements::GroupEnd&) { return "group_end"; }
 const char* GetNodeName(const GraphElements::BackReference&) { return "back_reference"; }
-const char* GetNodeName(const GraphElements::Look&) { return "look"; }
+const char* GetNodeName(const GraphElements::LookAhead&) { return "look_ahead"; }
+const char* GetNodeName(const GraphElements::LookBehind&) { return "look_behind"; }
 const char* GetNodeName(const GraphElements::ConditionalElement&) { return "condtinonal_element"; }
 const char* GetNodeName(const GraphElements::SequenceCounterReset&) { return "sequence_counter_reset"; }
 const char* GetNodeName(const GraphElements::SequenceCounter&) { return "loop_counter_block"; }
@@ -111,7 +112,10 @@ private:
 		IRBuilder& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::BackReference& node);
 
 	void BuildNodeFunctionBodyImpl(
-		IRBuilder& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::Look& node);
+		IRBuilder& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::LookAhead& node);
+
+	void BuildNodeFunctionBodyImpl(
+		IRBuilder& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::LookBehind& node);
 
 	void BuildNodeFunctionBodyImpl(
 		IRBuilder& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::ConditionalElement& node);
@@ -953,36 +957,37 @@ void Generator::BuildNodeFunctionBodyImpl(
 }
 
 void Generator::BuildNodeFunctionBodyImpl(
-	IRBuilder& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::Look& node)
+	IRBuilder& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::LookAhead& node)
 {
 	const auto function= llvm_ir_builder.GetInsertBlock()->getParent();
 
 	const auto state_copy_ptr= llvm_ir_builder.CreateAlloca(state_type_, 0, "state_copy");
-	if(node.forward)
-	{
-		CopyState(llvm_ir_builder, state_copy_ptr, state_ptr);
-		const auto call_res= llvm_ir_builder.CreateCall(GetOrCreateNodeFunction(node.look_graph), {state_copy_ptr});
 
-		const auto ok_block= llvm::BasicBlock::Create(context_, "ok", function);
-		const auto fail_block= llvm::BasicBlock::Create(context_, "fail", function);
+	CopyState(llvm_ir_builder, state_copy_ptr, state_ptr);
+	const auto call_res= llvm_ir_builder.CreateCall(GetOrCreateNodeFunction(node.look_graph), {state_copy_ptr});
 
-		if(node.positive)
-			llvm_ir_builder.CreateCondBr(call_res, ok_block, fail_block);
-		else
-			llvm_ir_builder.CreateCondBr(call_res, fail_block, ok_block);
+	const auto ok_block= llvm::BasicBlock::Create(context_, "ok", function);
+	const auto fail_block= llvm::BasicBlock::Create(context_, "fail", function);
 
-		// Ok block.
-		llvm_ir_builder.SetInsertPoint(ok_block);
-		CreateNextCallRet(llvm_ir_builder, state_ptr, node.next);
-
-		// Fail block.
-		llvm_ir_builder.SetInsertPoint(fail_block);
-		llvm_ir_builder.CreateRet(llvm::ConstantInt::getFalse(context_));
-	}
+	if(node.positive)
+		llvm_ir_builder.CreateCondBr(call_res, ok_block, fail_block);
 	else
-	{
-		assert(false && "not implemented yet!");
-	}
+		llvm_ir_builder.CreateCondBr(call_res, fail_block, ok_block);
+
+	// Ok block.
+	llvm_ir_builder.SetInsertPoint(ok_block);
+	CreateNextCallRet(llvm_ir_builder, state_ptr, node.next);
+
+	// Fail block.
+	llvm_ir_builder.SetInsertPoint(fail_block);
+	llvm_ir_builder.CreateRet(llvm::ConstantInt::getFalse(context_));
+}
+
+void Generator::BuildNodeFunctionBodyImpl(
+	IRBuilder& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::LookBehind& node)
+{
+	// TODO
+	CreateNextCallRet(llvm_ir_builder, state_ptr, node.next);
 }
 
 void Generator::BuildNodeFunctionBodyImpl(
@@ -992,6 +997,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 
 	const auto state_copy_ptr= llvm_ir_builder.CreateAlloca(state_type_, 0, "state_copy");
 
+	// TODO - do not save state here if next node is "look" which saves state too.
 	CopyState(llvm_ir_builder, state_copy_ptr, state_ptr);
 	const auto call_res= llvm_ir_builder.CreateCall(GetOrCreateNodeFunction(node.condition_node), {state_copy_ptr});
 

@@ -130,18 +130,18 @@ bool MatchNodeImpl(const GraphElements::BackReference& node, State& state)
 	return false;
 }
 
-bool MatchNodeImpl(const GraphElements::Look& node, State& state)
+bool MatchNodeImpl(const GraphElements::LookAhead& node, State& state)
 {
-	if(node.forward)
-	{
-		State state_copy= state;
-		return (!node.positive ^ MatchNode(node.look_graph, state_copy)) && MatchNode(node.next, state);
-	}
-	else
-	{
-		assert(false && "not implemented yet!");
-		return false;
-	}
+	State state_copy= state;
+	return (!node.positive ^ MatchNode(node.look_graph, state_copy)) && MatchNode(node.next, state);
+}
+
+bool MatchNodeImpl(const GraphElements::LookBehind& node, State& state)
+{
+	// TODO
+	(void)node;
+	(void)state;
+	return false;
 }
 
 bool MatchNodeImpl(const GraphElements::ConditionalElement& node, State& state)
