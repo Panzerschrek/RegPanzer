@@ -1,5 +1,6 @@
 #include "MatcherTestData.hpp"
 #include "Utils.hpp"
+#include "../RegPanzerLib/MatcherGeneratorLLVM.hpp"
 #include "../RegPanzerLib/PushDisableLLVMWarnings.hpp"
 #include <llvm/ExecutionEngine/ExecutionEngine.h>
 #include <llvm/ExecutionEngine/MCJIT.h>
@@ -73,8 +74,7 @@ TEST_P(CompilerGeneratedMatcherTest, TestMatch)
 
 	engine->addObjectFile(std::move(*object_file));
 
-	using FunctionType= const char*(*)(const char*, const char*);
-	const auto function= reinterpret_cast<FunctionType>(engine->getFunctionAddress(function_name));
+	const auto function= reinterpret_cast<MatcherFunctionType>(engine->getFunctionAddress(function_name));
 	ASSERT_TRUE(function != nullptr);
 
 	for(const MatcherTestDataElement::Case& c : param.cases)
@@ -82,7 +82,7 @@ TEST_P(CompilerGeneratedMatcherTest, TestMatch)
 		MatcherTestDataElement::Ranges result_ranges;
 		for(size_t i= 0; i < c.input_str.size();)
 		{
-			const char* const match_end_ptr= function(c.input_str.data() + i, c.input_str.data() + c.input_str.size());
+			const char* const match_end_ptr= function(c.input_str.data(), c.input_str.size(), i);
 
 			if(match_end_ptr == nullptr)
 				++i;

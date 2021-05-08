@@ -61,9 +61,10 @@ TEST_P(GeneratedLLVMMatcherTest, TestMatch)
 		MatcherTestDataElement::Ranges result_ranges;
 		for(size_t i= 0; i < c.input_str.size();)
 		{
-			llvm::GenericValue args[2];
-			args[0].PointerVal= const_cast<char*>(c.input_str.data() + i);
-			args[1].PointerVal= const_cast<char*>(c.input_str.data() + c.input_str.size());
+			llvm::GenericValue args[3];
+			args[0].PointerVal= const_cast<char*>(c.input_str.data());
+			args[1].IntVal= llvm::APInt(sizeof(size_t), c.input_str.size());
+			args[2].IntVal= llvm::APInt(sizeof(size_t), i);
 
 			const llvm::GenericValue result_value= engine->runFunction(function, args);
 			const char* const match_end_ptr= reinterpret_cast<const char*>(result_value.PointerVal);

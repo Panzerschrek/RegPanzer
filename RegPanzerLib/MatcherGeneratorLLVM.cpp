@@ -191,16 +191,20 @@ void Generator::GenerateMatcherFunction(const RegexGraphBuildResult& regex_graph
 	CreateStateType(regex_graph);
 
 	// Root function look like this:
-	// const char* Match(const char* begin, const char* end);
+	// const char* Match(const char* begin, size_t size, size_t start_offset);
 	// It returns "nullptr" if no match found or pointer to match end.
 
 	const auto root_function_type=
 		llvm::FunctionType::get(
 			char_type_ptr_,
-			{char_type_ptr_, char_type_ptr_},
+			{char_type_ptr_, ptr_size_int_type_, ptr_size_int_type_},
 			false);
 
 	const auto root_function= llvm::Function::Create(root_function_type, llvm::GlobalValue::ExternalLinkage, function_name, module_);
+
+	const auto arg_begin= &*root_function->arg_begin();
+	const auto arg_size= &*std::next(root_function->arg_begin());
+	const auto arg_start_offset= &*std::next(std::next(root_function->arg_begin()));
 
 	const auto start_basic_block= llvm::BasicBlock::Create(context_, "", root_function);
 	const auto found_block= llvm::BasicBlock::Create(context_, "found", root_function);
@@ -215,10 +219,12 @@ void Generator::GenerateMatcherFunction(const RegexGraphBuildResult& regex_graph
 		// Set begin/end pointers.
 
 		const auto str_begin_ptr= llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrBegin)});
-		llvm_ir_builder.CreateStore(&*root_function->arg_begin(), str_begin_ptr);
+		const auto str_begin_value= llvm_ir_builder.CreateGEP(arg_begin, arg_start_offset);
+		llvm_ir_builder.CreateStore(str_begin_value, str_begin_ptr);
 
 		const auto str_end_ptr= llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrEnd)});
-		llvm_ir_builder.CreateStore(&*std::next(root_function->arg_begin()), str_end_ptr);
+		const auto str_end_value= llvm_ir_builder.CreateGEP(arg_begin, arg_size);
+		llvm_ir_builder.CreateStore(str_end_value, str_end_ptr);
 	}
 	{
 		// Zero groups.
