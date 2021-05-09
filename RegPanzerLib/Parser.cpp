@@ -215,8 +215,9 @@ OneOf Parser::ParseOneOf()
 			else
 				ReportError("Unexpected excape sequence inside \"OneOf\"");
 		}
+		else
+			str_.remove_prefix(1);
 
-		str_.remove_prefix(1);
 		if(str_.empty())
 		{
 			ReportUnexpectedEndOfLineError();
