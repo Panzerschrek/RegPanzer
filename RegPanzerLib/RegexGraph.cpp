@@ -304,6 +304,26 @@ GraphElements::NodePtr BuildRegexGraphNodeImpl(const GroupStats&, OutRegexData&,
 
 GraphElements::NodePtr BuildRegexGraphNodeImpl(const GroupStats&, OutRegexData&, const SpecificSymbol& specific_symbol, const GraphElements::NodePtr& next)
 {
+	if(next != nullptr)
+	{
+		// Combine sequences of symbols into strings, because matcher generator generates more optimal code for strings rather than for chains of symbols.
+		if(const auto next_specific_symbol= std::get_if<GraphElements::SpecificSymbol>(next.get()))
+		{
+			GraphElements::String string;
+			string.str.push_back(specific_symbol.code);
+			string.str.push_back(next_specific_symbol->code);
+			string.next= next_specific_symbol->next;
+			return std::make_shared<GraphElements::Node>(std::move(string));
+		}
+		else if(const auto next_string= std::get_if<GraphElements::String>(next.get()))
+		{
+			GraphElements::String string;
+			string.str.push_back(specific_symbol.code);
+			string.str+= next_string->str;
+			string.next= next_string->next;
+			return std::make_shared<GraphElements::Node>(std::move(string));
+		}
+	}
 	return std::make_shared<GraphElements::Node>(GraphElements::SpecificSymbol{next, specific_symbol.code});
 }
 

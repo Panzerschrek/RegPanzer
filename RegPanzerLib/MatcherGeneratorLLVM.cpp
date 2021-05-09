@@ -14,6 +14,7 @@ const char* GetNodeName(const GraphElements::NodePtr& node);
 
 const char* GetNodeName(const GraphElements::AnySymbol&) { return "any_symbol"; }
 const char* GetNodeName(const GraphElements::SpecificSymbol&) { return "specific_symbol"; }
+const char* GetNodeName(const GraphElements::String&) { return "string"; }
 const char* GetNodeName(const GraphElements::OneOf&) { return "one_of"; }
 const char* GetNodeName(const GraphElements::Alternatives&) { return "alternatives"; }
 const char* GetNodeName(const GraphElements::GroupStart&) { return "group_start"; }
@@ -96,6 +97,9 @@ private:
 
 	void BuildNodeFunctionBodyImpl(
 		IRBuilder& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::SpecificSymbol& node);
+
+	void BuildNodeFunctionBodyImpl(
+		IRBuilder& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::String& node);
 
 	void BuildNodeFunctionBodyImpl(
 		IRBuilder& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::OneOf& node);
@@ -448,7 +452,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 	{
 		next_str_begin_value= llvm_ir_builder.CreateGEP(str_begin_value, GetFieldGEPIndex(char_size), "next_str_begin_value");
 
-		const auto not_enough_condition= llvm_ir_builder.CreateICmpULT(str_begin_value, next_str_begin_value);
+		const auto not_enough_condition= llvm_ir_builder.CreateICmpULE(next_str_begin_value, str_end_value);
 		llvm_ir_builder.CreateCondBr(not_enough_condition, check_content_block, fail_block);
 
 		// Check content block.
@@ -476,6 +480,133 @@ void Generator::BuildNodeFunctionBodyImpl(
 	// Fail block
 	llvm_ir_builder.SetInsertPoint(fail_block);
 	llvm_ir_builder.CreateRet(llvm::ConstantInt::getFalse(context_));
+}
+
+void Generator::BuildNodeFunctionBodyImpl(
+	IRBuilder& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::String& node)
+{
+	std::string str_utf8;
+	{
+		str_utf8.resize(node.str.size() * 6);
+
+		auto source_start= reinterpret_cast<const llvm::UTF32*>(node.str.data());
+		const auto source_end= source_start + node.str.size();
+
+		const auto target_start_initial= reinterpret_cast<llvm::UTF8*>(str_utf8.data());
+		auto target_start= target_start_initial;
+		auto target_end= target_start + str_utf8.size();
+		const auto res= llvm::ConvertUTF32toUTF8(&source_start, source_end, &target_start, target_end, llvm::ConversionFlags());
+		(void)res;
+		assert(res == llvm::conversionOK && source_start == source_end);
+
+		str_utf8.resize(size_t(target_start - target_start_initial));
+	}
+
+	const auto function= llvm_ir_builder.GetInsertBlock()->getParent();
+
+	const auto str_begin_ptr= llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrBegin)});
+	const auto str_begin_value= llvm_ir_builder.CreateLoad(str_begin_ptr, "str_begin_value");
+
+	const auto str_end_ptr= llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrEnd)});
+	const auto str_end_value= llvm_ir_builder.CreateLoad(str_end_ptr, "str_end_value");
+
+	const auto next_str_begin_value= llvm_ir_builder.CreateGEP(str_begin_value, GetFieldGEPIndex(uint32_t(str_utf8.size())), "next_str_begin_value");
+	const auto not_enough_condition= llvm_ir_builder.CreateICmpULE(next_str_begin_value, str_end_value);
+
+	const size_t c_loop_unroll_size= 16; // Constant optimal for 128-bit registers.
+	if(str_utf8.size() <= c_loop_unroll_size)
+	{
+		const auto check_content_block= llvm::BasicBlock::Create(context_, "check_content", function);
+		const auto ok_block= llvm::BasicBlock::Create(context_, "ok", function);
+		const auto fail_block= llvm::BasicBlock::Create(context_, "fail", function);
+
+		const auto not_enough_condition= llvm_ir_builder.CreateICmpULE(next_str_begin_value, str_end_value);
+		llvm_ir_builder.CreateCondBr(not_enough_condition, check_content_block, fail_block);
+
+		// Check content block.
+		llvm_ir_builder.SetInsertPoint(check_content_block);
+
+		llvm::Value* all_eq_value= nullptr;
+		for(uint32_t i= 0; i < str_utf8.size(); ++i)
+		{
+			const auto char_ptr= llvm_ir_builder.CreateGEP(str_begin_value, GetFieldGEPIndex(i));
+			const auto char_value= llvm_ir_builder.CreateLoad(char_ptr, "char_value");
+			const auto eq= llvm_ir_builder.CreateICmpEQ(char_value, GetConstant(char_type_, uint64_t(str_utf8[i])), "eq");
+			if(all_eq_value == nullptr)
+				all_eq_value = eq;
+			else
+				all_eq_value= llvm_ir_builder.CreateAnd(all_eq_value, eq);
+		}
+		llvm_ir_builder.CreateCondBr(all_eq_value, ok_block, fail_block);
+
+		// Ok block.
+		llvm_ir_builder.SetInsertPoint(ok_block);
+		llvm_ir_builder.CreateStore(next_str_begin_value, str_begin_ptr);
+		CreateNextCallRet(llvm_ir_builder, state_ptr, node.next);
+
+		// Fail block
+		llvm_ir_builder.SetInsertPoint(fail_block);
+		llvm_ir_builder.CreateRet(llvm::ConstantInt::getFalse(context_));
+	}
+	else
+	{
+		const auto constant_initializer= llvm::ConstantDataArray::getString(context_, str_utf8, false);
+		const auto constant_str_array=
+			new llvm::GlobalVariable(
+				module_,
+				constant_initializer->getType(),
+				true,
+				llvm::GlobalValue::PrivateLinkage,
+				constant_initializer,
+				"string_literal");
+
+		const auto start_block= llvm_ir_builder.GetInsertBlock();
+		const auto loop_counter_check_block= llvm::BasicBlock::Create(context_, "loop_counter_check", function);
+		const auto loop_body_block= llvm::BasicBlock::Create(context_, "loop_body", function);
+		const auto loop_counter_increase_block= llvm::BasicBlock::Create(context_, "loop_counter_increase", function);
+		const auto end_block= llvm::BasicBlock::Create(context_, "end", function);
+		const auto fail_block= llvm::BasicBlock::Create(context_, "fail", function);
+
+		llvm_ir_builder.CreateCondBr(not_enough_condition, loop_counter_check_block, fail_block);
+
+		// Loop counter check block.
+		llvm_ir_builder.SetInsertPoint(loop_counter_check_block);
+		const auto loop_counter_current= llvm_ir_builder.CreatePHI(ptr_size_int_type_, 2, "loop_counter_current");
+		loop_counter_current->addIncoming(llvm::ConstantInt::getNullValue(ptr_size_int_type_), start_block);
+
+		const auto loop_end_condition= llvm_ir_builder.CreateICmpULT(loop_counter_current, GetConstant(ptr_size_int_type_, uint64_t(str_utf8.size())));
+		llvm_ir_builder.CreateCondBr(loop_end_condition, loop_body_block, end_block);
+
+		// Loop body block.
+		llvm_ir_builder.SetInsertPoint(loop_body_block);
+		const auto constant_str_char_ptr= llvm_ir_builder.CreateGEP(constant_str_array, {GetZeroGEPIndex(), loop_counter_current});
+		const auto group_char= llvm_ir_builder.CreateLoad(constant_str_char_ptr, "constant_str_char");
+
+		const auto str_char_ptr= llvm_ir_builder.CreateGEP(str_begin_value, loop_counter_current);
+		const auto str_char= llvm_ir_builder.CreateLoad(str_char_ptr, "str_char");
+
+		const auto char_eq= llvm_ir_builder.CreateICmpEQ(group_char, str_char, "char_eq");
+		llvm_ir_builder.CreateCondBr(char_eq, loop_counter_increase_block, fail_block);
+
+		// Loop counter increase block.
+		llvm_ir_builder.SetInsertPoint(loop_counter_increase_block);
+		const auto loop_counter_next=
+			llvm_ir_builder.CreateAdd(
+				loop_counter_current,
+				llvm::ConstantInt::get(ptr_size_int_type_, 1),
+				"loop_counter_next");
+		loop_counter_current->addIncoming(loop_counter_next, loop_counter_increase_block);
+		llvm_ir_builder.CreateBr(loop_counter_check_block);
+
+		// End block.
+		llvm_ir_builder.SetInsertPoint(end_block);
+		llvm_ir_builder.CreateStore(next_str_begin_value, str_begin_ptr);
+		CreateNextCallRet(llvm_ir_builder, state_ptr, node.next);
+
+		// Fail block.
+		llvm_ir_builder.SetInsertPoint(fail_block);
+		llvm_ir_builder.CreateRet(llvm::ConstantInt::getFalse(context_));
+	}
 }
 
 void Generator::BuildNodeFunctionBodyImpl(

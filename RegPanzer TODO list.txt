@@ -20,7 +20,6 @@ Library:
 LLVM Generator:
 * State save optimization - save only needed state parts
 * Optimization of state save chain node structure size
-* Match optimization for symbol sequences
 
 Tests:
 * More Unicode tests

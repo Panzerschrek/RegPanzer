@@ -62,6 +62,32 @@ bool MatchNodeImpl(const GraphElements::SpecificSymbol& node, State& state)
 	return ExtractCodePoint(state) == node.code && MatchNode(node.next, state);
 }
 
+bool MatchNodeImpl(const GraphElements::String& node, State& state)
+{
+	std::string str_utf8;
+	str_utf8.resize(node.str.size() * 6);
+
+	auto source_start= reinterpret_cast<const llvm::UTF32*>(node.str.data());
+	const auto source_end= source_start + node.str.size();
+
+	const auto target_start_initial= reinterpret_cast<llvm::UTF8*>(str_utf8.data());
+	auto target_start= target_start_initial;
+	auto target_end= target_start + str_utf8.size();
+	const auto res= llvm::ConvertUTF32toUTF8(&source_start, source_end, &target_start, target_end, llvm::ConversionFlags());
+	if(res != llvm::conversionOK || source_start != source_end)
+		return false;
+
+	str_utf8.resize(size_t(target_start - target_start_initial));
+
+	if(state.str.size() >= str_utf8.size() && state.str.substr(0, str_utf8.size()) == str_utf8)
+	{
+		state.str.remove_prefix(str_utf8.size());
+		return MatchNode(node.next, state);
+	}
+
+	return false;
+}
+
 bool MatchNodeImpl(const GraphElements::OneOf& node, State& state)
 {
 	const auto code= ExtractCodePoint(state);

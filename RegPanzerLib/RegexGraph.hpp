@@ -16,6 +16,7 @@ using CharType= char32_t;
 
 struct AnySymbol;
 struct SpecificSymbol;
+struct String;
 struct OneOf;
 struct Alternatives;
 struct GroupStart;
@@ -37,6 +38,7 @@ struct StateRestore;
 using Node= std::variant<
 	AnySymbol,
 	SpecificSymbol,
+	String,
 	OneOf,
 	Alternatives,
 	GroupStart,
@@ -66,6 +68,12 @@ struct SpecificSymbol
 {
 	NodePtr next;
 	CharType code= 0;
+};
+
+struct String
+{
+	NodePtr next;
+	std::basic_string<CharType> str;
 };
 
 struct OneOf
