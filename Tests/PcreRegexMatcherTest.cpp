@@ -57,7 +57,7 @@ TEST_P(PcreRegexMatchTest, TestMatch)
 	pcre_free(r);
 }
 
-INSTANTIATE_TEST_CASE_P(M, PcreRegexMatchTest, testing::ValuesIn(g_matcher_test_data));
+INSTANTIATE_TEST_CASE_P(M, PcreRegexMatchTest, testing::ValuesIn(g_matcher_test_data, g_matcher_test_data + g_matcher_test_data_size));
 
 } // namespace
 

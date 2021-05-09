@@ -83,7 +83,7 @@ TEST_P(GeneratedLLVMMatcherTest, TestMatch)
 	}
 }
 
-INSTANTIATE_TEST_CASE_P(M, GeneratedLLVMMatcherTest, testing::ValuesIn(g_matcher_test_data));
+INSTANTIATE_TEST_CASE_P(M, GeneratedLLVMMatcherTest, testing::ValuesIn(g_matcher_test_data, g_matcher_test_data + g_matcher_test_data_size));
 
 } // namespace
 

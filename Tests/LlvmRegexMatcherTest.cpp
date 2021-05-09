@@ -59,7 +59,7 @@ TEST_P(LlvmRegexMatchTest, TestMatch)
 	}
 }
 
-INSTANTIATE_TEST_CASE_P(M, LlvmRegexMatchTest, testing::ValuesIn(g_matcher_test_data));
+INSTANTIATE_TEST_CASE_P(M, LlvmRegexMatchTest, testing::ValuesIn(g_matcher_test_data, g_matcher_test_data + g_matcher_test_data_size));
 
 } // namespace
 
