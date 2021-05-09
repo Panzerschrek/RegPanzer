@@ -3,13 +3,13 @@ Remve items from this list if it is implemented.
 
 General features:
 * Line end assertion ($)
-* Lookback
 * Obtaining groups of match result
 * Full string match
 * Unicode classes
 * Case-unsensetiveness
 * Modifiers (case turn/off, etc.)
 * Zero-lenght string match
+* More advanced lookbehind - with alternatives or even with non-fixed size
 
 Library:
 * UTF-16 and UTF-32 matchers
