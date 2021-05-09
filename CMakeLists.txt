@@ -90,7 +90,7 @@ target_link_libraries(RegPanzerCompiler PRIVATE RegPanzerLib ${LLVM_LIBS_FOR_REG
 if(DEFINED LLVM_SRC_DIR)
 	file(GLOB REG_PANZER_TEST_SOURCES "Tests/*")
 
-	find_library(PCRE_LIBRARY pcrecpp)
+	find_library(PCRE_LIBRARY pcre)
 	if(PCRE_LIBRARY)
 		message("Found PCRE library: ${PCRE_LIBRARY}")
 	else()

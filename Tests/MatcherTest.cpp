@@ -26,15 +26,17 @@ TEST_P(MatchTest, TestMatch)
 	{
 		MatcherTestDataElement::Ranges result_ranges;
 
-		std::string_view str= c.input_str;
-		while(true)
+		size_t start_pos= 0;
+		while(start_pos < c.input_str.size())
 		{
-			const MatchResult res= Match(regex_graph.root, str);
+			const MatchResult res= Match(regex_graph.root, c.input_str, start_pos);
 			if(res == std::nullopt || res->empty())
 				break;
 
-			result_ranges.emplace_back(size_t(res->data() - c.input_str.data()), size_t(res->data() + res->size() - c.input_str.data()));
-			str= str.substr(size_t(res->data() + res->size() - str.data()));
+			const size_t start_offset= size_t(res->data() - c.input_str.data());
+			const size_t end_offset= start_offset + res->size();
+			result_ranges.emplace_back(start_offset, end_offset);
+			start_pos= end_offset;
 		}
 
 		EXPECT_EQ(result_ranges, c.result_ranges);

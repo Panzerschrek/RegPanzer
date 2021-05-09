@@ -191,6 +191,102 @@ void SearchRecursiveGroupCalls(GroupStats& group_stats)
 }
 
 //
+// GetRegexChainSize
+//
+
+using MinMaxSize= std::pair<size_t, size_t>;
+
+MinMaxSize GetRegexChainSize(const RegexElementsChain& regex_chain);
+
+MinMaxSize GetRegexElementSize_impl(const AnySymbol&)
+{
+	return MinMaxSize{1, 1};
+}
+
+MinMaxSize GetRegexElementSize_impl(const SpecificSymbol&)
+{
+	return MinMaxSize{1, 1};
+}
+
+MinMaxSize GetRegexElementSize_impl(const OneOf&)
+{
+	return MinMaxSize{1, 1};
+}
+
+MinMaxSize GetRegexElementSize_impl(const Group& group)
+{
+	return GetRegexChainSize(group.elements);
+}
+
+MinMaxSize GetRegexElementSize_impl(const BackReference&)
+{
+	return MinMaxSize{0, Sequence::c_max};
+}
+
+MinMaxSize GetRegexElementSize_impl(const NonCapturingGroup& group)
+{
+	return GetRegexChainSize(group.elements);
+}
+
+MinMaxSize GetRegexElementSize_impl(const AtomicGroup& group)
+{
+	return GetRegexChainSize(group.elements);
+}
+
+MinMaxSize GetRegexElementSize_impl(const Alternatives& alternatives)
+{
+	MinMaxSize s{Sequence::c_max, 0};
+	for(const RegexElementsChain& alternative : alternatives.alternatives)
+	{
+		const auto el_s= GetRegexChainSize(alternative);
+		s.first= std::min(s.first, el_s.first);
+		s.second= std::max(s.second, el_s.second);
+	}
+	return s;
+}
+
+MinMaxSize GetRegexElementSize_impl(const Look&)
+{
+	return MinMaxSize{0, 0};
+}
+
+MinMaxSize GetRegexElementSize_impl(const ConditionalElement& conditional_element)
+{
+	return GetRegexElementSize_impl(conditional_element.alternatives);
+}
+
+MinMaxSize GetRegexElementSize_impl(const SubroutineCall&)
+{
+	return MinMaxSize{0, Sequence::c_max};
+}
+
+MinMaxSize GetRegexElementSize(const RegexElementFull& element)
+{
+	MinMaxSize el_size= std::visit([&](const auto& el){ return GetRegexElementSize_impl(el); }, element.el);
+
+	el_size.first*= element.seq.min_elements;
+	if(element.seq.max_elements == Sequence::c_max)
+		el_size.second= Sequence::c_max;
+	else
+		el_size.second*= element.seq.max_elements;
+
+	return el_size;
+}
+
+MinMaxSize GetRegexChainSize(const RegexElementsChain& regex_chain)
+{
+	MinMaxSize s{0, 0};
+	for(const RegexElementFull& el : regex_chain)
+	{
+		const auto el_s= GetRegexElementSize(el);
+		s.first+= el_s.first;
+		s.second+= el_s.second;
+	}
+
+	return s;
+}
+
+//
 // BuildRegexGraphNode
 //
 
@@ -299,13 +395,25 @@ GraphElements::NodePtr BuildRegexGraphNodeImpl(const GroupStats& group_stats, Ou
 
 GraphElements::NodePtr BuildRegexGraphNodeImpl(const GroupStats& group_stats, OutRegexData& out_data, const Look& look, const GraphElements::NodePtr& next)
 {
-	GraphElements::Look out_node;
-	out_node.next= next;
-	out_node.look_graph= BuildRegexGraphChain(group_stats, out_data, look.elements, nullptr);
-	out_node.forward= look.forward;
-	out_node.positive= look.positive;
+	if(look.forward)
+	{
+		GraphElements::LookAhead out_node;
+		out_node.next= next;
+		out_node.look_graph= BuildRegexGraphChain(group_stats, out_data, look.elements, nullptr);
+		out_node.positive= look.positive;
 
-	return std::make_shared<GraphElements::Node>(std::move(out_node));
+		return std::make_shared<GraphElements::Node>(std::move(out_node));
+	}
+	else
+	{
+		GraphElements::LookBehind out_node;
+		out_node.next= next;
+		out_node.look_graph= BuildRegexGraphChain(group_stats, out_data, look.elements, nullptr);
+		out_node.positive= look.positive;
+		out_node.size= GetRegexChainSize(look.elements).first; // TODO - raise error is size is not exact. Now - just use minimum size.
+
+		return std::make_shared<GraphElements::Node>(std::move(out_node));
+	}
 }
 
 GraphElements::NodePtr BuildRegexGraphNodeImpl(const GroupStats& group_stats, OutRegexData& out_data, const ConditionalElement& conditional_element, const GraphElements::NodePtr& next)
@@ -478,7 +586,7 @@ void SetupSubroutineCallsImpl(const GraphElements::Alternatives& node, const Out
 		SetupSubroutineCalls(next, regex_data);
 }
 
-void SetupSubroutineCallsImpl(const GraphElements::Look& node, const OutRegexData& regex_data)
+void SetupSubroutineCallsImpl(const GraphElements::LookAhead& node, const OutRegexData& regex_data)
 {
 	SetupSubroutineCalls(node.next, regex_data);
 	SetupSubroutineCalls(node.look_graph, regex_data);

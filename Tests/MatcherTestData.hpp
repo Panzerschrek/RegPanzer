@@ -1473,6 +1473,118 @@ inline const MatcherTestDataElement g_matcher_test_data[]
 		}
 	},
 
+	{ // Simple lookbehind.
+		"(?<=Q)w",
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // No lookbehind symbol at beginning - no match.
+				"w",
+				{}
+			},
+			{ // No lookbehind symbol at beginning - no match.
+				" w",
+				{}
+			},
+			{ // Simplest possible match.
+				"Qw",
+				{ {1, 2} }
+			},
+			{ // No match for second 'w'.
+				"aQww",
+				{ {2, 3} }
+			},
+			{ // Two closest matches.
+				"QwQw",
+				{ {1, 2}, {3, 4} }
+			},
+		}
+	},
+
+	{ // Negative lookbehind with length more, than 1.
+		"(?<!10)[a-z]+",
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // Simplest posible match.
+				"t",
+				{ {0, 1} }
+			},
+			{ // Match with multiple symbols.
+				"wat",
+				{ {0, 3} }
+			},
+			{ // Match starts with position '3' because of lookbehind condition.
+				"10wat",
+				{ {3, 5} }
+			},
+			{ // Have full match because lookbehind condition is not full.
+				"0wat",
+				{ {1, 4} }
+			},
+			{ // Have full first match and second match with first symbol skipped.
+				"rty10ghnb",
+				{ {0, 3}, {6, 9} }
+			},
+		}
+	},
+
+	{ // Negative lookbehind with alternatives.
+		"(?<!lol|wat)\\.",
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // Simplest possible match.
+				".",
+				{ {0, 1} },
+			},
+			{ // Three sequential matches.
+				"...",
+				{ {0, 1}, {1, 2}, {2, 3} },
+			},
+			{ // No match because of first alternative.
+				"lol.",
+				{}
+			},
+			{ // No match because of second alternative.
+				"wat.",
+				{}
+			},
+		}
+	},
+
+	{ // Positive lookbehind with lookbehind symbol valid as full expression.
+		"(?<=a)[a-z]",
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // No match - can't lookbehind.
+				"v",
+				{}
+			},
+			{ // Simplest possible match.
+				"ab",
+				{ {1, 2} }
+			},
+			{ // Two sequential matches, where symbol from first match used in lookbehind in second match.
+				"aak",
+				{ {1, 2}, {2, 3} }
+			},
+			{ // Three sequential matches.
+				"aaaa",
+				{ {1, 2}, {2, 3}, {3, 4} }
+			},
+		}
+	},
+
 	{ // Simplest backreference.
 		"(w)\\1",
 		{

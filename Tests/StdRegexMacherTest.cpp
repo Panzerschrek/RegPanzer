@@ -24,7 +24,8 @@ TEST_P(StdRegexMatchTest, TestMatch)
 			RegexFeatureFlag::AtomicGroups |
 			RegexFeatureFlag::ConditionalElements |
 			RegexFeatureFlag::Subroutines |
-			RegexFeatureFlag::FourDigitHexCodes)) != 0)
+			RegexFeatureFlag::FourDigitHexCodes  |
+			RegexFeatureFlag::LookBehind)) != 0)
 		return;
 
 	try

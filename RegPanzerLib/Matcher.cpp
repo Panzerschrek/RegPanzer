@@ -16,6 +16,7 @@ namespace
 struct State
 {
 	std::string_view str;
+	std::string_view str_initial;
 	std::string_view groups[10];
 	llvm::DenseMap<GraphElements::SequenceId, size_t> sequence_counters;
 	llvm::SmallVector<GraphElements::NodePtr, 8> subroutines_return_stack;
@@ -129,18 +130,22 @@ bool MatchNodeImpl(const GraphElements::BackReference& node, State& state)
 	return false;
 }
 
-bool MatchNodeImpl(const GraphElements::Look& node, State& state)
+bool MatchNodeImpl(const GraphElements::LookAhead& node, State& state)
 {
-	if(node.forward)
-	{
-		State state_copy= state;
-		return (!node.positive ^ MatchNode(node.look_graph, state_copy)) && MatchNode(node.next, state);
-	}
-	else
-	{
-		assert(false && "not implemented yet!");
-		return false;
-	}
+	State state_copy= state;
+	return (!node.positive ^ MatchNode(node.look_graph, state_copy)) && MatchNode(node.next, state);
+}
+
+bool MatchNodeImpl(const GraphElements::LookBehind& node, State& state)
+{
+	const auto current_pos= size_t(state.str.data() - state.str_initial.data());
+	if(current_pos < node.size)
+		return (!node.positive) && MatchNode(node.next, state);
+
+	State state_copy= state;
+	state_copy.str= state_copy.str_initial.substr(current_pos - node.size);
+
+	return (!node.positive ^ MatchNode(node.look_graph, state_copy)) && MatchNode(node.next, state);
 }
 
 bool MatchNodeImpl(const GraphElements::ConditionalElement& node, State& state)
@@ -290,14 +295,15 @@ bool MatchNode(const GraphElements::NodePtr& node, State& state)
 
 } // namespace
 
-MatchResult Match(const GraphElements::NodePtr& node, std::string_view str)
+MatchResult Match(const GraphElements::NodePtr& node, const std::string_view str, const size_t start_pos)
 {
-	for(size_t i= 0; i < str.size(); ++i)
+	for(size_t i= start_pos; i < str.size(); ++i)
 	{
 		State state;
-		state.str= str.substr(i, str.size() - i);
+		state.str= str.substr(i);
+		state.str_initial = str;
 		if(MatchNode(node, state))
-			return str.substr(i, str.size() - state.str.size() - i);
+			return str.substr(i, str.size() - i - state.str.size());
 	}
 
 	return std::nullopt;

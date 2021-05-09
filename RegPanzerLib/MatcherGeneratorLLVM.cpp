@@ -19,7 +19,8 @@ const char* GetNodeName(const GraphElements::Alternatives&) { return "alternativ
 const char* GetNodeName(const GraphElements::GroupStart&) { return "group_start"; }
 const char* GetNodeName(const GraphElements::GroupEnd&) { return "group_end"; }
 const char* GetNodeName(const GraphElements::BackReference&) { return "back_reference"; }
-const char* GetNodeName(const GraphElements::Look&) { return "look"; }
+const char* GetNodeName(const GraphElements::LookAhead&) { return "look_ahead"; }
+const char* GetNodeName(const GraphElements::LookBehind&) { return "look_behind"; }
 const char* GetNodeName(const GraphElements::ConditionalElement&) { return "condtinonal_element"; }
 const char* GetNodeName(const GraphElements::SequenceCounterReset&) { return "sequence_counter_reset"; }
 const char* GetNodeName(const GraphElements::SequenceCounter&) { return "loop_counter_block"; }
@@ -45,6 +46,7 @@ struct StateFieldIndex
 	{
 		StrBegin,
 		StrEnd,
+		StrBeginInitial,
 		SequenceContersArray,
 		GroupsArray,
 		// Optinal fields.
@@ -111,7 +113,10 @@ private:
 		IRBuilder& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::BackReference& node);
 
 	void BuildNodeFunctionBodyImpl(
-		IRBuilder& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::Look& node);
+		IRBuilder& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::LookAhead& node);
+
+	void BuildNodeFunctionBodyImpl(
+		IRBuilder& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::LookBehind& node);
 
 	void BuildNodeFunctionBodyImpl(
 		IRBuilder& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::ConditionalElement& node);
@@ -191,16 +196,20 @@ void Generator::GenerateMatcherFunction(const RegexGraphBuildResult& regex_graph
 	CreateStateType(regex_graph);
 
 	// Root function look like this:
-	// const char* Match(const char* begin, const char* end);
+	// const char* Match(const char* begin, size_t size, size_t start_offset);
 	// It returns "nullptr" if no match found or pointer to match end.
 
 	const auto root_function_type=
 		llvm::FunctionType::get(
 			char_type_ptr_,
-			{char_type_ptr_, char_type_ptr_},
+			{char_type_ptr_, ptr_size_int_type_, ptr_size_int_type_},
 			false);
 
 	const auto root_function= llvm::Function::Create(root_function_type, llvm::GlobalValue::ExternalLinkage, function_name, module_);
+
+	const auto arg_begin= &*root_function->arg_begin();
+	const auto arg_size= &*std::next(root_function->arg_begin());
+	const auto arg_start_offset= &*std::next(std::next(root_function->arg_begin()));
 
 	const auto start_basic_block= llvm::BasicBlock::Create(context_, "", root_function);
 	const auto found_block= llvm::BasicBlock::Create(context_, "found", root_function);
@@ -215,10 +224,15 @@ void Generator::GenerateMatcherFunction(const RegexGraphBuildResult& regex_graph
 		// Set begin/end pointers.
 
 		const auto str_begin_ptr= llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrBegin)});
-		llvm_ir_builder.CreateStore(&*root_function->arg_begin(), str_begin_ptr);
+		const auto str_begin_value= llvm_ir_builder.CreateGEP(arg_begin, arg_start_offset);
+		llvm_ir_builder.CreateStore(str_begin_value, str_begin_ptr);
 
 		const auto str_end_ptr= llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrEnd)});
-		llvm_ir_builder.CreateStore(&*std::next(root_function->arg_begin()), str_end_ptr);
+		const auto str_end_value= llvm_ir_builder.CreateGEP(arg_begin, arg_size);
+		llvm_ir_builder.CreateStore(str_end_value, str_end_ptr);
+
+		const auto str_begin_initial_ptr= llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrBeginInitial)});
+		llvm_ir_builder.CreateStore(arg_begin, str_begin_initial_ptr);
 	}
 	{
 		// Zero groups.
@@ -296,6 +310,7 @@ void Generator::CreateStateType(const RegexGraphBuildResult& regex_graph)
 
 	members.push_back(char_type_ptr_); // StrBegin
 	members.push_back(char_type_ptr_); // StrEnd
+	members.push_back(char_type_ptr_); // StrBeginInitial
 
 	const GroupStat& regex_stat= regex_graph.group_stats.at(0);
 	{
@@ -947,35 +962,79 @@ void Generator::BuildNodeFunctionBodyImpl(
 }
 
 void Generator::BuildNodeFunctionBodyImpl(
-	IRBuilder& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::Look& node)
+	IRBuilder& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::LookAhead& node)
 {
 	const auto function= llvm_ir_builder.GetInsertBlock()->getParent();
 
 	const auto state_copy_ptr= llvm_ir_builder.CreateAlloca(state_type_, 0, "state_copy");
-	if(node.forward)
+
+	CopyState(llvm_ir_builder, state_copy_ptr, state_ptr);
+	const auto call_res= llvm_ir_builder.CreateCall(GetOrCreateNodeFunction(node.look_graph), {state_copy_ptr});
+
+	const auto ok_block= llvm::BasicBlock::Create(context_, "ok", function);
+	const auto fail_block= llvm::BasicBlock::Create(context_, "fail", function);
+
+	if(node.positive)
+		llvm_ir_builder.CreateCondBr(call_res, ok_block, fail_block);
+	else
+		llvm_ir_builder.CreateCondBr(call_res, fail_block, ok_block);
+
+	// Ok block.
+	llvm_ir_builder.SetInsertPoint(ok_block);
+	CreateNextCallRet(llvm_ir_builder, state_ptr, node.next);
+
+	// Fail block.
+	llvm_ir_builder.SetInsertPoint(fail_block);
+	llvm_ir_builder.CreateRet(llvm::ConstantInt::getFalse(context_));
+}
+
+void Generator::BuildNodeFunctionBodyImpl(
+	IRBuilder& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::LookBehind& node)
+{
+	const auto function= llvm_ir_builder.GetInsertBlock()->getParent();
+
+	const auto state_copy_ptr= llvm_ir_builder.CreateAlloca(state_type_, 0, "state_copy");
+
+	const auto do_look_block= llvm::BasicBlock::Create(context_, "do_look", function);
+	const auto look_ok_block= llvm::BasicBlock::Create(context_, "look_ok", function);
+	const auto look_fail_block= llvm::BasicBlock::Create(context_, "look_fail", function);
+
+	const auto str_begin= llvm_ir_builder.CreateLoad(llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrBegin)}));
+	const auto str_begin_initial= llvm_ir_builder.CreateLoad(llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrBeginInitial)}));
+
+	const auto str_begin_for_look= llvm_ir_builder.CreateGEP(str_begin, GetConstant(ptr_size_int_type_, uint64_t(-node.size)));
+
+	const auto can_perfrom_look_condition= llvm_ir_builder.CreateICmpUGE(str_begin_for_look, str_begin_initial);
+	llvm_ir_builder.CreateCondBr(can_perfrom_look_condition, do_look_block, look_fail_block);
+
+	// Do look block.
+	llvm_ir_builder.SetInsertPoint(do_look_block);
+	CopyState(llvm_ir_builder, state_copy_ptr, state_ptr);
+	llvm_ir_builder.CreateStore(
+		str_begin_for_look,
+		llvm_ir_builder.CreateGEP(state_copy_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrBegin)}));
+	const auto look_res= llvm_ir_builder.CreateCall(GetOrCreateNodeFunction(node.look_graph), {state_copy_ptr});
+	llvm_ir_builder.CreateCondBr(look_res, look_ok_block, look_fail_block);
+
+	if(node.positive)
 	{
-		CopyState(llvm_ir_builder, state_copy_ptr, state_ptr);
-		const auto call_res= llvm_ir_builder.CreateCall(GetOrCreateNodeFunction(node.look_graph), {state_copy_ptr});
-
-		const auto ok_block= llvm::BasicBlock::Create(context_, "ok", function);
-		const auto fail_block= llvm::BasicBlock::Create(context_, "fail", function);
-
-		if(node.positive)
-			llvm_ir_builder.CreateCondBr(call_res, ok_block, fail_block);
-		else
-			llvm_ir_builder.CreateCondBr(call_res, fail_block, ok_block);
-
-		// Ok block.
-		llvm_ir_builder.SetInsertPoint(ok_block);
+		// Look ok block.
+		llvm_ir_builder.SetInsertPoint(look_ok_block);
 		CreateNextCallRet(llvm_ir_builder, state_ptr, node.next);
 
-		// Fail block.
-		llvm_ir_builder.SetInsertPoint(fail_block);
+		// Look fail block.
+		llvm_ir_builder.SetInsertPoint(look_fail_block);
 		llvm_ir_builder.CreateRet(llvm::ConstantInt::getFalse(context_));
 	}
 	else
 	{
-		assert(false && "not implemented yet!");
+		// Look ok block.
+		llvm_ir_builder.SetInsertPoint(look_ok_block);
+		llvm_ir_builder.CreateRet(llvm::ConstantInt::getFalse(context_));
+
+		// Look fail block.
+		llvm_ir_builder.SetInsertPoint(look_fail_block);
+		CreateNextCallRet(llvm_ir_builder, state_ptr, node.next);
 	}
 }
 
@@ -986,6 +1045,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 
 	const auto state_copy_ptr= llvm_ir_builder.CreateAlloca(state_type_, 0, "state_copy");
 
+	// TODO - do not save state here if next node is "look" which saves state too.
 	CopyState(llvm_ir_builder, state_copy_ptr, state_ptr);
 	const auto call_res= llvm_ir_builder.CreateCall(GetOrCreateNodeFunction(node.condition_node), {state_copy_ptr});
 

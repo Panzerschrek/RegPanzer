@@ -21,7 +21,8 @@ struct Alternatives;
 struct GroupStart;
 struct GroupEnd;
 struct BackReference;
-struct Look;
+struct LookAhead;
+struct LookBehind;
 struct ConditionalElement;
 struct SequenceCounterReset;
 struct SequenceCounter;
@@ -41,7 +42,8 @@ using Node= std::variant<
 	GroupStart,
 	GroupEnd,
 	BackReference,
-	Look,
+	LookAhead,
+	LookBehind,
 	ConditionalElement,
 	SequenceCounterReset,
 	SequenceCounter,
@@ -98,12 +100,19 @@ struct BackReference
 	size_t index= std::numeric_limits<size_t>::max();
 };
 
-struct Look
+struct LookAhead
 {
 	NodePtr next;
 	NodePtr look_graph;
-	bool forward= true;
 	bool positive= true;
+};
+
+struct LookBehind
+{
+	NodePtr next;
+	NodePtr look_graph;
+	bool positive= true;
+	size_t size= 0; // Now we support look behind with fixed size only.
 };
 
 struct ConditionalElement
