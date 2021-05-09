@@ -46,6 +46,7 @@ struct StateFieldIndex
 	{
 		StrBegin,
 		StrEnd,
+		StrBeginInitial,
 		SequenceContersArray,
 		GroupsArray,
 		// Optinal fields.
@@ -229,6 +230,9 @@ void Generator::GenerateMatcherFunction(const RegexGraphBuildResult& regex_graph
 		const auto str_end_ptr= llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrEnd)});
 		const auto str_end_value= llvm_ir_builder.CreateGEP(arg_begin, arg_size);
 		llvm_ir_builder.CreateStore(str_end_value, str_end_ptr);
+
+		const auto str_begin_initial_ptr= llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrBeginInitial)});
+		llvm_ir_builder.CreateStore(arg_begin, str_begin_initial_ptr);
 	}
 	{
 		// Zero groups.
@@ -306,6 +310,7 @@ void Generator::CreateStateType(const RegexGraphBuildResult& regex_graph)
 
 	members.push_back(char_type_ptr_); // StrBegin
 	members.push_back(char_type_ptr_); // StrEnd
+	members.push_back(char_type_ptr_); // StrBeginInitial
 
 	const GroupStat& regex_stat= regex_graph.group_stats.at(0);
 	{
@@ -986,8 +991,51 @@ void Generator::BuildNodeFunctionBodyImpl(
 void Generator::BuildNodeFunctionBodyImpl(
 	IRBuilder& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::LookBehind& node)
 {
-	// TODO
-	CreateNextCallRet(llvm_ir_builder, state_ptr, node.next);
+	const auto function= llvm_ir_builder.GetInsertBlock()->getParent();
+
+	const auto state_copy_ptr= llvm_ir_builder.CreateAlloca(state_type_, 0, "state_copy");
+
+	const auto do_look_block= llvm::BasicBlock::Create(context_, "do_look", function);
+	const auto look_ok_block= llvm::BasicBlock::Create(context_, "look_ok", function);
+	const auto look_fail_block= llvm::BasicBlock::Create(context_, "look_fail", function);
+
+	const auto str_begin= llvm_ir_builder.CreateLoad(llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrBegin)}));
+	const auto str_begin_initial= llvm_ir_builder.CreateLoad(llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrBeginInitial)}));
+
+	const auto str_begin_for_look= llvm_ir_builder.CreateGEP(str_begin, GetConstant(ptr_size_int_type_, uint64_t(-node.size)));
+
+	const auto can_perfrom_look_condition= llvm_ir_builder.CreateICmpUGE(str_begin_for_look, str_begin_initial);
+	llvm_ir_builder.CreateCondBr(can_perfrom_look_condition, do_look_block, look_fail_block);
+
+	// Do look block.
+	llvm_ir_builder.SetInsertPoint(do_look_block);
+	CopyState(llvm_ir_builder, state_copy_ptr, state_ptr);
+	llvm_ir_builder.CreateStore(
+		str_begin_for_look,
+		llvm_ir_builder.CreateGEP(state_copy_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrBegin)}));
+	const auto look_res= llvm_ir_builder.CreateCall(GetOrCreateNodeFunction(node.look_graph), {state_copy_ptr});
+	llvm_ir_builder.CreateCondBr(look_res, look_ok_block, look_fail_block);
+
+	if(node.positive)
+	{
+		// Look ok block.
+		llvm_ir_builder.SetInsertPoint(look_ok_block);
+		CreateNextCallRet(llvm_ir_builder, state_ptr, node.next);
+
+		// Look fail block.
+		llvm_ir_builder.SetInsertPoint(look_fail_block);
+		llvm_ir_builder.CreateRet(llvm::ConstantInt::getFalse(context_));
+	}
+	else
+	{
+		// Look ok block.
+		llvm_ir_builder.SetInsertPoint(look_ok_block);
+		llvm_ir_builder.CreateRet(llvm::ConstantInt::getFalse(context_));
+
+		// Look fail block.
+		llvm_ir_builder.SetInsertPoint(look_fail_block);
+		CreateNextCallRet(llvm_ir_builder, state_ptr, node.next);
+	}
 }
 
 void Generator::BuildNodeFunctionBodyImpl(
