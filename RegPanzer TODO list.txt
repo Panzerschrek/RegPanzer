@@ -3,15 +3,25 @@ Remve items from this list if it is implemented.
 
 General features:
 * Line end assertion ($)
-* Obtaining groups of match result
+* Obtaining subpatterns of match result
 * Full string match
+* Simple assertions
 * Unicode classes
+* Newline conventions
+* Relative backreferences
+* Recursive backreferences
+* Duplicated subputtern numbers (in alternatives)
+* Named subpatterns
+* Subpatterns for reference usage only (DEFINE)
 * Case-unsensetiveness
 * Modifiers (case turn/off, etc.)
+* Match start reset
 * Zero-lenght string match
+* Comments
 * More advanced lookbehind - with alternatives or even with non-fixed size
 
 Library:
+* Fix error with lookbehind with non-ASCII symbols
 * UTF-16 and UTF-32 matchers
 * "OneOf" normalization/optimization
 * Auto-possessification for sequences (replace recursion with loop if possible)
