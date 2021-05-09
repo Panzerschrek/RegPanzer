@@ -40,16 +40,16 @@ private:
 
 private:
 	size_t next_group_index_= 0;
-	StrView str_initial_;
 	StrView str_;
+	const CharType* str_initial_= nullptr;
 	ParseErrors errors_;
 };
 
 ParseResult Parser::Parse(const StrView str)
 {
 	next_group_index_= 1;
-	str_initial_= str_;
 	str_= str;
+	str_initial_= str_.data();
 
 	auto parse_res= ParseChain();
 
@@ -215,9 +215,8 @@ OneOf Parser::ParseOneOf()
 			else
 				ReportError("Unexpected excape sequence inside \"OneOf\"");
 		}
-		else
-			str_.remove_prefix(1);
 
+		str_.remove_prefix(1);
 		if(str_.empty())
 		{
 			ReportUnexpectedEndOfLineError();
@@ -662,7 +661,7 @@ void Parser::ReportUnexpectedSymbol(const CharType symbol)
 
 void Parser::ReportError(std::string message)
 {
-	const auto pos= size_t(str_.data() - str_initial_.data());
+	const auto pos= size_t(str_.data() - str_initial_);
 	errors_.push_back(ParseError{pos, std::move(message)});
 }
 

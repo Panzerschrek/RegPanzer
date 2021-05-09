@@ -8,7 +8,7 @@ namespace RegPanzer
 
 struct ParseError
 {
-	size_t pos;
+	size_t pos= 0;
 	std::string message;
 };
 
