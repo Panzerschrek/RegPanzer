@@ -321,7 +321,13 @@ bool MatchNode(const GraphElements::NodePtr& node, State& state)
 
 } // namespace
 
-MatchResult Match(const GraphElements::NodePtr& node, const std::string_view str, const size_t start_pos)
+size_t Match(
+	const GraphElements::NodePtr& node,
+	const std::string_view str,
+	const size_t start_pos,
+	std::string_view* const out_groups, /* 0 - whole pattern, 1 - first subpattern, etc.*/
+	const size_t out_groups_count /* size of ouptut array of groups */
+	)
 {
 	for(size_t i= start_pos; i < str.size(); ++i)
 	{
@@ -329,10 +335,15 @@ MatchResult Match(const GraphElements::NodePtr& node, const std::string_view str
 		state.str= str.substr(i);
 		state.str_initial = str;
 		if(MatchNode(node, state))
-			return str.substr(i, str.size() - i - state.str.size());
+		{
+			// TODO - return all groups.
+			if(out_groups_count > 0)
+				out_groups[0]= str.substr(i, str.size() - i - state.str.size());
+			return 1u;
+		}
 	}
 
-	return std::nullopt;
+	return 0u;
 }
 
 } // namespace RegPanzer
