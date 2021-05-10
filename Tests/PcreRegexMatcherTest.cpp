@@ -42,7 +42,7 @@ TEST_P(PcreRegexMatchTest, TestMatch)
 					i= size_t(vec[1]);
 				}
 				else
-					++i;
+					break;
 			}
 
 			EXPECT_EQ(result_ranges, c.result_ranges);
