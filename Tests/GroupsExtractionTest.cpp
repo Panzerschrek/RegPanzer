@@ -30,7 +30,7 @@ TEST_P(GroupsExtractionTest, TestGroupsExtraction)
 		for(size_t start_pos= 0; start_pos < c.input_str.size();)
 		{
 			std::string_view subgroups[10];
-			const size_t groups_extracted= Match(regex_graph.root, c.input_str, start_pos, subgroups, std::size(subgroups));
+			const size_t groups_extracted= Match(regex_graph, c.input_str, start_pos, subgroups, std::size(subgroups));
 			if(groups_extracted == 0)
 				break;
 

@@ -28,10 +28,9 @@ TEST_P(MatchTest, TestMatch)
 
 		for(size_t start_pos= 0; start_pos < c.input_str.size();)
 		{
-			std::string_view subgroups[10];
-			if(Match(regex_graph.root, c.input_str, start_pos, subgroups, std::size(subgroups)) != 0)
+			std::string_view res;
+			if(Match(regex_graph, c.input_str, start_pos, &res, 1) != 0)
 			{
-				const std::string_view res= subgroups[0];
 				const size_t start_offset= size_t(res.data() - c.input_str.data());
 				const size_t end_offset= start_offset + res.size();
 				result_ranges.emplace_back(start_offset, end_offset);

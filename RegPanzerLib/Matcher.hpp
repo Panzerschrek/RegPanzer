@@ -9,7 +9,7 @@ namespace RegPanzer
 
 // Returns 0 if found nothing, otherwise returns number of subpatetterns.
 size_t Match(
-	const GraphElements::NodePtr& node,
+	const RegexGraphBuildResult& regex_graph,
 	std::string_view str,
 	size_t start_pos,
 	std::string_view* out_groups, /* 0 - whole pattern, 1 - first subpattern, etc.*/

@@ -322,7 +322,7 @@ bool MatchNode(const GraphElements::NodePtr& node, State& state)
 } // namespace
 
 size_t Match(
-	const GraphElements::NodePtr& node,
+	const RegexGraphBuildResult& regex_graph,
 	const std::string_view str,
 	const size_t start_pos,
 	std::string_view* const out_groups, /* 0 - whole pattern, 1 - first subpattern, etc.*/
@@ -334,12 +334,15 @@ size_t Match(
 		State state;
 		state.str= str.substr(i);
 		state.str_initial = str;
-		if(MatchNode(node, state))
+		if(MatchNode(regex_graph.root, state))
 		{
-			// TODO - return all groups.
 			if(out_groups_count > 0)
 				out_groups[0]= str.substr(i, str.size() - i - state.str.size());
-			return 1u;
+
+			for(size_t i= 1; i < std::min(regex_graph.group_stats.size(), out_groups_count); ++i)
+				out_groups[i]= state.groups[i];
+
+			return regex_graph.group_stats.size();
 		}
 	}
 
