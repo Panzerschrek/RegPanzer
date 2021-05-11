@@ -2543,6 +2543,6 @@ const MatcherTestDataElement g_matcher_test_data[]
 	}
 };
 
-constexpr const size_t g_matcher_test_data_size= std::size(g_matcher_test_data);
+const size_t g_matcher_test_data_size= std::size(g_matcher_test_data);
 
 } // namespace RegPanzer

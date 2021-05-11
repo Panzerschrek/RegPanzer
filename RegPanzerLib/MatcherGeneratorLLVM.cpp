@@ -1133,7 +1133,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 	const auto str_begin= llvm_ir_builder.CreateLoad(llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrBegin)}));
 	const auto str_begin_initial= llvm_ir_builder.CreateLoad(llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrBeginInitial)}));
 
-	const auto str_begin_for_look= llvm_ir_builder.CreateGEP(str_begin, GetConstant(ptr_size_int_type_, uint64_t(-node.size)));
+	const auto str_begin_for_look= llvm_ir_builder.CreateGEP(str_begin, GetConstant(ptr_size_int_type_, uint64_t(0) - uint64_t(node.size)));
 
 	const auto can_perfrom_look_condition= llvm_ir_builder.CreateICmpUGE(str_begin_for_look, str_begin_initial);
 	llvm_ir_builder.CreateCondBr(can_perfrom_look_condition, do_look_block, look_fail_block);
