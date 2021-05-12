@@ -34,7 +34,21 @@ const GroupsExtractionTestDataElement g_groups_extraction_test_data[]
 				"abcSSabcQ",
 				{ {{ 0, 3 }}, {{ 5, 8 }}, },
 			},
-		},
+		}
+	},
+
+	{ // Extract simpliest group for whole expression.
+		"(g)",
+		{
+			{ // Empty string - no matches.
+				"",
+				{},
+			},
+			{ // Simpliest match.
+				"g",
+				{ { {0, 1}, {0, 1}, } }
+			},
+		}
 	},
 };
 

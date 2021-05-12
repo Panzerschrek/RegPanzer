@@ -340,7 +340,12 @@ size_t Match(
 				out_groups[0]= str.substr(i, str.size() - i - state.str.size());
 
 			for(size_t i= 1; i < std::min(regex_graph.group_stats.size(), out_groups_count); ++i)
-				out_groups[i]= state.groups[i];
+			{
+				if(state.groups[i].data() == nullptr)
+					out_groups[i]= str.substr(str.size());
+				else
+					out_groups[i]= state.groups[i];
+			}
 
 			return regex_graph.group_stats.size();
 		}
