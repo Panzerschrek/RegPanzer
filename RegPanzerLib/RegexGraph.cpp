@@ -357,6 +357,7 @@ RegexGraphBuildResult RegexGraphBuilder::BuildRegexGraph(const RegexElementsChai
 	res.group_stats.swap(group_stats_);
 
 	group_nodes_.clear();
+	subroutine_enter_nodes_.clear();
 	return res;
 }
 
@@ -511,11 +512,9 @@ GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphNodeImpl(const GraphEle
 {
 	const GroupStat& stat= group_stats_.at(group.index);
 
-	// TODO -if building regexpr for groups extraction, always emit GroupStart/GroupEnd.
-
 	if(stat.indirect_call_count == 0)
 	{
-		if(stat.backreference_count == 0)
+		if(stat.backreference_count == 0 && !options_.extract_groups)
 		{
 			// No calls, no backreferences - generate only node for internal elements.
 			return BuildRegexGraphChain(next, group.elements);
@@ -532,7 +531,7 @@ GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphNodeImpl(const GraphEle
 	{
 		// We do not need to save state here, save will be saved (if needed) in indirect call.
 
-		if(stat.backreference_count == 0)
+		if(stat.backreference_count == 0 && !options_.extract_groups)
 		{
 			// No backreferences - generate only enter/leave nodes.
 			const auto subroutine_leave= std::make_shared<GraphElements::Node>(GraphElements::SubroutineLeave{});
