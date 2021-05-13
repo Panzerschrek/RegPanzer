@@ -304,7 +304,10 @@ int Main(int argc, const char* argv[])
 	const auto regex_chain= std::get_if<RegexElementsChain>(&parse_res);
 	assert(regex_chain != nullptr);
 
-	const RegexGraphBuildResult regex_graph= BuildRegexGraph(*regex_chain);
+	RegPanzer::Options regex_build_options;
+	// TODO - fill options.
+
+	const RegexGraphBuildResult regex_graph= BuildRegexGraph(*regex_chain, regex_build_options);
 	GenerateMatcherFunction(module, regex_graph, Options::result_function_name);
 
 	// Run optimizations.

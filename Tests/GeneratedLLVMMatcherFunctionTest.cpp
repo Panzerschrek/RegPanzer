@@ -39,7 +39,7 @@ TEST_P(GeneratedLLVMMatcherTest, TestMatch)
 	const auto regex_chain= std::get_if<RegexElementsChain>(&parse_res);
 	ASSERT_TRUE(regex_chain != nullptr);
 
-	const auto regex_graph= BuildRegexGraph(*regex_chain);
+	const auto regex_graph= BuildRegexGraph(*regex_chain, Options());
 
 	llvm::LLVMContext llvm_context;
 	auto module= std::make_unique<llvm::Module>("id", llvm_context);

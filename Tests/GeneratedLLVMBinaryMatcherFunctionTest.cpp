@@ -27,7 +27,7 @@ TEST_P(GeneratedLLVMBinaryMatcherTest, TestMatch)
 	const auto regex_chain= std::get_if<RegexElementsChain>(&parse_res);
 	ASSERT_TRUE(regex_chain != nullptr);
 
-	const auto regex_graph= BuildRegexGraph(*regex_chain);
+	const auto regex_graph= BuildRegexGraph(*regex_chain, Options());
 
 	const std::string function_name= "Match";
 

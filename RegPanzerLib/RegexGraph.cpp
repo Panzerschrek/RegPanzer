@@ -294,6 +294,8 @@ MinMaxSize GetRegexChainSize(const RegexElementsChain& regex_chain)
 class RegexGraphBuilder
 {
 public:
+	explicit RegexGraphBuilder(const Options& options);
+
 	RegexGraphBuildResult BuildRegexGraph(const RegexElementsChain& regex_chain);
 
 private:
@@ -318,11 +320,17 @@ private:
 	void SetupSubroutineCalls();
 
 private:
+	const Options options_;
 	GroupStats group_stats_;
 	// Collect group enter and subroutine enter nodes to setup pointers to subroutine calls later.
 	std::unordered_map<size_t, GraphElements::NodePtr> group_nodes_;
 	std::unordered_map<size_t, std::vector<GraphElements::NodePtr>> subroutine_enter_nodes_;
 };
+
+RegexGraphBuilder::RegexGraphBuilder(const Options& options)
+	: options_(options)
+{
+}
 
 RegexGraphBuildResult RegexGraphBuilder::BuildRegexGraph(const RegexElementsChain& regex_chain)
 {
@@ -344,6 +352,7 @@ RegexGraphBuildResult RegexGraphBuilder::BuildRegexGraph(const RegexElementsChai
 	SetupSubroutineCalls();
 
 	RegexGraphBuildResult res;
+	res.options= options_;
 	res.root= root;
 	res.group_stats.swap(group_stats_);
 
@@ -664,9 +673,9 @@ void RegexGraphBuilder::SetupSubroutineCalls()
 
 } // namespace
 
-RegexGraphBuildResult BuildRegexGraph(const RegexElementsChain& regex_chain)
+RegexGraphBuildResult BuildRegexGraph(const RegexElementsChain& regex_chain, const Options& options)
 {
-	RegexGraphBuilder builder;
+	RegexGraphBuilder builder(options);
 	return builder.BuildRegexGraph(regex_chain);
 }
 

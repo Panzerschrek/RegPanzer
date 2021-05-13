@@ -1,4 +1,5 @@
 #pragma once
+#include "Options.hpp"
 #include "RegexElements.hpp"
 #include <memory>
 #include <unordered_map>
@@ -213,10 +214,11 @@ using GroupStats= std::unordered_map<size_t, GroupStat>;
 
 struct RegexGraphBuildResult
 {
+	Options options;
 	GroupStats group_stats;
 	GraphElements::NodePtr root;
 };
 
-RegexGraphBuildResult BuildRegexGraph(const RegexElementsChain& regex_chain);
+RegexGraphBuildResult BuildRegexGraph(const RegexElementsChain& regex_chain, const Options& options);
 
 } // namespace RegPanzer

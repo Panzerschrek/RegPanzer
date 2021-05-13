@@ -20,7 +20,7 @@ TEST_P(MatchTest, TestMatch)
 	const auto regex_chain= std::get_if<RegexElementsChain>(&parse_res);
 	ASSERT_TRUE(regex_chain != nullptr);
 
-	const auto regex_graph= BuildRegexGraph(*regex_chain);
+	const auto regex_graph= BuildRegexGraph(*regex_chain, Options());
 
 	for(const MatcherTestDataElement::Case& c : param.cases)
 	{
