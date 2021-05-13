@@ -1,4 +1,5 @@
 #include "RegexGraph.hpp"
+#include <cassert>
 
 namespace RegPanzer
 {
@@ -314,22 +315,13 @@ private:
 	GraphElements::NodePtr BuildRegexGraphNodeImpl(const GraphElements::NodePtr& next,  const ConditionalElement& conditional_element);
 	GraphElements::NodePtr BuildRegexGraphNodeImpl(const GraphElements::NodePtr& next,  const SubroutineCall& subroutine_call);
 
-	void SetupSubroutineCalls(const GraphElements::NodePtr& node);
-	template<typename T> void SetupSubroutineCallsImpl(const T& node);
-	void SetupSubroutineCallsImpl(const GraphElements::Alternatives& node);
-	void SetupSubroutineCallsImpl(const GraphElements::LookAhead& node);
-	void SetupSubroutineCallsImpl(const GraphElements::ConditionalElement& node);
-	void SetupSubroutineCallsImpl(const GraphElements::SequenceCounterReset& node);
-	void SetupSubroutineCallsImpl(const GraphElements::SequenceCounter& node);
-	void SetupSubroutineCallsImpl(const GraphElements::NextWeakNode&);
-	void SetupSubroutineCallsImpl(const GraphElements::PossessiveSequence& node);
-	void SetupSubroutineCallsImpl(const GraphElements::AtomicGroup& node);
-	void SetupSubroutineCallsImpl(const GraphElements::SubroutineEnter& node);
-	void SetupSubroutineCallsImpl(const GraphElements::SubroutineLeave& node);
+	void SetupSubroutineCalls();
 
 private:
 	GroupStats group_stats_;
+	// Collect group enter and subroutine enter nodes to setup pointers to subroutine calls later.
 	std::unordered_map<size_t, GraphElements::NodePtr> group_nodes_;
+	std::unordered_map<size_t, std::vector<GraphElements::NodePtr>> subroutine_enter_nodes_;
 };
 
 RegexGraphBuildResult RegexGraphBuilder::BuildRegexGraph(const RegexElementsChain& regex_chain)
@@ -349,7 +341,7 @@ RegexGraphBuildResult RegexGraphBuilder::BuildRegexGraph(const RegexElementsChai
 		root= std::make_shared<GraphElements::Node>(GraphElements::SubroutineEnter{nullptr, node, 0u});
 	}
 
-	SetupSubroutineCalls(root);
+	SetupSubroutineCalls();
 
 	RegexGraphBuildResult res;
 	res.root= root;
@@ -638,88 +630,37 @@ GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphNodeImpl(const GraphEle
 	if(group_stats_.at(subroutine_call.index).backreference_count > 0)
 		groups.insert(subroutine_call.index);
 
+	const GraphElements::NodePtr subroutine_node= nullptr; // Set actual pointer value later.
 	if(sequences.empty() && groups.empty())
-		return std::make_shared<GraphElements::Node>(GraphElements::SubroutineEnter{next,  nullptr /*Set actual pointer value later*/, subroutine_call.index});
+	{
+		const auto enter_node= std::make_shared<GraphElements::Node>(GraphElements::SubroutineEnter{next, subroutine_node, subroutine_call.index});
+		subroutine_enter_nodes_[subroutine_call.index].push_back(enter_node);
+		return enter_node;
+	}
 	else
 	{
-		const auto state_restore= std::make_shared<GraphElements::Node>(GraphElements::StateRestore{next,  sequences, groups});
-
-		const auto enter_node= std::make_shared<GraphElements::Node>(GraphElements::SubroutineEnter{state_restore, nullptr /*Set actual pointer value later*/, subroutine_call.index});
+		const auto state_restore= std::make_shared<GraphElements::Node>(GraphElements::StateRestore{next, sequences, groups});
+		const auto enter_node= std::make_shared<GraphElements::Node>(GraphElements::SubroutineEnter{state_restore, subroutine_node, subroutine_call.index});
+		subroutine_enter_nodes_[subroutine_call.index].push_back(enter_node);
 		return std::make_shared<GraphElements::Node>(GraphElements::StateSave{enter_node, sequences, groups});
 	}
 }
 
-void RegexGraphBuilder::SetupSubroutineCalls(const GraphElements::NodePtr& node)
+void RegexGraphBuilder::SetupSubroutineCalls()
 {
-	if(node == nullptr)
-		return;
-
-	if(const auto subroutine_enter= std::get_if<GraphElements::SubroutineEnter>(node.get()))
-		if(subroutine_enter->subroutine_node == nullptr)
+	for(const auto& subroutine_call_pair : subroutine_enter_nodes_)
+	{
+		for(const GraphElements::NodePtr& node_ptr : subroutine_call_pair.second)
+		{
+			const auto subroutine_enter= std::get_if<GraphElements::SubroutineEnter>(node_ptr.get());
+			assert(subroutine_enter != nullptr);
+			// Use weak pointers for indirect calls to prevent strong loops.
 			subroutine_enter->subroutine_node=
 				std::make_shared<GraphElements::Node>(
-					GraphElements::NextWeakNode{group_nodes_.at(subroutine_enter->index)});
-
-	std::visit([&](const auto& el){ return SetupSubroutineCallsImpl(el); }, *node);
+					GraphElements::NextWeakNode{group_nodes_.at(subroutine_call_pair.first)});
+		}
+	}
 }
-
-template<typename T>
-void RegexGraphBuilder::SetupSubroutineCallsImpl(const T& node)
-{
-	SetupSubroutineCalls(node.next);
-}
-
-void RegexGraphBuilder::SetupSubroutineCallsImpl(const GraphElements::Alternatives& node)
-{
-	for(const auto& next : node.next)
-		SetupSubroutineCalls(next);
-}
-
-void RegexGraphBuilder::SetupSubroutineCallsImpl(const GraphElements::LookAhead& node)
-{
-	SetupSubroutineCalls(node.next);
-	SetupSubroutineCalls(node.look_graph);
-}
-
-void RegexGraphBuilder::SetupSubroutineCallsImpl(const GraphElements::ConditionalElement& node)
-{
-	SetupSubroutineCalls(node.condition_node);
-	SetupSubroutineCalls(node.next_true);
-	SetupSubroutineCalls(node.next_false);
-}
-
-void RegexGraphBuilder::SetupSubroutineCallsImpl(const GraphElements::SequenceCounterReset& node)
-{
-	SetupSubroutineCalls(node.next);
-}
-
-void RegexGraphBuilder::SetupSubroutineCallsImpl(const GraphElements::SequenceCounter& node)
-{
-	SetupSubroutineCalls(node.next_iteration);
-	SetupSubroutineCalls(node.next_sequence_end);
-}
-
-void RegexGraphBuilder::SetupSubroutineCallsImpl(const GraphElements::NextWeakNode&){}
-
-void RegexGraphBuilder::SetupSubroutineCallsImpl(const GraphElements::PossessiveSequence& node)
-{
-	SetupSubroutineCalls(node.next);
-	SetupSubroutineCalls(node.sequence_element);
-}
-
-void RegexGraphBuilder::SetupSubroutineCallsImpl(const GraphElements::AtomicGroup& node)
-{
-	SetupSubroutineCalls(node.next);
-	SetupSubroutineCalls(node.group_element);
-}
-
-void RegexGraphBuilder::SetupSubroutineCallsImpl(const GraphElements::SubroutineEnter& node)
-{
-	SetupSubroutineCalls(node.subroutine_node);
-	SetupSubroutineCalls(node.next);
-}
-
-void RegexGraphBuilder::SetupSubroutineCallsImpl(const GraphElements::SubroutineLeave&){}
 
 } // namespace
 
