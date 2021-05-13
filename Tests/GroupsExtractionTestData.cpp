@@ -48,6 +48,36 @@ const GroupsExtractionTestDataElement g_groups_extraction_test_data[]
 				"g",
 				{ { {0, 1}, {0, 1}, } }
 			},
+			{ // Two sequential matches.
+				"gg",
+				{ { {0, 1}, {0, 1}, }, { {1, 2}, {1, 2}, }, }
+			},
+			{ // Match in middle of string.
+				"bjgda",
+				{ { {2, 3}, {2, 3}, } }
+			},
+		}
+	},
+
+	{ // Extract variable-length group from middle of expression.
+		"n([0-9]+)r",
+		{
+			{ // Empty string - no matches.
+				"",
+				{},
+			},
+			{ // Simplest possible match.
+				"n7r",
+				{ { {0, 3}, {1, 2}, } }
+			},
+			{ // Match in middle of string with long sequense.
+				" 6tn1732807r!n",
+				{ { {3, 12}, {4, 11}, } }
+			},
+			{ // Three sequential matches.
+				"n51rn9rn1234567890555223r",
+				{ { {0, 4}, {1, 3}, }, { {4, 7}, {5, 6}, }, { {7, 25}, {8, 24}, }, }
+			},
 		}
 	},
 };
