@@ -45,8 +45,8 @@ TEST_P(StdRegexGroupsExtractionTest, TestGroupsExtraction)
 
 				for(const auto& pair : *it)
 				{
-					const size_t b= pair.first - c.input_str.begin();
-					const size_t e= pair.second - c.input_str.begin();
+					const auto b= size_t(pair.first - c.input_str.begin());
+					const auto e= size_t(pair.second - c.input_str.begin());
 					result.emplace_back(b, e);
 				}
 
