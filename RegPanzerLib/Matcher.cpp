@@ -5,6 +5,7 @@
 #include <llvm/Support/ConvertUTF.h>
 #include "PopLLVMWarnings.hpp"
 #include <cassert>
+#include <optional>
 #include <unordered_map>
 
 namespace RegPanzer
