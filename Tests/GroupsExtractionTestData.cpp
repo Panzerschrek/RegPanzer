@@ -202,6 +202,58 @@ const GroupsExtractionTestDataElement g_groups_extraction_test_data[]
 			},
 		}
 	},
+
+	{ // Optional group inside non-optional group.
+		"([a-z]+([0-9]*f)?)N",
+		{
+			{ // Empty string - no matches.
+				"",
+				{},
+			},
+			{ // Simplest match with no optional group.
+				"aN",
+				{ { {0, 2}, {0, 1}, {2, 2} } }
+			},
+			{ // Match with optional group.
+				"abr53fN",
+				{ { {0, 7}, {0, 6}, {3, 6} } }
+			},
+			{ // Match with no optional group in middle of string.
+				"5664sNytaw2",
+				{ { {4, 6}, {4, 5}, {11, 11} } }
+			},
+			{ // Match with optional group in middle of string.
+				"__ g67fN + 99",
+				{ { {3, 8}, {3, 7}, {4, 7} } }
+			},
+		}
+	},
+
+	{ // Non-optional group inside optional group.
+		"[0-9]+(\\.[0-9]+e([0-9]+))?",
+		{
+			{ // Empty string - no matches.
+				"",
+				{},
+			},
+			{ // Simplest match with no optional group.
+				"3",
+				{ { {0, 1}, {1, 1}, {1, 1} } }
+			},
+			{ // Match with optional group.
+				"954.5e67",
+				{ { {0, 8}, {3, 8}, {6, 8} } }
+			},
+			{ // Match with no optional group in middle of string.
+				"awd 6421 fz+",
+				{ { {4, 8}, {12, 12}, {12, 12} } }
+			},
+			{ // Two matches - without and with optional group.
+				"expr= 4213 + 44.78e3;",
+				{ { {6, 10}, {21, 21}, {21, 21} }, { {13, 20}, {15, 20}, {19, 20} } }
+			},
+		}
+	},
 };
 
 const size_t g_groups_extraction_test_data_size= std::size(g_groups_extraction_test_data);

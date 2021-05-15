@@ -43,8 +43,8 @@ TEST_P(GroupsExtractionTest, TestGroupsExtraction)
 				const size_t start_offset= size_t(res.data() - c.input_str.data());
 				const size_t end_offset= start_offset + res.size();
 				result.emplace_back(start_offset, end_offset);
-				start_pos= end_offset;
 			}
+			start_pos= size_t(subgroups[0].data() - c.input_str.data()) + subgroups[0].size();
 
 			results.push_back(std::move(result));
 		}
