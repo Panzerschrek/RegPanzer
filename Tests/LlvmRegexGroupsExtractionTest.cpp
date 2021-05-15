@@ -50,7 +50,12 @@ TEST_P(LlvmRegexGroupsExtractionTest, TestGroupsExtraction)
 
 			GroupsExtractionTestDataElement::GroupMatchResults result;
 			for(const auto& match : matches)
-				result.emplace_back(size_t(match.data() - c.input_str.data()), size_t(match.data() + match.size() - c.input_str.data()));
+			{
+				if(match.data() == nullptr)
+					result.emplace_back(c.input_str.size(), c.input_str.size());
+				else
+					result.emplace_back(size_t(match.data() - c.input_str.data()), size_t(match.data() + match.size() - c.input_str.data()));
+			}
 
 			results.push_back(std::move(result));
 

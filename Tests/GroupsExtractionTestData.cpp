@@ -150,6 +150,58 @@ const GroupsExtractionTestDataElement g_groups_extraction_test_data[]
 			},
 		},
 	},
+
+	{ // Optional group.
+		"<(Q[A-Z]+W)?>",
+		{
+			{ // Empty string - no matches.
+				"",
+				{},
+			},
+			{ // Simpliest match with no optional group.
+				"<>",
+				{ { {0, 2}, {2, 2} } }
+			},
+			{ // Match with optional group.
+				"<QSFWDW>",
+				{ { {0, 8}, {1, 7} } }
+			},
+			{ // Match with no optional group in middle of string.
+				"  R<> vb!",
+				{ { {3, 5}, {9, 9} } }
+			},
+			{ // Match with  optional group in middle of string.
+				"__<QBW>H ",
+				{ { {2, 7}, {3, 6} } }
+			},
+		}
+	},
+
+	{ // Non-optional group after optional group.
+		"\\((QW)?\\)([a-z]+)",
+		{
+			{ // Empty string - no matches.
+				"",
+				{},
+			},
+			{ // Simpliest match with no optional group.
+				"()a",
+				{ { {0, 3}, {3, 3}, {2, 3} } }
+			},
+			{ // Match with optional group.
+				"(QW)bgrt",
+				{ { {0, 8}, {1, 3}, {4, 8} } }
+			},
+			{ // Match with no optional group in middle of string.
+				"--()bgr---",
+				{ { {2, 7}, {10, 10}, {4, 7} } }
+			},
+			{ // Match with  optional group in middle of string.
+				"eee(QW)sZZZ-K",
+				{ { {3, 8}, {4, 6}, {7, 8} } }
+			},
+		}
+	},
 };
 
 const size_t g_groups_extraction_test_data_size= std::size(g_groups_extraction_test_data);
