@@ -1,5 +1,6 @@
 #include "RegexGraph.hpp"
 #include <cassert>
+#include <unordered_map>
 
 namespace RegPanzer
 {

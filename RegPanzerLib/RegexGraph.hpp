@@ -2,7 +2,7 @@
 #include "Options.hpp"
 #include "RegexElements.hpp"
 #include <memory>
-#include <unordered_map>
+#include <map>
 #include <unordered_set>
 #include <variant>
 #include <vector>
@@ -210,7 +210,7 @@ struct GroupStat
 	CallTargetSet internal_calls; // All calls (include calls in children groups and children of children and futrher).
 };
 
-using GroupStats= std::unordered_map<size_t, GroupStat>;
+using GroupStats= std::map<size_t, GroupStat>;
 
 struct RegexGraphBuildResult
 {

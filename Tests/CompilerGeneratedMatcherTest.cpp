@@ -82,15 +82,17 @@ TEST_P(CompilerGeneratedMatcherTest, TestMatch)
 		MatcherTestDataElement::Ranges result_ranges;
 		for(size_t i= 0; i < c.input_str.size();)
 		{
-			const char* const match_end_ptr= function(c.input_str.data(), c.input_str.size(), i);
+			size_t group[2]{};
+			const auto subpatterns_extracted= function(c.input_str.data(), c.input_str.size(), i, group, 1);
 
-			if(match_end_ptr == nullptr)
+			if(subpatterns_extracted == 0)
 				++i;
 			else
 			{
-				const size_t end_offset= size_t(match_end_ptr - c.input_str.data());
-				result_ranges.emplace_back(i, end_offset);
-				i= end_offset;
+				result_ranges.emplace_back(group[0], group[1]);
+				if(group[1] <= i && group[1] <= group[0])
+					break;
+				i= group[1];
 			}
 		}
 

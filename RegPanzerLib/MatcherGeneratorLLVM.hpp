@@ -8,7 +8,13 @@ namespace RegPanzer
 {
 
 // Type of generated matcher function. sizeof(size_t) depends on target data layout.
-using MatcherFunctionType= const char*(*)(const char* str, size_t str_size, size_t start_offset);
+using MatcherFunctionType=
+	size_t (*)(
+		const char* str,
+		size_t str_size,
+		size_t start_offset,
+		size_t* out_subpatterns /* pairs */,
+		size_t number_of_subpatterns /* number of pairs */);
 
 // Input module should contain data layout.
 

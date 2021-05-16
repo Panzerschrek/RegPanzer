@@ -61,21 +61,26 @@ TEST_P(GeneratedLLVMMatcherTest, TestMatch)
 		MatcherTestDataElement::Ranges result_ranges;
 		for(size_t i= 0; i < c.input_str.size();)
 		{
-			llvm::GenericValue args[3];
+			size_t group[2]{0, 0};
+
+			llvm::GenericValue args[5];
 			args[0].PointerVal= const_cast<char*>(c.input_str.data());
-			args[1].IntVal= llvm::APInt(sizeof(size_t), c.input_str.size());
-			args[2].IntVal= llvm::APInt(sizeof(size_t), i);
+			args[1].IntVal= llvm::APInt(sizeof(size_t) * 8, c.input_str.size());
+			args[2].IntVal= llvm::APInt(sizeof(size_t) * 8, i);
+			args[3].PointerVal= &group;
+			args[4].IntVal= llvm::APInt(sizeof(size_t) * 8, 1);
 
 			const llvm::GenericValue result_value= engine->runFunction(function, args);
-			const char* const match_end_ptr= reinterpret_cast<const char*>(result_value.PointerVal);
+			const auto subpatterns_extracted= result_value.IntVal.getLimitedValue();
 
-			if(match_end_ptr == nullptr)
+			if(subpatterns_extracted == 0)
 				++i;
 			else
 			{
-				const size_t end_offset= size_t(match_end_ptr - c.input_str.data());
-				result_ranges.emplace_back(i, end_offset);
-				i= end_offset;
+				result_ranges.emplace_back(group[0], group[1]);
+				if(group[1] <= i && group[1] <= group[0])
+					break;
+				i= group[1];
 			}
 		}
 
