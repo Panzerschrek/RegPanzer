@@ -542,14 +542,12 @@ GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphNodeImpl(const GraphEle
 		else
 		{
 			// Both backreferences and indirect calls needed - generated all nodes.
-
+			const auto group_end= std::make_shared<GraphElements::Node>(GraphElements::GroupEnd{next, group.index});
 			const auto subroutine_leave= std::make_shared<GraphElements::Node>(GraphElements::SubroutineLeave{});
-
-			const auto group_end= std::make_shared<GraphElements::Node>(GraphElements::GroupEnd{subroutine_leave, group.index});
-			const auto group_contents= BuildRegexGraphChain(group_end, group.elements);
-			const auto group_start= std::make_shared<GraphElements::Node>(GraphElements::GroupStart{group_contents, group.index});
-			group_nodes_[group.index]= group_start;
-			return std::make_shared<GraphElements::Node>(GraphElements::SubroutineEnter{next, group_start, group.index});
+			const auto group_contents= BuildRegexGraphChain(subroutine_leave, group.elements);
+			group_nodes_[group.index]= group_contents;
+			const auto subroutine_enter= std::make_shared<GraphElements::Node>(GraphElements::SubroutineEnter{group_end, group_contents, group.index});
+			return std::make_shared<GraphElements::Node>(GraphElements::GroupStart{subroutine_enter, group.index});
 		}
 	}
 }

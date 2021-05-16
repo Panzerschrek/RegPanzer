@@ -455,6 +455,77 @@ const GroupsExtractionTestDataElement g_groups_extraction_test_data[]
 			},
 		}
 	},
+
+	{ // Extract group in subroutine call. Should extract only group itself, not group in call.
+		"([a-z]+)2(?1)",
+		{
+			{ // Empty string - no matches.
+				"",
+				{},
+			},
+			{ // Simplest possible match.
+				"b2j",
+				{ { {0, 3}, {0, 1} } }
+			},
+			{ // Match with long sequences.
+				"nhrra2jjmkura",
+				{ { {0, 13}, {0, 5} } }
+			},
+			{ // Match in middle of string.
+				"wd -- nh2hjt !!",
+				{ { {6, 12}, {6, 8} } }
+			},
+		}
+	},
+
+	{ // Extract group in subroutine call. Should extract only group itself, not group in call.
+		"(?1)-([0-9]+)",
+		{
+			{ // Empty string - no matches.
+				"",
+				{},
+			},
+			{ // Simplest possible match.
+				"6-1",
+				{ { {0, 3}, {2, 3} } }
+			},
+			{ // Match with long sequences.
+				"5211336-05918338622",
+				{ { {0, 19}, {8, 19} } }
+			},
+			{ // Several matches.
+				"b 44-3 + 0-65432 * 431-655f f4-5a",
+				{
+					{ { 2,  6}, { 5,  6} },
+					{ { 9, 16}, {11, 16} },
+					{ {19, 26}, {23, 26} },
+					{ {29, 32}, {31, 32} },
+				}
+			},
+		}
+	},
+
+	{ // Extract groups in recursive call.
+		"([a-z]+)(?R)?\\1",
+		{
+			{ // Empty string - no matches.
+				"",
+				{},
+			},
+			{ // Simplest possible match.
+				"bb",
+				{ { {0, 2}, {0, 1} } }
+			},
+			{ // Long match (wit recursive call). Should extract only first (top-level) group value.
+				"bnttnb",
+				{ { {0, 6}, {0, 1} } }
+			},
+			{ // Two sequential matches.
+				"leeffeelghtthg",
+				{ { {0, 8}, {0, 1} }, { {8, 14}, {8, 9} } }
+			},
+		}
+	},
 };
 
 const size_t g_groups_extraction_test_data_size= std::size(g_groups_extraction_test_data);
