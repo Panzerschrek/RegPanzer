@@ -5,6 +5,7 @@
 #include <llvm/ExecutionEngine/ExecutionEngine.h>
 #include <llvm/ExecutionEngine/MCJIT.h>
 #include <llvm/ExecutionEngine/SectionMemoryManager.h>
+#include <llvm/Support/Program.h>
 #include <gtest/gtest.h>
 #include "../RegPanzerLib/PopLLVMWarnings.hpp"
 
@@ -13,23 +14,6 @@ namespace RegPanzer
 
 namespace
 {
-
-std::string EscapeShellString(const std::string& str)
-{
-	std::string res;
-	res+= "\"";
-	for(const char c : str)
-	{
-		if(c == '\\')
-			res+= "\\\\";
-		else if(c == '"')
-			res+= "\\\"";
-		else
-			res.push_back(c);
-	}
-	res+= "\"";
-	return res;
-}
 
 class CompilerGeneratedMatcherGroupsExtractionTest : public ::testing::TestWithParam<GroupsExtractionTestDataElement> {};
 
@@ -41,19 +25,14 @@ TEST_P(CompilerGeneratedMatcherGroupsExtractionTest, TestGroupsExtraction)
 
 	const std::string function_name= "test_match";
 	const std::string object_file_path= "test.o";
+
 	{
 		// This test must be launched from build directory, where also located the Compiler executable.
 
-		const std::string compiler_path= "./RegPanzerCompiler";
-		const std::string command=
-			compiler_path + " " +
-			EscapeShellString(param.regex_str) + " " +
-			"--function-name " + function_name + " " +
-			"--extract-groups" + " " +
-			"-o " + object_file_path + " " +
-			"-O2";
-
-		const auto res= std::system(command.c_str());
+		const std::string compiler_program= "RegPanzerCompiler";
+		const int res= llvm::sys::ExecuteAndWait(
+			compiler_program,
+			{compiler_program, param.regex_str, "--function-name", function_name, "--extract-groups", "-o", object_file_path, "-O2"});
 		ASSERT_EQ(res, 0);
 	}
 
