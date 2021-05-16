@@ -84,6 +84,12 @@ cl::opt<std::string> output_file_name(
 	cl::Required,
 	cl::cat(options_category));
 
+cl::opt<bool> extract_groups(
+	"extract-groups",
+	cl::desc("Generate matcher function that will extract groups (not only full match)."),
+	cl::init(false),
+	cl::cat(options_category) );
+
 enum class FileType{ BC, LL, Obj, Asm };
 cl::opt< FileType > file_type(
 	"filetype",
@@ -304,7 +310,10 @@ int Main(int argc, const char* argv[])
 	const auto regex_chain= std::get_if<RegexElementsChain>(&parse_res);
 	assert(regex_chain != nullptr);
 
-	const RegexGraphBuildResult regex_graph= BuildRegexGraph(*regex_chain);
+	RegPanzer::Options regex_build_options;
+	regex_build_options.extract_groups= Options::extract_groups;
+
+	const RegexGraphBuildResult regex_graph= BuildRegexGraph(*regex_chain, regex_build_options);
 	GenerateMatcherFunction(module, regex_graph, Options::result_function_name);
 
 	// Run optimizations.

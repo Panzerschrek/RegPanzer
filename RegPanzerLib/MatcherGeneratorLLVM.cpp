@@ -200,24 +200,43 @@ void Generator::GenerateMatcherFunction(const RegexGraphBuildResult& regex_graph
 	CreateStateType(regex_graph);
 
 	// Root function look like this:
-	// const char* Match(const char* begin, size_t size, size_t start_offset);
-	// It returns "nullptr" if no match found or pointer to match end.
+	// size_t Match(const char* begin, size_t size, size_t start_offset, size_t* out_subpatterns, size_t subpattern_count);
+	// It returns number of matched subpatterns (including whole expression) or 0.
 
 	const auto root_function_type=
 		llvm::FunctionType::get(
-			char_type_ptr_,
-			{char_type_ptr_, ptr_size_int_type_, ptr_size_int_type_},
+			ptr_size_int_type_,
+			{
+				char_type_ptr_,
+				ptr_size_int_type_,
+				ptr_size_int_type_,
+				llvm::PointerType::get(ptr_size_int_type_, 0),
+				ptr_size_int_type_,
+			},
 			false);
 
 	const auto root_function= llvm::Function::Create(root_function_type, llvm::GlobalValue::ExternalLinkage, function_name, module_);
 
-	const auto arg_begin= &*root_function->arg_begin();
-	const auto arg_size= &*std::next(root_function->arg_begin());
-	const auto arg_start_offset= &*std::next(std::next(root_function->arg_begin()));
+	auto args_it= root_function->arg_begin();
+	const auto arg_str_begin= &*args_it;
+	++args_it;
+	const auto arg_str_size= &*args_it;
+	++args_it;
+	const auto arg_start_offset= &*args_it;
+	++args_it;
+	const auto arg_out_subpatterns= &*args_it;
+	++args_it;
+	const auto arg_subpattern_count= &*args_it;
+
+	arg_str_begin->setName("str_begin");
+	arg_str_size->setName("str_size");
+	arg_start_offset->setName("arg_start_offset");
+	arg_out_subpatterns->setName("out_subpatterns");
+	arg_subpattern_count->setName("subpattern_count");
 
 	const auto start_basic_block= llvm::BasicBlock::Create(context_, "", root_function);
-	const auto found_block= llvm::BasicBlock::Create(context_, "found", root_function);
-	const auto not_found_block= llvm::BasicBlock::Create(context_, "not_found", root_function);
+	const auto found_block= llvm::BasicBlock::Create(context_, "found");
+	const auto not_found_block= llvm::BasicBlock::Create(context_, "not_found");
 
 	IRBuilder llvm_ir_builder(start_basic_block);
 
@@ -228,19 +247,18 @@ void Generator::GenerateMatcherFunction(const RegexGraphBuildResult& regex_graph
 		// Set begin/end pointers.
 
 		const auto str_begin_ptr= llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrBegin)});
-		const auto str_begin_value= llvm_ir_builder.CreateGEP(arg_begin, arg_start_offset);
+		const auto str_begin_value= llvm_ir_builder.CreateGEP(arg_str_begin, arg_start_offset);
 		llvm_ir_builder.CreateStore(str_begin_value, str_begin_ptr);
 
 		const auto str_end_ptr= llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrEnd)});
-		const auto str_end_value= llvm_ir_builder.CreateGEP(arg_begin, arg_size);
+		const auto str_end_value= llvm_ir_builder.CreateGEP(arg_str_begin, arg_str_size);
 		llvm_ir_builder.CreateStore(str_end_value, str_end_ptr);
 
 		const auto str_begin_initial_ptr= llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrBeginInitial)});
-		llvm_ir_builder.CreateStore(arg_begin, str_begin_initial_ptr);
+		llvm_ir_builder.CreateStore(arg_str_begin, str_begin_initial_ptr);
 	}
 	{
 		// Zero groups.
-
 		const uint64_t groups_array_size= state_type_->elements()[StateFieldIndex::GroupsArray]->getArrayNumElements();
 		for(uint64_t i= 0; i < groups_array_size; ++i)
 		{
@@ -256,9 +274,9 @@ void Generator::GenerateMatcherFunction(const RegexGraphBuildResult& regex_graph
 			const auto group_begin_ptr= llvm_ir_builder.CreateGEP(group_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(0)});
 			const auto group_end_ptr  = llvm_ir_builder.CreateGEP(group_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(1)});
 
-			const auto null= llvm::Constant::getNullValue(char_type_ptr_);
-			llvm_ir_builder.CreateStore(null, group_begin_ptr);
-			llvm_ir_builder.CreateStore(null, group_end_ptr);
+			const auto end_value= llvm_ir_builder.CreateGEP(arg_str_begin, arg_str_size);
+			llvm_ir_builder.CreateStore(end_value, group_begin_ptr);
+			llvm_ir_builder.CreateStore(end_value, group_end_ptr  );
 		}
 	}
 	if(state_type_->getNumElements() > StateFieldIndex::SubroutineCallReturnChainHead)
@@ -282,14 +300,85 @@ void Generator::GenerateMatcherFunction(const RegexGraphBuildResult& regex_graph
 
 	// Return result.
 	{
+		found_block->insertInto(root_function);
 		llvm_ir_builder.SetInsertPoint(found_block);
-		const auto str_begin_ptr= llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrBegin)});
-		const auto str_begin_value= llvm_ir_builder.CreateLoad(str_begin_ptr);
-		llvm_ir_builder.CreateRet(str_begin_value);
+
+		const auto end_block= llvm::BasicBlock::Create(context_, "end");
+
+		const auto fill_groups_block= llvm::BasicBlock::Create(context_, "fill_groups", root_function);
+		const auto out_groups_is_not_null=
+			llvm_ir_builder.CreateICmpNE(
+				arg_out_subpatterns,
+				llvm::Constant::getNullValue(llvm::PointerType::get(ptr_size_int_type_, 0)));
+		llvm_ir_builder.CreateCondBr(out_groups_is_not_null, fill_groups_block, end_block);
+
+		// Fill groups.
+		llvm_ir_builder.SetInsertPoint(fill_groups_block);
+		for(const auto& group_pair : regex_graph.group_stats)
+		{
+			const size_t group_number= group_pair.first;
+
+			const auto fill_group_block= llvm::BasicBlock::Create(context_, "fill_group", root_function);
+
+			const auto is_enough_data_in_input_buffer= llvm_ir_builder.CreateICmpULT(GetConstant(ptr_size_int_type_, group_number), arg_subpattern_count);
+			llvm_ir_builder.CreateCondBr(is_enough_data_in_input_buffer, fill_group_block, end_block);
+
+			// Group fill block.
+			llvm_ir_builder.SetInsertPoint(fill_group_block);
+
+			const auto group_begin_dst= llvm_ir_builder.CreateGEP(arg_out_subpatterns, GetConstant(ptr_size_int_type_, group_number * 2 + 0));
+			const auto group_end_dst  = llvm_ir_builder.CreateGEP(arg_out_subpatterns, GetConstant(ptr_size_int_type_, group_number * 2 + 1));
+
+			llvm::Value* group_offset_begin= nullptr;
+			llvm::Value* group_offset_end  = nullptr;
+
+			if(group_number == 0)
+			{
+				group_offset_begin= arg_start_offset;
+
+				const auto current_str_pos_ptr= llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrBegin)});
+				const auto current_str_pos= llvm_ir_builder.CreateLoad(current_str_pos_ptr);
+
+				group_offset_end= llvm_ir_builder.CreatePtrDiff(current_str_pos, arg_str_begin);
+			}
+			else if(const auto field_number_it= group_number_to_field_number_.find(group_number); field_number_it != group_number_to_field_number_.end())
+			{
+				const auto src_group_ptr=
+					llvm_ir_builder.CreateGEP(
+						state_ptr,
+						{
+							GetZeroGEPIndex(),
+							GetFieldGEPIndex(StateFieldIndex::GroupsArray),
+							GetFieldGEPIndex(field_number_it->second),
+						});
+
+				const auto src_group_begin= llvm_ir_builder.CreateLoad(llvm_ir_builder.CreateGEP(src_group_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(0)}));
+				const auto src_group_end  = llvm_ir_builder.CreateLoad(llvm_ir_builder.CreateGEP(src_group_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(1)}));
+
+				group_offset_begin= llvm_ir_builder.CreatePtrDiff(src_group_begin, arg_str_begin);
+				group_offset_end  = llvm_ir_builder.CreatePtrDiff(src_group_end  , arg_str_begin);
+			}
+			else
+			{
+				group_offset_begin= arg_str_size;
+				group_offset_end  = arg_str_size;
+			}
+
+			llvm_ir_builder.CreateStore(group_offset_begin, group_begin_dst);
+			llvm_ir_builder.CreateStore(group_offset_end  , group_end_dst  );
+		}
+
+		llvm_ir_builder.CreateBr(end_block);
+
+		// End block.
+		end_block->insertInto(root_function);
+		llvm_ir_builder.SetInsertPoint(end_block);
+		llvm_ir_builder.CreateRet(GetConstant(ptr_size_int_type_, regex_graph.group_stats.size()));
 	}
 	{
+		not_found_block->insertInto(root_function);
 		llvm_ir_builder.SetInsertPoint(not_found_block);
-		llvm_ir_builder.CreateRet(llvm::ConstantPointerNull::get(char_type_ptr_));
+		llvm_ir_builder.CreateRet(llvm::Constant::getNullValue(ptr_size_int_type_));
 	}
 
 	// Clear internal structures.
@@ -327,7 +416,7 @@ void Generator::CreateStateType(const RegexGraphBuildResult& regex_graph)
 	}
 	{
 		for(const auto& group_pair : regex_graph.group_stats)
-			if(group_pair.second.backreference_count > 0)
+			if(regex_graph.options.extract_groups || group_pair.second.backreference_count > 0)
 				group_number_to_field_number_.emplace(group_pair.first, uint32_t(group_number_to_field_number_.size()));
 
 		const auto groups_array= llvm::ArrayType::get(group_type_, uint64_t(group_number_to_field_number_.size()));

@@ -1,11 +1,10 @@
-#include "MatcherTestData.hpp"
+#include "GroupsExtractionTestData.hpp"
 #include "Utils.hpp"
 #include "../RegPanzerLib/MatcherGeneratorLLVM.hpp"
 #include "../RegPanzerLib/PushDisableLLVMWarnings.hpp"
 #include <llvm/ExecutionEngine/ExecutionEngine.h>
 #include <llvm/ExecutionEngine/MCJIT.h>
 #include <llvm/ExecutionEngine/SectionMemoryManager.h>
-#include <llvm/Support/Program.h>
 #include <gtest/gtest.h>
 #include "../RegPanzerLib/PopLLVMWarnings.hpp"
 
@@ -15,9 +14,26 @@ namespace RegPanzer
 namespace
 {
 
-class CompilerGeneratedMatcherTest : public ::testing::TestWithParam<MatcherTestDataElement> {};
+std::string EscapeShellString(const std::string& str)
+{
+	std::string res;
+	res+= "\"";
+	for(const char c : str)
+	{
+		if(c == '\\')
+			res+= "\\\\";
+		else if(c == '"')
+			res+= "\\\"";
+		else
+			res.push_back(c);
+	}
+	res+= "\"";
+	return res;
+}
 
-TEST_P(CompilerGeneratedMatcherTest, TestMatch)
+class CompilerGeneratedMatcherGroupsExtractionTest : public ::testing::TestWithParam<GroupsExtractionTestDataElement> {};
+
+TEST_P(CompilerGeneratedMatcherGroupsExtractionTest, TestGroupsExtraction)
 {
 	// Launch compiler, produce object file, load it into MCJIT Execition engine and run function from it.
 
@@ -25,14 +41,19 @@ TEST_P(CompilerGeneratedMatcherTest, TestMatch)
 
 	const std::string function_name= "test_match";
 	const std::string object_file_path= "test.o";
-
 	{
 		// This test must be launched from build directory, where also located the Compiler executable.
 
-		const std::string compiler_program= "RegPanzerCompiler";
-		const int res= llvm::sys::ExecuteAndWait(
-			compiler_program,
-			{compiler_program, param.regex_str, "--function-name", function_name, "-o", object_file_path, "-O2"});
+		const std::string compiler_path= "./RegPanzerCompiler";
+		const std::string command=
+			compiler_path + " " +
+			EscapeShellString(param.regex_str) + " " +
+			"--function-name " + function_name + " " +
+			"--extract-groups" + " " +
+			"-o " + object_file_path + " " +
+			"-O2";
+
+		const auto res= std::system(command.c_str());
 		ASSERT_EQ(res, 0);
 	}
 
@@ -57,30 +78,36 @@ TEST_P(CompilerGeneratedMatcherTest, TestMatch)
 	const auto function= reinterpret_cast<MatcherFunctionType>(engine->getFunctionAddress(function_name));
 	ASSERT_TRUE(function != nullptr);
 
-	for(const MatcherTestDataElement::Case& c : param.cases)
+	for(const GroupsExtractionTestDataElement::Case& c : param.cases)
 	{
-		MatcherTestDataElement::Ranges result_ranges;
+		std::vector<GroupsExtractionTestDataElement::GroupMatchResults> results;
 		for(size_t i= 0; i < c.input_str.size();)
 		{
-			size_t group[2]{};
-			const auto subpatterns_extracted= function(c.input_str.data(), c.input_str.size(), i, group, 1);
+			size_t groups[10][2]{};
+			const auto subpatterns_extracted= function(c.input_str.data(), c.input_str.size(), i, &groups[0][0], std::size(groups));
 
 			if(subpatterns_extracted == 0)
 				++i;
 			else
 			{
-				result_ranges.emplace_back(group[0], group[1]);
-				if(group[1] <= i && group[1] <= group[0])
+				if(groups[0][1] <= i && groups[0][1] <= groups[0][0])
 					break;
-				i= group[1];
+				i= groups[0][1];
+
+				GroupsExtractionTestDataElement::GroupMatchResults result;
+
+				for(size_t j= 0; j < std::min(subpatterns_extracted, std::size(groups)); ++j)
+					result.emplace_back(groups[j][0], groups[j][1]);
+
+				results.push_back(std::move(result));
 			}
 		}
 
-		EXPECT_EQ(result_ranges, c.result_ranges);
+		EXPECT_EQ(results, c.results);
 	}
 }
 
-INSTANTIATE_TEST_CASE_P(M, CompilerGeneratedMatcherTest, testing::ValuesIn(g_matcher_test_data, g_matcher_test_data + g_matcher_test_data_size));
+INSTANTIATE_TEST_CASE_P(GE, CompilerGeneratedMatcherGroupsExtractionTest, testing::ValuesIn(g_groups_extraction_test_data, g_groups_extraction_test_data + g_groups_extraction_test_data_size));
 
 } // namespace
 
