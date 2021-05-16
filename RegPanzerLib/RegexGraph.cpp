@@ -625,16 +625,12 @@ GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphNodeImpl(const GraphEle
 	if(stat.recursive)
 		sequences= stat.internal_sequences;
 
-	// Save group state itself and state of its subgroups, but only if they used in backreferences.
-	// TODO - save groups also if we match subexpressions.
+	// Save state of group's subgroups, but only if they used in backreferences or if groups extraction is enabled.
 	GroupIdSet groups;
 
 	for(const size_t& internal_group_id : stat.internal_groups)
-		if(group_stats_.at(internal_group_id).backreference_count > 0)
+		if(options_.extract_groups || group_stats_.at(internal_group_id).backreference_count > 0)
 			groups.insert(internal_group_id);
-
-	if(group_stats_.at(subroutine_call.index).backreference_count > 0)
-		groups.insert(subroutine_call.index);
 
 	const GraphElements::NodePtr subroutine_node= nullptr; // Set actual pointer value later.
 	if(sequences.empty() && groups.empty())

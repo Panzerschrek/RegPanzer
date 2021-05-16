@@ -505,6 +505,32 @@ const GroupsExtractionTestDataElement g_groups_extraction_test_data[]
 		}
 	},
 
+	{ // Extract internal group in subroutine call. Should extract only group itself, not group in call.
+		"([a-z]+([0-9]+))=(?1)",
+		{
+			{ // Empty string - no matches.
+				"",
+				{},
+			},
+			{ // Simplest possible match.
+				"a5=g1",
+				{ { {0, 5}, {0, 2}, {1, 2} } }
+			},
+			{ // Match with long sequences.
+				"dbt32=nhyeag3125765111",
+				{ { {0, 22}, {0, 5}, {3, 5} } }
+			},
+			{ // Several sequential matches.
+				"gr1235=b5acf4=hda3123jhs446=bkiacbtt421654",
+				{
+					{ { 0,  9}, { 0,  6}, { 2, 6 } },
+					{ { 9, 21}, { 9, 13}, {12, 13} },
+					{ {21, 42}, {21, 27}, {24, 27} },
+				}
+			},
+		}
+	},
+
 	{ // Extract groups in recursive call.
 		"([a-z]+)(?R)?\\1",
 		{
