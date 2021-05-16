@@ -366,6 +366,95 @@ const GroupsExtractionTestDataElement g_groups_extraction_test_data[]
 			},
 		}
 	},
+
+	{ // Alternative groups.
+		"([a-z]+)|([0-9]+)",
+		{
+			{ // Empty string - no matches.
+				"",
+				{},
+			},
+			{ // Simplest possible match for first alternative.
+				"l",
+				{ { {0, 1}, {0, 1}, {1, 1} } }
+			},
+			{ // Simplest possible match for second alternative.
+				"6",
+				{ { {0, 1}, {1, 1}, {0, 1} } }
+			},
+			{ // Long match for first alternative.
+				"fhjabmo",
+				{ { {0, 7}, {0, 7}, {7, 7} } }
+			},
+			{ // Long match for second alternative.
+				"83361",
+				{ { {0, 5}, {5, 5}, {0, 5} } }
+			},
+			{ // Several sequential matches.
+				"623baw5kt7542g3236htsdf",
+				{
+					{ { 0,  3}, {23, 23}, { 0,  3} },
+					{ { 3,  6}, { 3,  6}, {23, 23} },
+					{ { 6,  7}, {23, 23}, { 6,  7} },
+					{ { 7,  9}, { 7,  9}, {23, 23} },
+					{ { 9, 13}, {23, 23}, { 9, 13} },
+					{ {13, 14}, {13, 14}, {23, 23} },
+					{ {14, 18}, {23, 23}, {14, 18} },
+					{ {18, 23}, {18, 23}, {23, 23} },
+				}
+			},
+		}
+	},
+
+	{ // Alternative groups inside sequence.
+		"(([A-Z])|([a-z])|([0-9]))+",
+		{
+			{ // Empty string - no matches.
+				"",
+				{},
+			},
+			{ // Single element with first alternative.
+				"J",
+				{ { {0, 1}, {0, 1}, {0, 1}, {1, 1}, {1, 1} } }
+			},
+			{ // Single element with second alternative.
+				"c",
+				{ { {0, 1}, {0, 1}, {1, 1}, {0, 1}, {1, 1} } }
+			},
+			{ // Single element with third alternative.
+				"8",
+				{ { {0, 1}, {0, 1}, {1, 1}, {1, 1}, {0, 1} } }
+			},
+			{ // Sequence with only first alternatives.
+				"KRAOR",
+				{ { {0, 5}, {4, 5}, {4, 5}, {5, 5}, {5, 5} } }
+			},
+			{ // Sequence with only second alternatives.
+				"yls",
+				{ { {0, 3}, {2, 3}, {3, 3}, {2, 3}, {3, 3} } }
+			},
+			{ // Sequence with only third alternatives.
+				"754300",
+				{ { {0, 6}, {5, 6}, {6, 6}, {6, 6}, {5, 6} } }
+			},
+			{ // Sequence with altering alternatives.
+				"Yl4Nq0",
+				{ { {0, 6}, {5, 6}, {3, 4}, {4, 5}, {5, 6} } } // llvm::regex failed with it.
+			},
+			{ // Sequence with all first alternatives except one third alternative. Last third alternative should be captured.
+				"NGH0GAWA",
+				{ { {0, 8}, {7, 8}, {7, 8}, {8, 8}, {3, 4} } }
+			},
+			{ // Start with only second alternatives finish with only third alternatives.
+				"bhtsrase6785650645",
+				{ { {0, 18}, {17, 18}, {18, 18}, {7, 8}, {17, 18} } }
+			},
+			{ // Match in middle of string.
+				" -- AB56cf !! ",
+				{ { {4, 10}, {9, 10}, {5, 6}, {9, 10}, {7, 8} } }
+			},
+		}
+	},
 };
 
 const size_t g_groups_extraction_test_data_size= std::size(g_groups_extraction_test_data);
