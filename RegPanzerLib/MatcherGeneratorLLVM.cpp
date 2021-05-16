@@ -259,7 +259,6 @@ void Generator::GenerateMatcherFunction(const RegexGraphBuildResult& regex_graph
 	}
 	{
 		// Zero groups.
-
 		const uint64_t groups_array_size= state_type_->elements()[StateFieldIndex::GroupsArray]->getArrayNumElements();
 		for(uint64_t i= 0; i < groups_array_size; ++i)
 		{
@@ -275,9 +274,9 @@ void Generator::GenerateMatcherFunction(const RegexGraphBuildResult& regex_graph
 			const auto group_begin_ptr= llvm_ir_builder.CreateGEP(group_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(0)});
 			const auto group_end_ptr  = llvm_ir_builder.CreateGEP(group_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(1)});
 
-			const auto null= llvm::Constant::getNullValue(char_type_ptr_);
-			llvm_ir_builder.CreateStore(null, group_begin_ptr);
-			llvm_ir_builder.CreateStore(null, group_end_ptr);
+			const auto end_value= llvm_ir_builder.CreateGEP(arg_str_begin, arg_str_size);
+			llvm_ir_builder.CreateStore(end_value, group_begin_ptr);
+			llvm_ir_builder.CreateStore(end_value, group_end_ptr  );
 		}
 	}
 	if(state_type_->getNumElements() > StateFieldIndex::SubroutineCallReturnChainHead)
@@ -333,7 +332,16 @@ void Generator::GenerateMatcherFunction(const RegexGraphBuildResult& regex_graph
 			llvm::Value* group_offset_begin= nullptr;
 			llvm::Value* group_offset_end  = nullptr;
 
-			if(const auto field_number_it= group_number_to_field_number_.find(group_number); field_number_it != group_number_to_field_number_.end())
+			if(group_number == 0)
+			{
+				group_offset_begin= arg_start_offset;
+
+				const auto current_str_pos_ptr= llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrBegin)});
+				const auto current_str_pos= llvm_ir_builder.CreateLoad(current_str_pos_ptr);
+
+				group_offset_end= llvm_ir_builder.CreatePtrDiff(current_str_pos, arg_str_begin);
+			}
+			else if(const auto field_number_it= group_number_to_field_number_.find(group_number); field_number_it != group_number_to_field_number_.end())
 			{
 				const auto src_group_ptr=
 					llvm_ir_builder.CreateGEP(
@@ -349,15 +357,6 @@ void Generator::GenerateMatcherFunction(const RegexGraphBuildResult& regex_graph
 
 				group_offset_begin= llvm_ir_builder.CreatePtrDiff(src_group_begin, arg_str_begin);
 				group_offset_end  = llvm_ir_builder.CreatePtrDiff(src_group_end  , arg_str_begin);
-			}
-			else if(group_number == 0)
-			{
-				group_offset_begin= arg_start_offset;
-
-				const auto current_str_pos_ptr= llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrBegin)});
-				const auto current_str_pos= llvm_ir_builder.CreateLoad(current_str_pos_ptr);
-
-				group_offset_end= llvm_ir_builder.CreatePtrDiff(current_str_pos, arg_str_begin);
 			}
 			else
 			{
