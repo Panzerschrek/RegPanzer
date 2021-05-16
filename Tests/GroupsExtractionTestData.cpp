@@ -254,6 +254,118 @@ const GroupsExtractionTestDataElement g_groups_extraction_test_data[]
 			},
 		}
 	},
+
+	{ // Extract group inside sequence.
+		"([a-z][0-9])+",
+		{
+			{ // Empty string - no matches.
+				"",
+				{},
+			},
+			{ // Simplest possible match - one iteration.
+				"h8",
+				{ { {0, 2}, {0, 2} } }
+			},
+			{ // Several iterations. Extracted only last group state.
+				"n7l2s7k4f6g6k8h1d0",
+				{ { {0, 18}, {16, 18} } }
+			},
+			{ // Match in middle of string.
+				"dwadawd5d2a664234",
+				{ { {6, 12}, {10, 12} } }
+			},
+			{ // Several matches.
+				"a5 h7k9f4Qf4a4j5-g53 + a4a4k7c5 = fff666",
+				{
+					{ { 0,  2}, { 0,  2} },
+					{ { 3,  9}, { 7,  9} },
+					{ {10, 16}, {14, 16} },
+					{ {17, 19}, {17, 19} },
+					{ {23, 31}, {29, 31} },
+					{ {36, 38}, {36, 38} },
+				}
+			},
+		}
+	},
+
+	{ // Extract two groups inside sequence.
+		"(([A-Z])2([a-z]))+",
+		{
+			{ // Empty string - no matches.
+				"",
+				{},
+			},
+			{ // Simplest possible match - one iteration.
+				"B2h",
+				{ { {0, 3}, {0, 3}, {0, 1}, {2, 3} } }
+			},
+			{ // Several iterations.
+				"V2kP2gZ2nO2q",
+				{ { {0, 12}, {9, 12}, {9, 10}, {11, 12} } }
+			},
+			{ // Several matches.
+				" B2rP2b = Q2q - G2hhB2kR2l S2nB2d",
+				{
+					{ { 1,  7}, { 4,  7}, { 4,  5}, { 6,  7} },
+					{ {10, 13}, {10, 13}, {10, 11}, {12, 13} },
+					{ {16, 19}, {16, 19}, {16, 17}, {18, 19} },
+					{ {20, 26}, {23, 26}, {23, 24}, {25, 26} },
+					{ {27, 33}, {30, 33}, {30, 31}, {32, 33} },
+				}
+			},
+		}
+	},
+
+	{ // Extract optional group inside sequence.
+		"([a-z]([0-9])?)+",
+		{
+			{ // Empty string - no matches.
+				"",
+				{},
+			},
+			{ // Simplest match with single iteration and no optional group.
+				"b",
+				{ { {0, 1}, {0, 1}, {1, 1} } }
+			},
+			{ // Match with multiple iterations and with no optional group.
+				"gfjajvaq",
+				{ { {0, 8}, {7, 8}, {8, 8} } }
+			},
+			{ // Single iteration with optional group.
+				"z7",
+				{ { {0, 2}, {0, 2}, {1, 2} } }
+			},
+			{ // Multiple iterations with optional group.
+				"a4n7l1g6",
+				{ { {0, 8}, {6, 8}, {7, 8} } }
+			},
+			{ // Multiple iteration but optional group appears only in one non-last iteration.
+				"fcaw6haawbh",
+				{ { {0, 11}, {10, 11}, {4, 5} } } // llvm::regex failed with it.
+			},
+			{ // Multiple iteration but optional group appears only in one last iteration.
+				"bnf7",
+				{ { {0, 4}, {2, 4}, {3, 4} } }
+			},
+			{ // Multiple iterations with multiple optional groups. Only last state of optional group returned.
+				"c3bhtg4ad2vf5ha",
+				{ { {0, 15}, {14, 15}, {12, 13} } } // llvm::regex failed with it.
+			},
+			{ // Several matches.
+				"v wgr g6a3v --e3f5 =n6 + ggg3aa ;/ wtgr3 L b4a4h6j1",
+				{
+					{ { 0,  1}, { 0,  1}, {51, 51} },
+					{ { 2,  5}, { 4,  5}, {51, 51} },
+					{ { 6, 11}, {10, 11}, { 9, 10} },
+					{ {14, 18}, {16, 18}, {17, 18} },
+					{ {20, 22}, {20, 22}, {21, 22} },
+					{ {25, 31}, {30, 31}, {28, 29} },
+					{ {35, 40}, {38, 40}, {39, 40} },
+					{ {43, 51}, {49, 51}, {50, 51} },
+				}
+			},
+		}
+	},
 };
 
 const size_t g_groups_extraction_test_data_size= std::size(g_groups_extraction_test_data);
