@@ -29,6 +29,12 @@ TEST_P(LlvmRegexGroupsExtractionTest, TestGroupsExtraction)
 			RegexFeatureFlag::SymbolClasses)) != 0)
 		return;
 
+	// llvm::regex does not handle properly optional groups extraction, so, skip some tests.
+	if( param.regex_str == "([a-z]([0-9])?)+" ||
+		param.regex_str == "(([A-Z])|([a-z])|([0-9]))+"
+		)
+		return;
+
 	llvm::Regex regex(param.regex_str);
 
 	std::string error_str;
