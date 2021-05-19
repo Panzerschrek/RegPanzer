@@ -688,6 +688,20 @@ void RegexGraphBuilder::SetupSubroutineCalls()
 	}
 }
 
+OneOf CombineSymbolSets(const OneOf& l, const OneOf& r)
+{
+	if(l.inverse_flag != r.inverse_flag) // TODO - support merging inversed "OneOf"
+		return OneOf{ {}, {}, true };
+
+	OneOf res;
+	res.inverse_flag= l.inverse_flag;
+	res.variants.insert(res.variants.end(), l.variants.begin(), l.variants.end());
+	res.ranges.insert(res.ranges.end(), l.ranges.begin(), l.ranges.end());
+	res.variants.insert(res.variants.end(), r.variants.begin(), r.variants.end());
+	res.ranges.insert(res.ranges.end(), r.ranges.begin(), r.ranges.end());
+	return res;
+}
+
 OneOf RegexGraphBuilder::GetPossibleStartSybmols(const GraphElements::NodePtr& node)
 {
 	if(node == nullptr)
@@ -723,7 +737,11 @@ OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::OneOf&
 
 OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::Alternatives& alternatives)
 {
-	// TODO
+	OneOf res;
+	for(const GraphElements::NodePtr& next : alternatives.next)
+		res= CombineSymbolSets(res, GetPossibleStartSybmols(next));
+
+	return res;
 }
 
 OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::GroupStart& group_start)
@@ -733,7 +751,7 @@ OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::GroupS
 
 OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::GroupEnd& group_end)
 {
-	return GetPossibleStartSybmols(group_start.next);
+	return GetPossibleStartSybmols(group_end.next);
 }
 
 OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::BackReference& back_reference)
@@ -755,7 +773,9 @@ OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::LookBe
 
 OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::ConditionalElement& conditional_element)
 {
-	// TODO
+	return CombineSymbolSets(
+		GetPossibleStartSybmols(conditional_element.next_true),
+		GetPossibleStartSybmols(conditional_element.next_false));
 }
 
 OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::SequenceCounterReset& sequence_counter_reset)
@@ -765,8 +785,9 @@ OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::Sequen
 
 OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::SequenceCounter& sequence_counter)
 {
-	// TODO
-	//return GetPossibleStartSybmols(sequence_counter.next_iteration);
+	return CombineSymbolSets(
+		GetPossibleStartSybmols(sequence_counter.next_iteration),
+		GetPossibleStartSybmols(sequence_counter.next_sequence_end));
 }
 
 OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::NextWeakNode& next_weak)
@@ -776,12 +797,18 @@ OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::NextWe
 
 OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::PossessiveSequence& possessive_sequence)
 {
-	// TODO
+	// Combine for cases of empty sequence.
+	return CombineSymbolSets(
+		GetPossibleStartSybmols(possessive_sequence.sequence_element),
+		GetPossibleStartSybmols(possessive_sequence.next));
 }
 
 OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::AtomicGroup& atomic_group)
 {
-	// TODO
+	// Combine for cases of empty atomic group. TODO - is this really needed? Or maybe symbols set will contain all symbols in empty group?
+	return CombineSymbolSets(
+		GetPossibleStartSybmols(atomic_group.next),
+		GetPossibleStartSybmols(atomic_group.group_element));
 }
 
 OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::SubroutineEnter& subroutine_enter)
