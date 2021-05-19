@@ -28,6 +28,12 @@ TEST_P(StdRegexGroupsExtractionTest, TestGroupsExtraction)
 			RegexFeatureFlag::LookBehind)) != 0)
 		return;
 
+	// Some implementations of std::regex does not handle properly optional groups extraction, so, skip some tests.
+	if( param.regex_str == "([a-z]([0-9])?)+" ||
+		param.regex_str == "(([A-Z])|([a-z])|([0-9]))+"
+		)
+		return;
+
 	try
 	{
 		std::regex regex(param.regex_str, std::regex_constants::ECMAScript);
