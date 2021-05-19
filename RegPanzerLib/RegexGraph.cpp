@@ -320,6 +320,29 @@ private:
 
 	void SetupSubroutineCalls();
 
+	OneOf GetPossibleStartSybmols(const GraphElements::NodePtr& node);
+
+	OneOf GetPossibleStartSybmolsImpl(const GraphElements::AnySymbol& any_symbol);
+	OneOf GetPossibleStartSybmolsImpl(const GraphElements::SpecificSymbol& specific_symbol);
+	OneOf GetPossibleStartSybmolsImpl(const GraphElements::String& string);
+	OneOf GetPossibleStartSybmolsImpl(const GraphElements::OneOf& one_of);
+	OneOf GetPossibleStartSybmolsImpl(const GraphElements::Alternatives& alternatives);
+	OneOf GetPossibleStartSybmolsImpl(const GraphElements::GroupStart& group_start);
+	OneOf GetPossibleStartSybmolsImpl(const GraphElements::GroupEnd& group_end);
+	OneOf GetPossibleStartSybmolsImpl(const GraphElements::BackReference& back_reference);
+	OneOf GetPossibleStartSybmolsImpl(const GraphElements::LookAhead& look_ahead);
+	OneOf GetPossibleStartSybmolsImpl(const GraphElements::LookBehind& look_behind);
+	OneOf GetPossibleStartSybmolsImpl(const GraphElements::ConditionalElement& conditional_element);
+	OneOf GetPossibleStartSybmolsImpl(const GraphElements::SequenceCounterReset& sequence_counter_reset);
+	OneOf GetPossibleStartSybmolsImpl(const GraphElements::SequenceCounter& sequence_counter);
+	OneOf GetPossibleStartSybmolsImpl(const GraphElements::NextWeakNode& next_weak);
+	OneOf GetPossibleStartSybmolsImpl(const GraphElements::PossessiveSequence& possessive_sequence);
+	OneOf GetPossibleStartSybmolsImpl(const GraphElements::AtomicGroup& atomic_group);
+	OneOf GetPossibleStartSybmolsImpl(const GraphElements::SubroutineEnter& subroutine_enter);
+	OneOf GetPossibleStartSybmolsImpl(const GraphElements::SubroutineLeave& subroutine_leave);
+	OneOf GetPossibleStartSybmolsImpl(const GraphElements::StateSave& state_save);
+	OneOf GetPossibleStartSybmolsImpl(const GraphElements::StateRestore& state_restore);
+
 private:
 	const Options options_;
 	GroupStats group_stats_;
@@ -663,6 +686,125 @@ void RegexGraphBuilder::SetupSubroutineCalls()
 					GraphElements::NextWeakNode{group_nodes_.at(subroutine_call_pair.first)});
 		}
 	}
+}
+
+OneOf RegexGraphBuilder::GetPossibleStartSybmols(const GraphElements::NodePtr& node)
+{
+	if(node == nullptr)
+		return OneOf{}; // Empty set of symbols.
+
+	return std::visit([&](const auto& el){ return GetPossibleStartSybmolsImpl(el); }, *node);
+}
+
+OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::AnySymbol& any_symbol)
+{
+	(void)any_symbol;
+	// Inverted empty set.
+	// TODO - process "AnySymbol" with exclusions.
+	return OneOf{ {}, {}, true };
+}
+
+OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::SpecificSymbol& specific_symbol)
+{
+	return OneOf{ {specific_symbol.code}, {}, false };
+}
+
+OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::String& string)
+{
+	if(!string.str.empty())
+		return OneOf{ {string.str.front()}, {}, false };
+	return GetPossibleStartSybmols(string.next);
+}
+
+OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::OneOf& one_of)
+{
+	return OneOf{ one_of.variants, one_of.ranges, one_of.inverse_flag };
+}
+
+OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::Alternatives& alternatives)
+{
+	// TODO
+}
+
+OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::GroupStart& group_start)
+{
+	return GetPossibleStartSybmols(group_start.next);
+}
+
+OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::GroupEnd& group_end)
+{
+	return GetPossibleStartSybmols(group_start.next);
+}
+
+OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::BackReference& back_reference)
+{
+	(void)back_reference;
+	// Any symbol is possible in backreference.
+	return OneOf{ {}, {}, true };
+}
+
+OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::LookAhead& look_ahead)
+{
+	return GetPossibleStartSybmols(look_ahead.next);
+}
+
+OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::LookBehind& look_behind)
+{
+	return GetPossibleStartSybmols(look_behind.next);
+}
+
+OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::ConditionalElement& conditional_element)
+{
+	// TODO
+}
+
+OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::SequenceCounterReset& sequence_counter_reset)
+{
+	return GetPossibleStartSybmols(sequence_counter_reset.next);
+}
+
+OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::SequenceCounter& sequence_counter)
+{
+	// TODO
+	//return GetPossibleStartSybmols(sequence_counter.next_iteration);
+}
+
+OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::NextWeakNode& next_weak)
+{
+	return GetPossibleStartSybmols(next_weak.next.lock());
+}
+
+OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::PossessiveSequence& possessive_sequence)
+{
+	// TODO
+}
+
+OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::AtomicGroup& atomic_group)
+{
+	// TODO
+}
+
+OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::SubroutineEnter& subroutine_enter)
+{
+	return GetPossibleStartSybmols(subroutine_enter.subroutine_node);
+}
+
+OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::SubroutineLeave& subroutine_leave)
+{
+	(void)subroutine_leave;
+
+	// Any symbol is possible after subroutine leave.
+	return OneOf{ {}, {}, true };
+}
+
+OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::StateSave& state_save)
+{
+	return GetPossibleStartSybmols(state_save.next);
+}
+
+OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::StateRestore& state_restore)
+{
+	return GetPossibleStartSybmols(state_restore.next);
 }
 
 } // namespace
