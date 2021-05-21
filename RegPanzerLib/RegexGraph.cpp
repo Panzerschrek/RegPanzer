@@ -451,19 +451,21 @@ GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphChain(const GraphElemen
 
 	const auto next_node= BuildRegexGraphChain(next, std::next(begin), end);
 
-	const auto node_possessive=
-		std::make_shared<GraphElements::Node>(
-				GraphElements::PossessiveSequence{
-					next_node,
-					BuildRegexGraphNode(nullptr, element.el),
-					element.seq.min_elements,
-					element.seq.max_elements,
-					});
+	const auto node_possessive= BuildRegexGraphNode(nullptr, element.el);
 
 	if(element.seq.min_elements == 1 && element.seq.max_elements == 1)
 		return BuildRegexGraphNode(next_node, element.el);
 	else if(element.seq.mode == SequenceMode::Possessive)
-		return node_possessive;
+	{
+		return
+			std::make_shared<GraphElements::Node>(
+				GraphElements::PossessiveSequence{
+					next_node,
+					node_possessive,
+					element.seq.min_elements,
+					element.seq.max_elements,
+					});
+	}
 	/* Auto-possessification optimization.
 		Sequence may be converted into possessive if there is no way to match expression returning back to previous sequence element.
 		It is true if there is no way to match expression after sequence and sequence element simultaniously.
@@ -477,7 +479,14 @@ GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphChain(const GraphElemen
 			GetPossibleStartSybmols(next_node)))
 	{
 		// TODO - remove ID of this sequence from group stats to prevent unnecessary sequence counter save/restore.
-		return node_possessive;
+		return
+			std::make_shared<GraphElements::Node>(
+				GraphElements::PossessiveSequence{
+					next_node,
+					node_possessive,
+					element.seq.min_elements,
+					element.seq.max_elements,
+					});
 	}
 	else if(element.seq.min_elements == 0 && element.seq.max_elements == 1)
 	{
