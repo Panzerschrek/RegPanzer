@@ -289,6 +289,56 @@ MinMaxSize GetRegexChainSize(const RegexElementsChain& regex_chain)
 }
 
 //
+// Symbols set stuff
+//
+
+OneOf CombineSymbolSets(const OneOf& l, const OneOf& r)
+{
+	if(l.inverse_flag || r.inverse_flag) // TODO - support merging inversed "OneOf"
+		return OneOf{ {}, {}, true };
+
+	OneOf res;
+	res.variants.insert(res.variants.end(), l.variants.begin(), l.variants.end());
+	res.ranges.insert(res.ranges.end(), l.ranges.begin(), l.ranges.end());
+	res.variants.insert(res.variants.end(), r.variants.begin(), r.variants.end());
+	res.ranges.insert(res.ranges.end(), r.ranges.begin(), r.ranges.end());
+	return res;
+}
+
+// May return "true" even if symbols set actually are not intersected.
+bool HasIntersection(const OneOf& l, const OneOf& r)
+{
+	if(l.inverse_flag || r.inverse_flag)
+		return true; // TODO - process such case more precisely.
+
+	// Check variant againt variant.
+	for(const CharType l_char : l.variants)
+	for(const CharType r_char : r.variants)
+		if(l_char == r_char)
+			return true;
+
+	// Check ranges against ranges.
+	for(const auto& l_range : l.ranges)
+	for(const auto& r_range : r.ranges)
+		if(!(l_range.second < r_range.first || l_range.first > r_range.second))
+			return true;
+
+	// Check variants against ranges.
+	for(const CharType l_char : l.variants)
+	for(const auto& r_range : r.ranges)
+		if(l_char >= r_range.first && l_char <= r_range.second)
+			return true;
+
+	// Check ranges against variants.
+	for(const auto& l_range : l.ranges)
+	for(const CharType r_char : r.variants)
+		if(r_char >= l_range.first && r_char <= l_range.second)
+			return true;
+
+	return false;
+}
+
+//
 // BuildRegexGraphNode
 //
 
@@ -401,17 +451,33 @@ GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphChain(const GraphElemen
 
 	const auto next_node= BuildRegexGraphChain(next, std::next(begin), end);
 
-	if(element.seq.min_elements == 1 && element.seq.max_elements == 1)
-		return BuildRegexGraphNode(next_node, element.el);
-	else if(element.seq.mode == SequenceMode::Possessive)
-		return
-			std::make_shared<GraphElements::Node>(
+	const auto node_possessive=
+		std::make_shared<GraphElements::Node>(
 				GraphElements::PossessiveSequence{
 					next_node,
 					BuildRegexGraphNode(nullptr, element.el),
 					element.seq.min_elements,
 					element.seq.max_elements,
 					});
+
+	if(element.seq.min_elements == 1 && element.seq.max_elements == 1)
+		return BuildRegexGraphNode(next_node, element.el);
+	/* Auto-possessification optimization.
+		Sequence may be converted into possessive if there is no way to match expression returning back to previous sequence element.
+		It is true if there is no way to match expression after sequence and sequence element simultaniously.
+		Here we check this by collecting set of start symbols for sequence element and for element after sequence.
+		If there is no itersection between two sets of symbols - apply auto-possessification.
+	*/
+	else if(
+		!HasIntersection(
+			GetPossibleStartSybmols(node_possessive),
+			GetPossibleStartSybmols(next_node)))
+	{
+		// TODO - remove ID of this sequence from group stats to prevent unnecessary sequence counter save/restore.
+		return node_possessive;
+	}
+	else if(element.seq.mode == SequenceMode::Possessive)
+		return node_possessive;
 	else if(element.seq.min_elements == 0 && element.seq.max_elements == 1)
 	{
 		// Implement optional element using alternatives node.
@@ -686,20 +752,6 @@ void RegexGraphBuilder::SetupSubroutineCalls()
 					GraphElements::NextWeakNode{group_nodes_.at(subroutine_call_pair.first)});
 		}
 	}
-}
-
-OneOf CombineSymbolSets(const OneOf& l, const OneOf& r)
-{
-	if(l.inverse_flag != r.inverse_flag) // TODO - support merging inversed "OneOf"
-		return OneOf{ {}, {}, true };
-
-	OneOf res;
-	res.inverse_flag= l.inverse_flag;
-	res.variants.insert(res.variants.end(), l.variants.begin(), l.variants.end());
-	res.ranges.insert(res.ranges.end(), l.ranges.begin(), l.ranges.end());
-	res.variants.insert(res.variants.end(), r.variants.begin(), r.variants.end());
-	res.ranges.insert(res.ranges.end(), r.ranges.begin(), r.ranges.end());
-	return res;
 }
 
 OneOf RegexGraphBuilder::GetPossibleStartSybmols(const GraphElements::NodePtr& node)
