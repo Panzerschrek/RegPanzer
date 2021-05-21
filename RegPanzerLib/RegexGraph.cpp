@@ -816,12 +816,18 @@ OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::BackRe
 
 OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::LookAhead& look_ahead)
 {
-	return GetPossibleStartSybmols(look_ahead.next);
+	(void)look_ahead;
+
+	// Any symbol is possible in look_ahead.
+	return OneOf{ {}, {}, true };
 }
 
 OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::LookBehind& look_behind)
 {
-	return GetPossibleStartSybmols(look_behind.next);
+	(void)look_behind;
+
+	// Any symbol is possible in look_behind.
+	return OneOf{ {}, {}, true };
 }
 
 OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::ConditionalElement& conditional_element)
