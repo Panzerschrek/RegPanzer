@@ -462,6 +462,8 @@ GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphChain(const GraphElemen
 
 	if(element.seq.min_elements == 1 && element.seq.max_elements == 1)
 		return BuildRegexGraphNode(next_node, element.el);
+	else if(element.seq.mode == SequenceMode::Possessive)
+		return node_possessive;
 	/* Auto-possessification optimization.
 		Sequence may be converted into possessive if there is no way to match expression returning back to previous sequence element.
 		It is true if there is no way to match expression after sequence and sequence element simultaniously.
@@ -469,6 +471,7 @@ GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphChain(const GraphElemen
 		If there is no itersection between two sets of symbols - apply auto-possessification.
 	*/
 	else if(
+		element.seq.mode != SequenceMode::Lazy &&
 		!HasIntersection(
 			GetPossibleStartSybmols(node_possessive),
 			GetPossibleStartSybmols(next_node)))
@@ -476,8 +479,6 @@ GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphChain(const GraphElemen
 		// TODO - remove ID of this sequence from group stats to prevent unnecessary sequence counter save/restore.
 		return node_possessive;
 	}
-	else if(element.seq.mode == SequenceMode::Possessive)
-		return node_possessive;
 	else if(element.seq.min_elements == 0 && element.seq.max_elements == 1)
 	{
 		// Implement optional element using alternatives node.
