@@ -46,6 +46,9 @@ void CollectGroupInternalsForElementImpl(const Look& look, GroupStat& stat)
 	CollectGroupInternalsForRegexChain(look.elements, stat);
 }
 
+void CollectGroupInternalsForElementImpl(const LineStartAssertion&, GroupStat&){}
+void CollectGroupInternalsForElementImpl(const LineEndAssertion&, GroupStat&){}
+
 void CollectGroupInternalsForElementImpl(const Alternatives& alternatives, GroupStat& stat)
 {
 	for(const RegexElementsChain& alternaive : alternatives.alternatives)
@@ -125,6 +128,9 @@ void CollectGroupStatsForElementImpl(const Look& look, GroupStats& group_stats)
 {
 	CollectGroupStatsForRegexChain(look.elements, group_stats);
 }
+
+void CollectGroupStatsForElementImpl(const LineStartAssertion&, GroupStats&){}
+void CollectGroupStatsForElementImpl(const LineEndAssertion&, GroupStats&){}
 
 void CollectGroupStatsForElementImpl(const Alternatives& alternatives, GroupStats& group_stats)
 {
@@ -252,6 +258,16 @@ MinMaxSize GetRegexElementSize_impl(const Look&)
 	return MinMaxSize{0, 0};
 }
 
+MinMaxSize GetRegexElementSize_impl(const LineStartAssertion&)
+{
+	return MinMaxSize{0, 0};
+}
+
+MinMaxSize GetRegexElementSize_impl(const LineEndAssertion&)
+{
+	return MinMaxSize{0, 0};
+}
+
 MinMaxSize GetRegexElementSize_impl(const ConditionalElement& conditional_element)
 {
 	return GetRegexElementSize_impl(conditional_element.alternatives);
@@ -365,6 +381,8 @@ private:
 	GraphElements::NodePtr BuildRegexGraphNodeImpl(const GraphElements::NodePtr& next, const AtomicGroup& atomic_group);
 	GraphElements::NodePtr BuildRegexGraphNodeImpl(const GraphElements::NodePtr& next, const Alternatives& alternatives);
 	GraphElements::NodePtr BuildRegexGraphNodeImpl(const GraphElements::NodePtr& next, const Look& look);
+	GraphElements::NodePtr BuildRegexGraphNodeImpl(const GraphElements::NodePtr& next, const LineStartAssertion& line_start_assertion);
+	GraphElements::NodePtr BuildRegexGraphNodeImpl(const GraphElements::NodePtr& next, const LineEndAssertion& line_end_assertion);
 	GraphElements::NodePtr BuildRegexGraphNodeImpl(const GraphElements::NodePtr& next, const ConditionalElement& conditional_element);
 	GraphElements::NodePtr BuildRegexGraphNodeImpl(const GraphElements::NodePtr& next, const SubroutineCall& subroutine_call);
 
@@ -706,6 +724,20 @@ GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphNodeImpl(const GraphEle
 
 		return std::make_shared<GraphElements::Node>(std::move(out_node));
 	}
+}
+
+GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphNodeImpl(const GraphElements::NodePtr& next, const LineStartAssertion& line_start_assertion)
+{
+	(void)line_start_assertion;
+	// TODO
+	return next;
+}
+
+GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphNodeImpl(const GraphElements::NodePtr& next, const LineEndAssertion& line_end_assertion)
+{
+	(void)line_end_assertion;
+	// TODO
+	return next;
 }
 
 GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphNodeImpl(const GraphElements::NodePtr& next, const ConditionalElement& conditional_element)

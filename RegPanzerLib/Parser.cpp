@@ -628,6 +628,16 @@ RegexElementsChain Parser::ParseChain()
 			str_.remove_prefix(1);
 			break;
 
+		case '^':
+			res.el= LineStartAssertion{};
+			str_.remove_prefix(1);
+			break;
+
+		case '$':
+			res.el= LineEndAssertion{};
+			str_.remove_prefix(1);
+			break;
+
 		case '[':
 			res.el= ParseOneOf();
 			break;
