@@ -1,3 +1,4 @@
+#include "MatcherTestData.hpp"
 #include "GroupsExtractionTestData.hpp"
 #include "Utils.hpp"
 #include "../RegPanzerLib/PushDisableLLVMWarnings.hpp"
@@ -11,14 +12,11 @@ namespace RegPanzer
 namespace
 {
 
-class LlvmRegexGroupsExtractionTest : public ::testing::TestWithParam<GroupsExtractionTestDataElement> {};
-
-TEST_P(LlvmRegexGroupsExtractionTest, TestGroupsExtraction)
+bool IsUnsupportedRegex(const std::string& regex_str)
 {
-	const auto param= GetParam();
-
 	// Ignore unsupported features.
-	if((GetRegexFeatures(param.regex_str) & (
+	return
+		(GetRegexFeatures(regex_str) & (
 			RegexFeatureFlag::UTF8 |
 			RegexFeatureFlag::LazySequences |
 			RegexFeatureFlag::PossessiveSequences |
@@ -26,7 +24,58 @@ TEST_P(LlvmRegexGroupsExtractionTest, TestGroupsExtraction)
 			RegexFeatureFlag::NoncapturingGroups |
 			RegexFeatureFlag::AtomicGroups |
 			RegexFeatureFlag::Subroutines |
-			RegexFeatureFlag::SymbolClasses)) != 0)
+			RegexFeatureFlag::SymbolClasses)) != 0;
+}
+
+class LlvmRegexMatchTest : public ::testing::TestWithParam<MatcherTestDataElement> {};
+
+TEST_P(LlvmRegexMatchTest, TestMatch)
+{
+	const auto param= GetParam();
+
+	if(IsUnsupportedRegex(param.regex_str))
+		return;
+
+	llvm::Regex regex(param.regex_str);
+
+	std::string error_str;
+	ASSERT_TRUE(regex.isValid(error_str));
+
+	for(const MatcherTestDataElement::Case& c : param.cases)
+	{
+		if(StringContainsNonASCIISymbols(c.input_str))
+			continue;
+
+		MatcherTestDataElement::Ranges result_ranges;
+
+		llvm::StringRef str= c.input_str;
+		while(!str.empty())
+		{
+			llvm::SmallVector<llvm::StringRef, 16> matches;
+			if(!regex.match(str, &matches))
+				break;
+			if(matches.empty())
+				break;
+
+			const llvm::StringRef& match= matches.front();
+			result_ranges.emplace_back(size_t(match.data() - c.input_str.data()), size_t(match.data() + match.size() - c.input_str.data()));
+			str= str.substr(size_t(match.data() + match.size() - str.data()));
+		}
+
+		EXPECT_EQ(result_ranges, c.result_ranges);
+	}
+}
+
+INSTANTIATE_TEST_CASE_P(M, LlvmRegexMatchTest, testing::ValuesIn(g_matcher_test_data, g_matcher_test_data + g_matcher_test_data_size));
+
+
+class LlvmRegexGroupsExtractionTest : public ::testing::TestWithParam<GroupsExtractionTestDataElement> {};
+
+TEST_P(LlvmRegexGroupsExtractionTest, TestGroupsExtraction)
+{
+	const auto param= GetParam();
+
+	if(IsUnsupportedRegex(param.regex_str))
 		return;
 
 	// llvm::regex does not handle properly optional groups extraction, so, skip some tests.

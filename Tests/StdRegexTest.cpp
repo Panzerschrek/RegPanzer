@@ -1,3 +1,4 @@
+#include "MatcherTestData.hpp"
 #include "GroupsExtractionTestData.hpp"
 #include "Utils.hpp"
 #include "../RegPanzerLib/PushDisableLLVMWarnings.hpp"
@@ -11,21 +12,63 @@ namespace RegPanzer
 namespace
 {
 
-class StdRegexGroupsExtractionTest : public ::testing::TestWithParam<GroupsExtractionTestDataElement> {};
-
-TEST_P(StdRegexGroupsExtractionTest, TestGroupsExtraction)
+bool IsUnsupportedRegex(const std::string& regex_str)
 {
-	const auto param= GetParam();
-
 	// Ignore unsupported features.
-	if((GetRegexFeatures(param.regex_str) & (
+	return
+		(GetRegexFeatures(regex_str) & (
 			RegexFeatureFlag::UTF8 |
 			RegexFeatureFlag::PossessiveSequences |
 			RegexFeatureFlag::AtomicGroups |
 			RegexFeatureFlag::ConditionalElements |
 			RegexFeatureFlag::Subroutines |
 			RegexFeatureFlag::FourDigitHexCodes  |
-			RegexFeatureFlag::LookBehind)) != 0)
+			RegexFeatureFlag::LookBehind)) != 0;
+}
+
+class StdRegexMatchTest : public ::testing::TestWithParam<MatcherTestDataElement> {};
+
+TEST_P(StdRegexMatchTest, TestMatch)
+{
+	const auto param= GetParam();
+
+	if(IsUnsupportedRegex(param.regex_str))
+		return;
+
+	try
+	{
+		std::regex regex(param.regex_str, std::regex_constants::ECMAScript);
+
+		for(const MatcherTestDataElement::Case& c : param.cases)
+		{
+			if(StringContainsNonASCIISymbols(c.input_str))
+				continue;
+
+			MatcherTestDataElement::Ranges result_ranges;
+
+			for(auto it= std::sregex_iterator(c.input_str.begin(), c.input_str.end(), regex); it != std::sregex_iterator(); ++it)
+				result_ranges.emplace_back(it->position(), it->position() + it->length());
+
+			EXPECT_EQ(result_ranges, c.result_ranges);
+		}
+	}
+	catch(const std::regex_error& e)
+	{
+		std::cout << "std::regex error: " << e.what() << std::endl;
+		ASSERT_TRUE(false);
+	}
+}
+
+INSTANTIATE_TEST_CASE_P(M, StdRegexMatchTest, testing::ValuesIn(g_matcher_test_data, g_matcher_test_data + g_matcher_test_data_size));
+
+
+class StdRegexGroupsExtractionTest : public ::testing::TestWithParam<GroupsExtractionTestDataElement> {};
+
+TEST_P(StdRegexGroupsExtractionTest, TestGroupsExtraction)
+{
+	const auto param= GetParam();
+
+	if(IsUnsupportedRegex(param.regex_str))
 		return;
 
 	// Some implementations of std::regex does not handle properly optional groups extraction, so, skip some tests.

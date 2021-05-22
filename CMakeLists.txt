@@ -95,12 +95,7 @@ if(DEFINED LLVM_SRC_DIR)
 		message("Found PCRE library: ${PCRE_LIBRARY}")
 	else()
 		message("PCRE library not found. Cross-tests with this library will be disabled.")
-		list(
-			REMOVE_ITEM
-			REG_PANZER_TEST_SOURCES
-				${CMAKE_CURRENT_SOURCE_DIR}/Tests/PcreRegexMatcherTest.cpp
-				${CMAKE_CURRENT_SOURCE_DIR}/Tests/PcreRegexGroupsExtractionTest.cpp
-				)
+		list(REMOVE_ITEM REG_PANZER_TEST_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/Tests/PcreRegexTest.cpp)
 	endif()
 
 	add_executable(RegPanzerTest ${REG_PANZER_TEST_SOURCES})
