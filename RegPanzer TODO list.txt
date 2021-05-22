@@ -23,8 +23,8 @@ Library:
 * Fix error with lookbehind with non-ASCII symbols
 * UTF-16 and UTF-32 matchers
 * "OneOf" normalization/optimization
-* Auto-possessification for sequences (replace recursion with loop if possible)
 * C++ functions generator
+* More advanced auto-possessification
 
 LLVM Generator:
 * State save optimization - save only needed state parts
