@@ -289,6 +289,56 @@ MinMaxSize GetRegexChainSize(const RegexElementsChain& regex_chain)
 }
 
 //
+// Symbols set stuff
+//
+
+OneOf CombineSymbolSets(const OneOf& l, const OneOf& r)
+{
+	if(l.inverse_flag || r.inverse_flag) // TODO - support merging inversed "OneOf"
+		return OneOf{ {}, {}, true };
+
+	OneOf res;
+	res.variants.insert(res.variants.end(), l.variants.begin(), l.variants.end());
+	res.ranges.insert(res.ranges.end(), l.ranges.begin(), l.ranges.end());
+	res.variants.insert(res.variants.end(), r.variants.begin(), r.variants.end());
+	res.ranges.insert(res.ranges.end(), r.ranges.begin(), r.ranges.end());
+	return res;
+}
+
+// May return "true" even if symbols set actually are not intersected.
+bool HasIntersection(const OneOf& l, const OneOf& r)
+{
+	if(l.inverse_flag || r.inverse_flag)
+		return true; // TODO - process such case more precisely.
+
+	// Check variant againt variant.
+	for(const CharType l_char : l.variants)
+	for(const CharType r_char : r.variants)
+		if(l_char == r_char)
+			return true;
+
+	// Check ranges against ranges.
+	for(const auto& l_range : l.ranges)
+	for(const auto& r_range : r.ranges)
+		if(!(l_range.second < r_range.first || l_range.first > r_range.second))
+			return true;
+
+	// Check variants against ranges.
+	for(const CharType l_char : l.variants)
+	for(const auto& r_range : r.ranges)
+		if(l_char >= r_range.first && l_char <= r_range.second)
+			return true;
+
+	// Check ranges against variants.
+	for(const auto& l_range : l.ranges)
+	for(const CharType r_char : r.variants)
+		if(r_char >= l_range.first && r_char <= l_range.second)
+			return true;
+
+	return false;
+}
+
+//
 // BuildRegexGraphNode
 //
 
@@ -320,9 +370,34 @@ private:
 
 	void SetupSubroutineCalls();
 
+	OneOf GetPossibleStartSybmols(const GraphElements::NodePtr& node);
+
+	OneOf GetPossibleStartSybmolsImpl(const GraphElements::AnySymbol& any_symbol);
+	OneOf GetPossibleStartSybmolsImpl(const GraphElements::SpecificSymbol& specific_symbol);
+	OneOf GetPossibleStartSybmolsImpl(const GraphElements::String& string);
+	OneOf GetPossibleStartSybmolsImpl(const GraphElements::OneOf& one_of);
+	OneOf GetPossibleStartSybmolsImpl(const GraphElements::Alternatives& alternatives);
+	OneOf GetPossibleStartSybmolsImpl(const GraphElements::GroupStart& group_start);
+	OneOf GetPossibleStartSybmolsImpl(const GraphElements::GroupEnd& group_end);
+	OneOf GetPossibleStartSybmolsImpl(const GraphElements::BackReference& back_reference);
+	OneOf GetPossibleStartSybmolsImpl(const GraphElements::LookAhead& look_ahead);
+	OneOf GetPossibleStartSybmolsImpl(const GraphElements::LookBehind& look_behind);
+	OneOf GetPossibleStartSybmolsImpl(const GraphElements::ConditionalElement& conditional_element);
+	OneOf GetPossibleStartSybmolsImpl(const GraphElements::SequenceCounterReset& sequence_counter_reset);
+	OneOf GetPossibleStartSybmolsImpl(const GraphElements::SequenceCounter& sequence_counter);
+	OneOf GetPossibleStartSybmolsImpl(const GraphElements::NextWeakNode& next_weak);
+	OneOf GetPossibleStartSybmolsImpl(const GraphElements::PossessiveSequence& possessive_sequence);
+	OneOf GetPossibleStartSybmolsImpl(const GraphElements::AtomicGroup& atomic_group);
+	OneOf GetPossibleStartSybmolsImpl(const GraphElements::SubroutineEnter& subroutine_enter);
+	OneOf GetPossibleStartSybmolsImpl(const GraphElements::SubroutineLeave& subroutine_leave);
+	OneOf GetPossibleStartSybmolsImpl(const GraphElements::StateSave& state_save);
+	OneOf GetPossibleStartSybmolsImpl(const GraphElements::StateRestore& state_restore);
+
 private:
 	const Options options_;
 	GroupStats group_stats_;
+	// Collect list of sequence counters to use it later to prevent unnecessary state save/restore generation.
+	GraphElements::SequenceIdSet used_sequence_counters_;
 	// Collect group enter and subroutine enter nodes to setup pointers to subroutine calls later.
 	std::unordered_map<size_t, GraphElements::NodePtr> group_nodes_;
 	std::unordered_map<size_t, std::vector<GraphElements::NodePtr>> subroutine_enter_nodes_;
@@ -356,6 +431,7 @@ RegexGraphBuildResult RegexGraphBuilder::BuildRegexGraph(const RegexElementsChai
 	res.options= options_;
 	res.root= root;
 	res.group_stats.swap(group_stats_);
+	res.used_sequence_counters.swap(used_sequence_counters_);
 
 	group_nodes_.clear();
 	subroutine_enter_nodes_.clear();
@@ -378,17 +454,42 @@ GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphChain(const GraphElemen
 
 	const auto next_node= BuildRegexGraphChain(next, std::next(begin), end);
 
+	const auto node_possessive= BuildRegexGraphNode(nullptr, element.el);
+
 	if(element.seq.min_elements == 1 && element.seq.max_elements == 1)
 		return BuildRegexGraphNode(next_node, element.el);
 	else if(element.seq.mode == SequenceMode::Possessive)
+	{
 		return
 			std::make_shared<GraphElements::Node>(
 				GraphElements::PossessiveSequence{
 					next_node,
-					BuildRegexGraphNode(nullptr, element.el),
+					node_possessive,
 					element.seq.min_elements,
 					element.seq.max_elements,
 					});
+	}
+	/* Auto-possessification optimization.
+		Sequence may be converted into possessive if there is no way to match expression returning back to previous sequence element.
+		It is true if there is no way to match expression after sequence and sequence element simultaniously.
+		Here we check this by collecting set of start symbols for sequence element and for element after sequence.
+		If there is no itersection between two sets of symbols - apply auto-possessification.
+	*/
+	else if(
+		element.seq.mode != SequenceMode::Lazy &&
+		!HasIntersection(
+			GetPossibleStartSybmols(node_possessive),
+			GetPossibleStartSybmols(next_node)))
+	{
+		return
+			std::make_shared<GraphElements::Node>(
+				GraphElements::PossessiveSequence{
+					next_node,
+					node_possessive,
+					element.seq.min_elements,
+					element.seq.max_elements,
+					});
+	}
 	else if(element.seq.min_elements == 0 && element.seq.max_elements == 1)
 	{
 		// Implement optional element using alternatives node.
@@ -443,6 +544,8 @@ GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphChain(const GraphElemen
 	else
 	{
 		const GraphElements::SequenceId id= GetSequenceId(element);
+
+		used_sequence_counters_.insert(id);
 
 		const auto sequence_counter_block=
 			std::make_shared<GraphElements::Node>(
@@ -663,6 +766,144 @@ void RegexGraphBuilder::SetupSubroutineCalls()
 					GraphElements::NextWeakNode{group_nodes_.at(subroutine_call_pair.first)});
 		}
 	}
+}
+
+OneOf RegexGraphBuilder::GetPossibleStartSybmols(const GraphElements::NodePtr& node)
+{
+	if(node == nullptr)
+		return OneOf{}; // Empty set of symbols.
+
+	return std::visit([&](const auto& el){ return GetPossibleStartSybmolsImpl(el); }, *node);
+}
+
+OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::AnySymbol& any_symbol)
+{
+	(void)any_symbol;
+	// Inverted empty set.
+	// TODO - process "AnySymbol" with exclusions.
+	return OneOf{ {}, {}, true };
+}
+
+OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::SpecificSymbol& specific_symbol)
+{
+	return OneOf{ {specific_symbol.code}, {}, false };
+}
+
+OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::String& string)
+{
+	if(!string.str.empty())
+		return OneOf{ {string.str.front()}, {}, false };
+	return GetPossibleStartSybmols(string.next);
+}
+
+OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::OneOf& one_of)
+{
+	return OneOf{ one_of.variants, one_of.ranges, one_of.inverse_flag };
+}
+
+OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::Alternatives& alternatives)
+{
+	OneOf res;
+	for(const GraphElements::NodePtr& next : alternatives.next)
+		res= CombineSymbolSets(res, GetPossibleStartSybmols(next));
+
+	return res;
+}
+
+OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::GroupStart& group_start)
+{
+	return GetPossibleStartSybmols(group_start.next);
+}
+
+OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::GroupEnd& group_end)
+{
+	return GetPossibleStartSybmols(group_end.next);
+}
+
+OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::BackReference& back_reference)
+{
+	(void)back_reference;
+	// Any symbol is possible in backreference.
+	return OneOf{ {}, {}, true };
+}
+
+OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::LookAhead& look_ahead)
+{
+	(void)look_ahead;
+
+	// Any symbol is possible in look_ahead.
+	return OneOf{ {}, {}, true };
+}
+
+OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::LookBehind& look_behind)
+{
+	(void)look_behind;
+
+	// Any symbol is possible in look_behind.
+	return OneOf{ {}, {}, true };
+}
+
+OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::ConditionalElement& conditional_element)
+{
+	return CombineSymbolSets(
+		GetPossibleStartSybmols(conditional_element.next_true),
+		GetPossibleStartSybmols(conditional_element.next_false));
+}
+
+OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::SequenceCounterReset& sequence_counter_reset)
+{
+	return GetPossibleStartSybmols(sequence_counter_reset.next);
+}
+
+OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::SequenceCounter& sequence_counter)
+{
+	return CombineSymbolSets(
+		GetPossibleStartSybmols(sequence_counter.next_iteration),
+		GetPossibleStartSybmols(sequence_counter.next_sequence_end));
+}
+
+OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::NextWeakNode& next_weak)
+{
+	return GetPossibleStartSybmols(next_weak.next.lock());
+}
+
+OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::PossessiveSequence& possessive_sequence)
+{
+	// Combine for cases of empty sequence.
+	return CombineSymbolSets(
+		GetPossibleStartSybmols(possessive_sequence.sequence_element),
+		GetPossibleStartSybmols(possessive_sequence.next));
+}
+
+OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::AtomicGroup& atomic_group)
+{
+	// Combine for cases of empty atomic group. TODO - is this really needed? Or maybe symbols set will contain all symbols in empty group?
+	return CombineSymbolSets(
+		GetPossibleStartSybmols(atomic_group.next),
+		GetPossibleStartSybmols(atomic_group.group_element));
+}
+
+OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::SubroutineEnter& subroutine_enter)
+{
+	return GetPossibleStartSybmols(subroutine_enter.subroutine_node);
+}
+
+OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::SubroutineLeave& subroutine_leave)
+{
+	(void)subroutine_leave;
+
+	// Any symbol is possible after subroutine leave.
+	return OneOf{ {}, {}, true };
+}
+
+OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::StateSave& state_save)
+{
+	return GetPossibleStartSybmols(state_save.next);
+}
+
+OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::StateRestore& state_restore)
+{
+	return GetPossibleStartSybmols(state_restore.next);
 }
 
 } // namespace

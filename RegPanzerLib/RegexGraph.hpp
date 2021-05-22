@@ -216,6 +216,7 @@ struct RegexGraphBuildResult
 {
 	Options options;
 	GroupStats group_stats;
+	GraphElements::SequenceIdSet used_sequence_counters; // Set of sequence counters, actually used in this graph.
 	GraphElements::NodePtr root;
 };
 
