@@ -31,6 +31,10 @@ const TestDataElement g_test_data[]
 		"[a-z]*",
 		true,
 	},
+	{ // Sequence with length in range.
+		"[0-9]{7,16}",
+		true,
+	},
 	{ // Sequence with string element - should make it possessive.
 		"(bla)+",
 		true,

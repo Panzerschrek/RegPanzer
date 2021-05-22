@@ -407,12 +407,11 @@ void Generator::CreateStateType(const RegexGraphBuildResult& regex_graph)
 
 	const GroupStat& regex_stat= regex_graph.group_stats.at(0);
 	{
-		const size_t number_of_counters= regex_stat.internal_sequences.size();
-		const auto sequence_counters_array= llvm::ArrayType::get(ptr_size_int_type_, uint64_t(number_of_counters));
-		members.push_back(sequence_counters_array);
-
-		for(const GraphElements::SequenceId sequence_id : regex_stat.internal_sequences)
+		for(const GraphElements::SequenceId sequence_id : regex_graph.used_sequence_counters)
 			sequence_id_to_counter_filed_number_.emplace(sequence_id, uint32_t(sequence_id_to_counter_filed_number_.size()));
+
+		const auto sequence_counters_array= llvm::ArrayType::get(ptr_size_int_type_, uint64_t(sequence_id_to_counter_filed_number_.size()));
+		members.push_back(sequence_counters_array);
 	}
 	{
 		for(const auto& group_pair : regex_graph.group_stats)
@@ -1566,7 +1565,10 @@ void Generator::BuildNodeFunctionBodyImpl(
 	// Save payload.
 	for(const GraphElements::SequenceId sequence_id : node.sequence_counters_to_save)
 	{
-		const auto sequence_field_index= GetFieldGEPIndex(sequence_id_to_counter_filed_number_.at(sequence_id));
+		const auto field_number_it= sequence_id_to_counter_filed_number_.find(sequence_id);
+		if(field_number_it == sequence_id_to_counter_filed_number_.end()) // Sequence counter is not actually used.
+			continue;
+		const auto sequence_field_index= GetFieldGEPIndex(field_number_it->second);
 
 		const auto sequence_counter_ptr=
 			llvm_ir_builder.CreateGEP(
@@ -1644,7 +1646,10 @@ void Generator::BuildNodeFunctionBodyImpl(
 	// Restore payload.
 	for(const GraphElements::SequenceId sequence_id : node.sequence_counters_to_restore)
 	{
-		const auto sequence_field_index= GetFieldGEPIndex(sequence_id_to_counter_filed_number_.at(sequence_id));
+		const auto field_number_it= sequence_id_to_counter_filed_number_.find(sequence_id);
+		if(field_number_it == sequence_id_to_counter_filed_number_.end()) // Sequence counter is not actually used.
+			continue;
+		const auto sequence_field_index= GetFieldGEPIndex(field_number_it->second);
 
 		const auto sequence_counter_ptr=
 			llvm_ir_builder.CreateGEP(

@@ -396,6 +396,8 @@ private:
 private:
 	const Options options_;
 	GroupStats group_stats_;
+	// Collect list of sequence counters to use it later to prevent unnecessary state save/restore generation.
+	GraphElements::SequenceIdSet used_sequence_counters_;
 	// Collect group enter and subroutine enter nodes to setup pointers to subroutine calls later.
 	std::unordered_map<size_t, GraphElements::NodePtr> group_nodes_;
 	std::unordered_map<size_t, std::vector<GraphElements::NodePtr>> subroutine_enter_nodes_;
@@ -429,6 +431,7 @@ RegexGraphBuildResult RegexGraphBuilder::BuildRegexGraph(const RegexElementsChai
 	res.options= options_;
 	res.root= root;
 	res.group_stats.swap(group_stats_);
+	res.used_sequence_counters.swap(used_sequence_counters_);
 
 	group_nodes_.clear();
 	subroutine_enter_nodes_.clear();
@@ -478,7 +481,6 @@ GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphChain(const GraphElemen
 			GetPossibleStartSybmols(node_possessive),
 			GetPossibleStartSybmols(next_node)))
 	{
-		// TODO - remove ID of this sequence from group stats to prevent unnecessary sequence counter save/restore.
 		return
 			std::make_shared<GraphElements::Node>(
 				GraphElements::PossessiveSequence{
@@ -542,6 +544,8 @@ GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphChain(const GraphElemen
 	else
 	{
 		const GraphElements::SequenceId id= GetSequenceId(element);
+
+		used_sequence_counters_.insert(id);
 
 		const auto sequence_counter_block=
 			std::make_shared<GraphElements::Node>(
