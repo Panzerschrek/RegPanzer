@@ -2,9 +2,8 @@ This list contains not yet implemented features and possible improvements.
 Remve items from this list if it is implemented.
 
 General features:
-* Line end assertion ($)
-* Full string match
 * Simple assertions
+* Any symbol does not match line end
 * Unicode classes
 * Newline conventions
 * Relative backreferences
