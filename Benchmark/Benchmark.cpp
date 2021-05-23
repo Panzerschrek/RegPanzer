@@ -5,7 +5,6 @@
 #include <benchmark/benchmark.h>
 #include "../RegPanzerLib/PopLLVMWarnings.hpp"
 #include <random>
-#include <thread>
 
 namespace RegPanzer
 {
@@ -67,7 +66,6 @@ void MatcherBenchmark(benchmark::State& st)
 
 	const auto test_data= param.data_generation_func();
 
-	std::this_thread::sleep_for(std::chrono::seconds(5));
 	for (auto _ : st)
 	{
 		size_t count= 0;
