@@ -46,6 +46,9 @@ void CollectGroupInternalsForElementImpl(const Look& look, GroupStat& stat)
 	CollectGroupInternalsForRegexChain(look.elements, stat);
 }
 
+void CollectGroupInternalsForElementImpl(const LineStartAssertion&, GroupStat&){}
+void CollectGroupInternalsForElementImpl(const LineEndAssertion&, GroupStat&){}
+
 void CollectGroupInternalsForElementImpl(const Alternatives& alternatives, GroupStat& stat)
 {
 	for(const RegexElementsChain& alternaive : alternatives.alternatives)
@@ -125,6 +128,9 @@ void CollectGroupStatsForElementImpl(const Look& look, GroupStats& group_stats)
 {
 	CollectGroupStatsForRegexChain(look.elements, group_stats);
 }
+
+void CollectGroupStatsForElementImpl(const LineStartAssertion&, GroupStats&){}
+void CollectGroupStatsForElementImpl(const LineEndAssertion&, GroupStats&){}
 
 void CollectGroupStatsForElementImpl(const Alternatives& alternatives, GroupStats& group_stats)
 {
@@ -252,6 +258,16 @@ MinMaxSize GetRegexElementSize_impl(const Look&)
 	return MinMaxSize{0, 0};
 }
 
+MinMaxSize GetRegexElementSize_impl(const LineStartAssertion&)
+{
+	return MinMaxSize{0, 0};
+}
+
+MinMaxSize GetRegexElementSize_impl(const LineEndAssertion&)
+{
+	return MinMaxSize{0, 0};
+}
+
 MinMaxSize GetRegexElementSize_impl(const ConditionalElement& conditional_element)
 {
 	return GetRegexElementSize_impl(conditional_element.alternatives);
@@ -365,6 +381,8 @@ private:
 	GraphElements::NodePtr BuildRegexGraphNodeImpl(const GraphElements::NodePtr& next, const AtomicGroup& atomic_group);
 	GraphElements::NodePtr BuildRegexGraphNodeImpl(const GraphElements::NodePtr& next, const Alternatives& alternatives);
 	GraphElements::NodePtr BuildRegexGraphNodeImpl(const GraphElements::NodePtr& next, const Look& look);
+	GraphElements::NodePtr BuildRegexGraphNodeImpl(const GraphElements::NodePtr& next, const LineStartAssertion& line_start_assertion);
+	GraphElements::NodePtr BuildRegexGraphNodeImpl(const GraphElements::NodePtr& next, const LineEndAssertion& line_end_assertion);
 	GraphElements::NodePtr BuildRegexGraphNodeImpl(const GraphElements::NodePtr& next, const ConditionalElement& conditional_element);
 	GraphElements::NodePtr BuildRegexGraphNodeImpl(const GraphElements::NodePtr& next, const SubroutineCall& subroutine_call);
 
@@ -382,6 +400,8 @@ private:
 	OneOf GetPossibleStartSybmolsImpl(const GraphElements::BackReference& back_reference);
 	OneOf GetPossibleStartSybmolsImpl(const GraphElements::LookAhead& look_ahead);
 	OneOf GetPossibleStartSybmolsImpl(const GraphElements::LookBehind& look_behind);
+	OneOf GetPossibleStartSybmolsImpl(const GraphElements::StringStartAssertion& string_start_assertion);
+	OneOf GetPossibleStartSybmolsImpl(const GraphElements::StringEndAssertion& string_end_assertion);
 	OneOf GetPossibleStartSybmolsImpl(const GraphElements::ConditionalElement& conditional_element);
 	OneOf GetPossibleStartSybmolsImpl(const GraphElements::SequenceCounterReset& sequence_counter_reset);
 	OneOf GetPossibleStartSybmolsImpl(const GraphElements::SequenceCounter& sequence_counter);
@@ -708,6 +728,61 @@ GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphNodeImpl(const GraphEle
 	}
 }
 
+GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphNodeImpl(const GraphElements::NodePtr& next, const LineStartAssertion& line_start_assertion)
+{
+	(void)line_start_assertion;
+
+	const auto string_start_assertion_node= std::make_shared<GraphElements::Node>(GraphElements::StringStartAssertion{next});
+
+	if(options_.multiline)
+	{
+		// In multiline mode check line start or string start.
+
+		// TODO - support CR LF
+		GraphElements::OneOf one_of;
+		one_of.variants.push_back('\n');
+		const auto one_of_node= std::make_shared<GraphElements::Node>(std::move(one_of));
+
+		const auto look_behind_node= std::make_shared<GraphElements::Node>(GraphElements::LookBehind{next, one_of_node, true, 1});
+
+		GraphElements::Alternatives alternatives;
+		alternatives.next.push_back(string_start_assertion_node);
+		alternatives.next.push_back(look_behind_node);
+
+		return std::make_shared<GraphElements::Node>(std::move(alternatives));
+	}
+	else
+		return string_start_assertion_node;
+}
+
+GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphNodeImpl(const GraphElements::NodePtr& next, const LineEndAssertion& line_end_assertion)
+{
+	(void)line_end_assertion;
+
+	const auto string_end_assertion_node= std::make_shared<GraphElements::Node>(GraphElements::StringEndAssertion{next});
+
+	if(options_.multiline)
+	{
+		// In multiline mode check line end or string end.
+
+		// TODO - support CR LF
+
+		GraphElements::OneOf one_of;
+		one_of.variants.push_back('\n');
+		const auto one_of_node= std::make_shared<GraphElements::Node>(std::move(one_of));
+
+		const auto look_ahead_node= std::make_shared<GraphElements::Node>(GraphElements::LookAhead{next, one_of_node, true});
+
+		GraphElements::Alternatives alternatives;
+		alternatives.next.push_back(string_end_assertion_node);
+		alternatives.next.push_back(look_ahead_node);
+
+		return std::make_shared<GraphElements::Node>(std::move(alternatives));
+	}
+
+	return string_end_assertion_node;
+}
+
 GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphNodeImpl(const GraphElements::NodePtr& next, const ConditionalElement& conditional_element)
 {
 	GraphElements::ConditionalElement out_node;
@@ -840,6 +915,22 @@ OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::LookBe
 	(void)look_behind;
 
 	// Any symbol is possible in look_behind.
+	return OneOf{ {}, {}, true };
+}
+
+OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::StringStartAssertion& string_start_assertion)
+{
+	(void)string_start_assertion;
+
+	// Fail possessification optimization in such case - return all possible symbols.
+	return OneOf{ {}, {}, true };
+}
+
+OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::StringEndAssertion& string_end_assertion)
+{
+	(void)string_end_assertion;
+
+	// Fail possessification optimization in such case - return all possible symbols.
 	return OneOf{ {}, {}, true };
 }
 

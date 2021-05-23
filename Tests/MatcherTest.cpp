@@ -12,16 +12,15 @@ namespace RegPanzer
 namespace
 {
 
-class MatchTest : public ::testing::TestWithParam<MatcherTestDataElement> {};
-
-TEST_P(MatchTest, TestMatch)
+void RunTestCase(const MatcherTestDataElement& param, const bool is_multiline)
 {
-	const auto param= GetParam();
 	const auto parse_res= RegPanzer::ParseRegexString(param.regex_str);
 	const auto regex_chain= std::get_if<RegexElementsChain>(&parse_res);
 	ASSERT_TRUE(regex_chain != nullptr);
 
-	const auto regex_graph= BuildRegexGraph(*regex_chain, Options());
+	Options options;
+	options.multiline= is_multiline;
+	const auto regex_graph= BuildRegexGraph(*regex_chain, options);
 
 	for(const MatcherTestDataElement::Case& c : param.cases)
 	{
@@ -45,7 +44,24 @@ TEST_P(MatchTest, TestMatch)
 	}
 }
 
+class MatchTest : public ::testing::TestWithParam<MatcherTestDataElement> {};
+
+TEST_P(MatchTest, TestMatch)
+{
+	RunTestCase(GetParam(), false);
+}
+
 INSTANTIATE_TEST_CASE_P(M, MatchTest, testing::ValuesIn(g_matcher_test_data, g_matcher_test_data + g_matcher_test_data_size));
+
+
+class MatchMultilineTest : public ::testing::TestWithParam<MatcherTestDataElement> {};
+
+TEST_P(MatchMultilineTest, TestMatch)
+{
+	RunTestCase(GetParam(), true);
+}
+
+INSTANTIATE_TEST_CASE_P(M, MatchMultilineTest, testing::ValuesIn(g_matcher_multiline_test_data, g_matcher_multiline_test_data + g_matcher_multiline_test_data_size));
 
 
 class GroupsExtractionTest : public ::testing::TestWithParam<GroupsExtractionTestDataElement> {};

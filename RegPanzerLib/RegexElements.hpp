@@ -100,6 +100,18 @@ struct Look
 	bool operator!=(const Look& other) const { return !(*this == other); }
 };
 
+struct LineStartAssertion
+{
+	bool operator==(const LineStartAssertion&) const { return true; }
+	bool operator!=(const LineStartAssertion& other) const { return !(*this == other); }
+};
+
+struct LineEndAssertion
+{
+	bool operator==(const LineEndAssertion&) const { return true; }
+	bool operator!=(const LineEndAssertion& other) const { return !(*this == other); }
+};
+
 struct ConditionalElement
 {
 	Look look;
@@ -160,6 +172,8 @@ struct RegexElementFull
 			AtomicGroup,
 			Alternatives,
 			Look,
+			LineStartAssertion,
+			LineEndAssertion,
 			ConditionalElement,
 			SubroutineCall>;
 

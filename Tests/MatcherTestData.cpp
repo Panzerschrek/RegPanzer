@@ -1568,6 +1568,164 @@ const MatcherTestDataElement g_matcher_test_data[]
 		}
 	},
 
+	{ // String start assertion.
+		"^[a-z]+",
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // Simplest possible match.
+				"k",
+				{ {0, 1} }
+			},
+			{ // Match with ling sequence.
+				"noeab",
+				{ {0, 5} }
+			},
+			{ // Mo match - sequence is not at start of string.
+				" vbg",
+				{}
+			},
+			{ // Have match only for first sequence because it is at start of string.
+				"bytanh\nvbf",
+				{ {0, 6} }
+			},
+		}
+	},
+
+	{ // String end assertion.
+		"nbv$",
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // Simplest possible match.
+				"nbv",
+				{ {0, 3} }
+			},
+			{ // No match - sequence is not at end of string.
+				"nbv ",
+				{}
+			},
+			{ // Match only second sequence because first sequence is not at end of string.
+				"nbv\nnbv",
+				{ {4, 7} }
+			},
+		}
+	},
+
+	{ // String start and string end assertions together.
+		"^[0-9]+?$", // sequence iz lazy, but will match many symbols because of string end assertion.
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // Simplest possible match.
+				"4",
+				{ {0, 1} }
+			},
+			{ // Long match.
+				"6524582110",
+				{ {0, 10} }
+			},
+			{ // No match because sequence is not at string start.
+				"-5434",
+				{}
+			},
+			{ // No match because sequence is not at string end.
+				"1236781q",
+				{}
+			},
+			{ // No match for sequence between two newlines, because start/end assertions works only for string start/end if multiline mode is disabled (by default).
+				"wadwd\n43721\ns1!",
+				{}
+			},
+		}
+	},
+
+	{ // Useless line start assertion.
+		"a^b",
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // No match because it's not possible to be in start of string when any symbol is already extracted.
+				"ab",
+				{}
+			},
+		}
+	},
+
+	{ // Optional content before string startassertion - it's not possible to extract it.
+		"T?^[0-9]",
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // Simplest possible match without optional element.
+				"2",
+				{ {0, 1} }
+			},
+			{ // No match because there is no string start before "7".
+				"T7",
+				{}
+			},
+		}
+	},
+
+	{ // Optional content after string end assertion - it's not possible to extract it.
+		"5$0?",
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // Simplest possible match without optional element.
+				"5",
+				{ {0, 1} }
+			},
+			{ // No match because there is no string end after "5".
+				"50",
+				{}
+			},
+		}
+	},
+
+	{ // String end assertion in alternatives.
+		"A([a-z]+|[0-9]+$)",
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // Simplest match with first alternative.
+				"Ab",
+				{ {0, 2} }
+			},
+			{ // Match with first alternative not ended at string end.
+				"Akyr--!",
+				{ {0, 4} }
+			},
+			{ // Simplest match with second alternativve.
+				"A5",
+				{ {0, 2} }
+			},
+			{ // Long match with second alternativve.
+				"A368901123",
+				{ {0, 10} }
+			},
+			{ // Nom match because second alternative ends not at string end.
+				"A65 ",
+				{}
+			},
+		}
+	},
+
 	{ // Simplest backreference.
 		"(w)\\1",
 		{
@@ -2544,5 +2702,55 @@ const MatcherTestDataElement g_matcher_test_data[]
 };
 
 const size_t g_matcher_test_data_size= std::size(g_matcher_test_data);
+
+const MatcherTestDataElement g_matcher_multiline_test_data[]
+{
+	{ // Line start assertion.
+		"^[0-9]",
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // Match at start of string.
+				"6",
+				{ {0, 1} }
+			},
+			{ // Match at start of line.
+				"  v  \n12 ",
+				{ {6, 7} }
+			},
+			{ // Match both at start of string and at start of line.
+				"5\n9",
+				{ {0, 1}, {2, 3} }
+			},
+		}
+	},
+
+	{ // Line end assertion.
+		"[a-z]$",
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // Match at end of string.
+				"  df",
+				{ {3, 4} }
+			},
+			{ // Match at end of line.
+				"f\n55",
+				{ {0, 1} }
+			},
+			{ // match both at end of string and at end of line.
+				"avuy\nytr",
+				{ {3, 4}, {7, 8} }
+			},
+		}
+	},
+};
+
+const size_t g_matcher_multiline_test_data_size= std::size(g_matcher_multiline_test_data);
+
 
 } // namespace RegPanzer

@@ -90,6 +90,12 @@ cl::opt<bool> extract_groups(
 	cl::init(false),
 	cl::cat(options_category) );
 
+cl::opt<bool> multiline(
+	"m",
+	cl::desc("Multiline mode - ^ and $ matches not only at start/end of whole string but also at start/end of line"),
+	cl::init(false),
+	cl::cat(options_category) );
+
 enum class FileType{ BC, LL, Obj, Asm };
 cl::opt< FileType > file_type(
 	"filetype",
@@ -312,6 +318,7 @@ int Main(int argc, const char* argv[])
 
 	RegPanzer::Options regex_build_options;
 	regex_build_options.extract_groups= Options::extract_groups;
+	regex_build_options.multiline= Options::multiline;
 
 	const RegexGraphBuildResult regex_graph= BuildRegexGraph(*regex_chain, regex_build_options);
 	GenerateMatcherFunction(module, regex_graph, Options::result_function_name);

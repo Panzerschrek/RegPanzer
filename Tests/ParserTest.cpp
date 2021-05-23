@@ -802,6 +802,25 @@ const TestDataElement c_test_data[]
 		}
 	},
 
+	{ // Line start assertion.
+		"^zw",
+		{
+			{ LineStartAssertion{}, { 1, 1, SequenceMode::Greedy } },
+			{ SpecificSymbol{ 'z' }, { 1, 1, SequenceMode::Greedy } },
+			{ SpecificSymbol{ 'w' }, { 1, 1, SequenceMode::Greedy } },
+		}
+	},
+
+	{ // Line end assertion.
+		"str$",
+		{
+			{ SpecificSymbol{ 's' }, { 1, 1, SequenceMode::Greedy } },
+			{ SpecificSymbol{ 't' }, { 1, 1, SequenceMode::Greedy } },
+			{ SpecificSymbol{ 'r' }, { 1, 1, SequenceMode::Greedy } },
+			{ LineEndAssertion{}, { 1, 1, SequenceMode::Greedy } },
+		}
+	},
+
 	// Non-ASCII symbols.
 	{
 		"ДёСÜ☭",
