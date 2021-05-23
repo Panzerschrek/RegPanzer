@@ -88,6 +88,9 @@ target_link_libraries(RegPanzerCompiler PRIVATE RegPanzerLib ${LLVM_LIBS_FOR_REG
 # Tests depends on gtest library which present only in LLVM sources but not in LLVM binary distribution.
 
 if(DEFINED LLVM_SRC_DIR)
+	#
+	# Tests
+	#
 	file(GLOB REG_PANZER_TEST_SOURCES "Tests/*")
 
 	find_library(PCRE_LIBRARY pcre)
@@ -108,4 +111,15 @@ if(DEFINED LLVM_SRC_DIR)
 	endif()
 
 	#add_custom_command(TARGET RegPanzerTest POST_BUILD COMMAND RegPanzerTest)
+
+	#
+	# benchmark
+	#
+	file(GLOB REG_PANZER_BENCHMARK_SOURCES "Benchmark/*")
+
+
+	add_executable(RegPanzerBenchmark ${REG_PANZER_BENCHMARK_SOURCES})
+	target_link_libraries(RegPanzerBenchmark PRIVATE RegPanzerLib benchmark benchmark_main ${LLVM_LIBS_FOR_REG_PANZER_TEST})
+	target_include_directories(RegPanzerBenchmark PRIVATE ${LLVM_SRC_DIR}/utils/benchmark/include/)
+
 endif()
