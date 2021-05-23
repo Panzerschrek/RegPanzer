@@ -31,16 +31,15 @@ const std::string GetTestsDataLayout()
 	return result;
 }
 
-class GeneratedLLVMMatcherTest : public ::testing::TestWithParam<MatcherTestDataElement> {};
-
-TEST_P(GeneratedLLVMMatcherTest, TestMatch)
+void RunTestCase(const MatcherTestDataElement& param, const bool is_multiline)
 {
-	const auto param= GetParam();
 	const auto parse_res= RegPanzer::ParseRegexString(param.regex_str);
 	const auto regex_chain= std::get_if<RegexElementsChain>(&parse_res);
 	ASSERT_TRUE(regex_chain != nullptr);
 
-	const auto regex_graph= BuildRegexGraph(*regex_chain, Options());
+	Options options;
+	options.multiline= is_multiline;
+	const auto regex_graph= BuildRegexGraph(*regex_chain, options);
 
 	llvm::LLVMContext llvm_context;
 	auto module= std::make_unique<llvm::Module>("id", llvm_context);
@@ -89,7 +88,24 @@ TEST_P(GeneratedLLVMMatcherTest, TestMatch)
 	}
 }
 
+class GeneratedLLVMMatcherTest : public ::testing::TestWithParam<MatcherTestDataElement> {};
+
+TEST_P(GeneratedLLVMMatcherTest, TestMatch)
+{
+	RunTestCase(GetParam(), false);
+}
+
 INSTANTIATE_TEST_CASE_P(M, GeneratedLLVMMatcherTest, testing::ValuesIn(g_matcher_test_data, g_matcher_test_data + g_matcher_test_data_size));
+
+
+class GeneratedLLVMMatcherMultilineTest : public ::testing::TestWithParam<MatcherTestDataElement> {};
+
+TEST_P(GeneratedLLVMMatcherMultilineTest, TestMatch)
+{
+	RunTestCase(GetParam(), true);
+}
+
+INSTANTIATE_TEST_CASE_P(M, GeneratedLLVMMatcherMultilineTest, testing::ValuesIn(g_matcher_multiline_test_data, g_matcher_multiline_test_data + g_matcher_multiline_test_data_size));
 
 
 class GeneratedLLVMMatcherGroupsExtractionTest : public ::testing::TestWithParam<GroupsExtractionTestDataElement> {};

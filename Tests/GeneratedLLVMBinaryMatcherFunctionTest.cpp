@@ -15,19 +15,18 @@ namespace RegPanzer
 namespace
 {
 
-class GeneratedLLVMBinaryMatcherTest : public ::testing::TestWithParam<MatcherTestDataElement> {};
-
-TEST_P(GeneratedLLVMBinaryMatcherTest, TestMatch)
+void RunTestCase(const MatcherTestDataElement& param, const bool is_multiline)
 {
 	auto target_machine= CreateTargetMachine();
 	ASSERT_TRUE(target_machine != nullptr);
 
-	const auto param= GetParam();
 	const auto parse_res= RegPanzer::ParseRegexString(param.regex_str);
 	const auto regex_chain= std::get_if<RegexElementsChain>(&parse_res);
 	ASSERT_TRUE(regex_chain != nullptr);
 
-	const auto regex_graph= BuildRegexGraph(*regex_chain, Options());
+	Options options;
+	options.multiline= is_multiline;
+	const auto regex_graph= BuildRegexGraph(*regex_chain, options);
 
 	const std::string function_name= "Match";
 
@@ -69,7 +68,24 @@ TEST_P(GeneratedLLVMBinaryMatcherTest, TestMatch)
 	}
 }
 
+class GeneratedLLVMBinaryMatcherTest : public ::testing::TestWithParam<MatcherTestDataElement> {};
+
+TEST_P(GeneratedLLVMBinaryMatcherTest, TestMatch)
+{
+	RunTestCase(GetParam(), false);
+}
+
 INSTANTIATE_TEST_CASE_P(M, GeneratedLLVMBinaryMatcherTest, testing::ValuesIn(g_matcher_test_data, g_matcher_test_data + g_matcher_test_data_size));
+
+
+class GeneratedLLVMBinaryMatcherMultilineTest : public ::testing::TestWithParam<MatcherTestDataElement> {};
+
+TEST_P(GeneratedLLVMBinaryMatcherMultilineTest, TestMatch)
+{
+	RunTestCase(GetParam(), true);
+}
+
+INSTANTIATE_TEST_CASE_P(M, GeneratedLLVMBinaryMatcherMultilineTest, testing::ValuesIn(g_matcher_multiline_test_data, g_matcher_multiline_test_data + g_matcher_multiline_test_data_size));
 
 } // namespace
 

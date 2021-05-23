@@ -731,13 +731,56 @@ GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphNodeImpl(const GraphEle
 GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphNodeImpl(const GraphElements::NodePtr& next, const LineStartAssertion& line_start_assertion)
 {
 	(void)line_start_assertion;
-	return std::make_shared<GraphElements::Node>(GraphElements::StringStartAssertion{next});
+
+	const auto string_start_assertion_node= std::make_shared<GraphElements::Node>(GraphElements::StringStartAssertion{next});
+
+	if(options_.multiline)
+	{
+		// In multiline mode check line start or string start.
+
+		// TODO - support CR LF
+		GraphElements::OneOf one_of;
+		one_of.variants.push_back('\n');
+		const auto one_of_node= std::make_shared<GraphElements::Node>(std::move(one_of));
+
+		const auto look_behind_node= std::make_shared<GraphElements::Node>(GraphElements::LookBehind{next, one_of_node, true, 1});
+
+		GraphElements::Alternatives alternatives;
+		alternatives.next.push_back(string_start_assertion_node);
+		alternatives.next.push_back(look_behind_node);
+
+		return std::make_shared<GraphElements::Node>(std::move(alternatives));
+	}
+	else
+		return string_start_assertion_node;
 }
 
 GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphNodeImpl(const GraphElements::NodePtr& next, const LineEndAssertion& line_end_assertion)
 {
 	(void)line_end_assertion;
-	return std::make_shared<GraphElements::Node>(GraphElements::StringEndAssertion{next});
+
+	const auto string_end_assertion_node= std::make_shared<GraphElements::Node>(GraphElements::StringEndAssertion{next});
+
+	if(options_.multiline)
+	{
+		// In multiline mode check line end or string end.
+
+		// TODO - support CR LF
+
+		GraphElements::OneOf one_of;
+		one_of.variants.push_back('\n');
+		const auto one_of_node= std::make_shared<GraphElements::Node>(std::move(one_of));
+
+		const auto look_ahead_node= std::make_shared<GraphElements::Node>(GraphElements::LookAhead{next, one_of_node, true});
+
+		GraphElements::Alternatives alternatives;
+		alternatives.next.push_back(string_end_assertion_node);
+		alternatives.next.push_back(look_ahead_node);
+
+		return std::make_shared<GraphElements::Node>(std::move(alternatives));
+	}
+
+	return string_end_assertion_node;
 }
 
 GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphNodeImpl(const GraphElements::NodePtr& next, const ConditionalElement& conditional_element)
