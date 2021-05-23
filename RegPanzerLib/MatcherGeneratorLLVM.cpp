@@ -1268,15 +1268,47 @@ void Generator::BuildNodeFunctionBodyImpl(
 void Generator::BuildNodeFunctionBodyImpl(
 	IRBuilder& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::StringStartAssertion& node)
 {
-	// TODO
+	const auto function= llvm_ir_builder.GetInsertBlock()->getParent();
+
+	const auto str_begin= llvm_ir_builder.CreateLoad(llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrBegin)}));
+	const auto str_begin_initial= llvm_ir_builder.CreateLoad(llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrBeginInitial)}));
+
+	const auto is_start= llvm_ir_builder.CreateICmpEQ(str_begin, str_begin_initial);
+
+	const auto ok_block= llvm::BasicBlock::Create(context_, "ok", function);
+	const auto fail_block= llvm::BasicBlock::Create(context_, "fail", function);
+	llvm_ir_builder.CreateCondBr(is_start, ok_block, fail_block);
+
+	// Ok block.
+	llvm_ir_builder.SetInsertPoint(ok_block);
 	CreateNextCallRet(llvm_ir_builder, state_ptr, node.next);
+
+	// Fail block.
+	llvm_ir_builder.SetInsertPoint(fail_block);
+	llvm_ir_builder.CreateRet(llvm::ConstantInt::getFalse(context_));
 }
 
 void Generator::BuildNodeFunctionBodyImpl(
 	IRBuilder& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::StringEndAssertion& node)
 {
-	// TODO
+	const auto function= llvm_ir_builder.GetInsertBlock()->getParent();
+
+	const auto str_begin= llvm_ir_builder.CreateLoad(llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrBegin)}));
+	const auto str_end= llvm_ir_builder.CreateLoad(llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrEnd)}));
+
+	const auto is_start= llvm_ir_builder.CreateICmpEQ(str_begin, str_end);
+
+	const auto ok_block= llvm::BasicBlock::Create(context_, "ok", function);
+	const auto fail_block= llvm::BasicBlock::Create(context_, "fail", function);
+	llvm_ir_builder.CreateCondBr(is_start, ok_block, fail_block);
+
+	// Ok block.
+	llvm_ir_builder.SetInsertPoint(ok_block);
 	CreateNextCallRet(llvm_ir_builder, state_ptr, node.next);
+
+	// Fail block.
+	llvm_ir_builder.SetInsertPoint(fail_block);
+	llvm_ir_builder.CreateRet(llvm::ConstantInt::getFalse(context_));
 }
 
 void Generator::BuildNodeFunctionBodyImpl(
