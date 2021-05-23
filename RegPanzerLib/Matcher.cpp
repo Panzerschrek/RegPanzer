@@ -157,6 +157,20 @@ bool MatchNodeImpl(const GraphElements::BackReference& node, State& state)
 	return false;
 }
 
+bool MatchNodeImpl(const GraphElements::StringStartAssertion& node, State& state)
+{
+	return
+		state.str.data() == state.str_initial.data() &&
+		MatchNode(node.next, state);
+}
+
+bool MatchNodeImpl(const GraphElements::StringEndAssertion& node, State& state)
+{
+	return
+		state.str.data() == (state.str_initial.data() + state.str_initial.size()) &&
+		MatchNode(node.next, state);
+}
+
 bool MatchNodeImpl(const GraphElements::LookAhead& node, State& state)
 {
 	State state_copy= state;

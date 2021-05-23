@@ -22,6 +22,8 @@ const char* GetNodeName(const GraphElements::GroupEnd&) { return "group_end"; }
 const char* GetNodeName(const GraphElements::BackReference&) { return "back_reference"; }
 const char* GetNodeName(const GraphElements::LookAhead&) { return "look_ahead"; }
 const char* GetNodeName(const GraphElements::LookBehind&) { return "look_behind"; }
+const char* GetNodeName(const GraphElements::StringStartAssertion&) { return "string_start_assertion"; }
+const char* GetNodeName(const GraphElements::StringEndAssertion&) { return "string_end_assertion"; }
 const char* GetNodeName(const GraphElements::ConditionalElement&) { return "condtinonal_element"; }
 const char* GetNodeName(const GraphElements::SequenceCounterReset&) { return "sequence_counter_reset"; }
 const char* GetNodeName(const GraphElements::SequenceCounter&) { return "loop_counter_block"; }
@@ -121,6 +123,12 @@ private:
 
 	void BuildNodeFunctionBodyImpl(
 		IRBuilder& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::LookBehind& node);
+
+	void BuildNodeFunctionBodyImpl(
+		IRBuilder& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::StringStartAssertion& node);
+
+	void BuildNodeFunctionBodyImpl(
+		IRBuilder& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::StringEndAssertion& node);
 
 	void BuildNodeFunctionBodyImpl(
 		IRBuilder& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::ConditionalElement& node);
@@ -1255,6 +1263,20 @@ void Generator::BuildNodeFunctionBodyImpl(
 		llvm_ir_builder.SetInsertPoint(look_fail_block);
 		CreateNextCallRet(llvm_ir_builder, state_ptr, node.next);
 	}
+}
+
+void Generator::BuildNodeFunctionBodyImpl(
+	IRBuilder& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::StringStartAssertion& node)
+{
+	// TODO
+	CreateNextCallRet(llvm_ir_builder, state_ptr, node.next);
+}
+
+void Generator::BuildNodeFunctionBodyImpl(
+	IRBuilder& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::StringEndAssertion& node)
+{
+	// TODO
+	CreateNextCallRet(llvm_ir_builder, state_ptr, node.next);
 }
 
 void Generator::BuildNodeFunctionBodyImpl(

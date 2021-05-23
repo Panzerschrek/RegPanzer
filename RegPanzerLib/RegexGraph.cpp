@@ -400,6 +400,8 @@ private:
 	OneOf GetPossibleStartSybmolsImpl(const GraphElements::BackReference& back_reference);
 	OneOf GetPossibleStartSybmolsImpl(const GraphElements::LookAhead& look_ahead);
 	OneOf GetPossibleStartSybmolsImpl(const GraphElements::LookBehind& look_behind);
+	OneOf GetPossibleStartSybmolsImpl(const GraphElements::StringStartAssertion& string_start_assertion);
+	OneOf GetPossibleStartSybmolsImpl(const GraphElements::StringEndAssertion& string_end_assertion);
 	OneOf GetPossibleStartSybmolsImpl(const GraphElements::ConditionalElement& conditional_element);
 	OneOf GetPossibleStartSybmolsImpl(const GraphElements::SequenceCounterReset& sequence_counter_reset);
 	OneOf GetPossibleStartSybmolsImpl(const GraphElements::SequenceCounter& sequence_counter);
@@ -729,15 +731,13 @@ GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphNodeImpl(const GraphEle
 GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphNodeImpl(const GraphElements::NodePtr& next, const LineStartAssertion& line_start_assertion)
 {
 	(void)line_start_assertion;
-	// TODO
-	return next;
+	return std::make_shared<GraphElements::Node>(GraphElements::StringStartAssertion{next});
 }
 
 GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphNodeImpl(const GraphElements::NodePtr& next, const LineEndAssertion& line_end_assertion)
 {
 	(void)line_end_assertion;
-	// TODO
-	return next;
+	return std::make_shared<GraphElements::Node>(GraphElements::StringEndAssertion{next});
 }
 
 GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphNodeImpl(const GraphElements::NodePtr& next, const ConditionalElement& conditional_element)
@@ -872,6 +872,22 @@ OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::LookBe
 	(void)look_behind;
 
 	// Any symbol is possible in look_behind.
+	return OneOf{ {}, {}, true };
+}
+
+OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::StringStartAssertion& string_start_assertion)
+{
+	(void)string_start_assertion;
+
+	// Fail possessification optimization in such case - return all possible symbols.
+	return OneOf{ {}, {}, true };
+}
+
+OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::StringEndAssertion& string_end_assertion)
+{
+	(void)string_end_assertion;
+
+	// Fail possessification optimization in such case - return all possible symbols.
 	return OneOf{ {}, {}, true };
 }
 
