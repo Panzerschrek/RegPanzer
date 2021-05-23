@@ -19,21 +19,22 @@ namespace
 const std::string function_name= "test_match";
 const std::string object_file_path= "test.o";
 
-class CompilerGeneratedMatcherTest : public ::testing::TestWithParam<MatcherTestDataElement> {};
-
-TEST_P(CompilerGeneratedMatcherTest, TestMatch)
+void RunTestCase(const MatcherTestDataElement& param, const bool is_multiline)
 {
 	// Launch compiler, produce object file, load it into MCJIT Execition engine and run function from it.
-
-	const auto param= GetParam();
 
 	{
 		// This test must be launched from build directory, where also located the Compiler executable.
 
 		const std::string compiler_program= "RegPanzerCompiler";
-		const int res= llvm::sys::ExecuteAndWait(
-			compiler_program,
-			{compiler_program, param.regex_str, "--function-name", function_name, "-o", object_file_path, "-O2"});
+
+		llvm::SmallVector<llvm::StringRef, 8> args
+			{compiler_program, param.regex_str, "--function-name", function_name, "-o", object_file_path, "-O2"};
+
+		if(is_multiline)
+			args.push_back("-m");
+
+		const int res= llvm::sys::ExecuteAndWait(compiler_program, args);
 		ASSERT_EQ(res, 0);
 	}
 
@@ -81,7 +82,24 @@ TEST_P(CompilerGeneratedMatcherTest, TestMatch)
 	}
 }
 
+class CompilerGeneratedMatcherTest : public ::testing::TestWithParam<MatcherTestDataElement> {};
+
+TEST_P(CompilerGeneratedMatcherTest, TestMatch)
+{
+	RunTestCase(GetParam(), false);
+}
+
 INSTANTIATE_TEST_CASE_P(M, CompilerGeneratedMatcherTest, testing::ValuesIn(g_matcher_test_data, g_matcher_test_data + g_matcher_test_data_size));
+
+
+class CompilerGeneratedMatcherMultilineTest : public ::testing::TestWithParam<MatcherTestDataElement> {};
+
+TEST_P(CompilerGeneratedMatcherMultilineTest, TestMatch)
+{
+	RunTestCase(GetParam(), true);
+}
+
+INSTANTIATE_TEST_CASE_P(M, CompilerGeneratedMatcherMultilineTest, testing::ValuesIn(g_matcher_multiline_test_data, g_matcher_multiline_test_data + g_matcher_multiline_test_data_size));
 
 
 class CompilerGeneratedMatcherGroupsExtractionTest : public ::testing::TestWithParam<GroupsExtractionTestDataElement> {};
