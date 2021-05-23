@@ -1568,6 +1568,54 @@ const MatcherTestDataElement g_matcher_test_data[]
 		}
 	},
 
+	{ // String start assertion.
+		"^[a-z]+",
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // Simplest possible match.
+				"k",
+				{ {0, 1} }
+			},
+			{ // Match with ling sequence.
+				"noeab",
+				{ {0, 5} }
+			},
+			{ // Mo match - sequence is not at start of string.
+				" vbg",
+				{}
+			},
+			{ // Have match only for first sequence because it is at start of string.
+				"bytanh\nvbf",
+				{ {0, 6} }
+			},
+		}
+	},
+
+	{ // String end assertion.
+		"nbv$",
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // Simplest possible match.
+				"nbv",
+				{ {0, 3} }
+			},
+			{ // No match - sequence is not at end of string.
+				"nbv ",
+				{}
+			},
+			{ // Match only second sequence because first sequence is not at end of string.
+				"nbv\nnbv",
+				{ {4, 7} }
+			},
+		}
+	},
+
 	{ // Simplest backreference.
 		"(w)\\1",
 		{
