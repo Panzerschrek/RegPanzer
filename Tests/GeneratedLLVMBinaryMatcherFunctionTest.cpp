@@ -1,3 +1,4 @@
+#include "BenchmarkData.hpp"
 #include "MatcherTestData.hpp"
 #include "Utils.hpp"
 #include "../RegPanzerLib/MatcherGeneratorLLVM.hpp"
@@ -86,6 +87,62 @@ TEST_P(GeneratedLLVMBinaryMatcherMultilineTest, TestMatch)
 }
 
 INSTANTIATE_TEST_CASE_P(M, GeneratedLLVMBinaryMatcherMultilineTest, testing::ValuesIn(g_matcher_multiline_test_data, g_matcher_multiline_test_data + g_matcher_multiline_test_data_size));
+
+
+class GeneratedLLVMBinaryMatcherBenchmarkTest : public ::testing::TestWithParam<BenchmarkDataElement> {};
+
+TEST_P(GeneratedLLVMBinaryMatcherBenchmarkTest, TestBench)
+{
+	const auto& param= GetParam();
+
+	auto target_machine= CreateTargetMachine();
+	ASSERT_TRUE(target_machine != nullptr);
+
+	const auto parse_res= RegPanzer::ParseRegexString(param.regex_str);
+	const auto regex_chain= std::get_if<RegexElementsChain>(&parse_res);
+	ASSERT_TRUE(regex_chain != nullptr);
+
+	const auto regex_graph= BuildRegexGraph(*regex_chain, Options());
+
+	const std::string function_name= "Match";
+
+	llvm::LLVMContext llvm_context;
+	auto module= std::make_unique<llvm::Module>("id", llvm_context);
+	module->setDataLayout(target_machine->createDataLayout());
+
+	GenerateMatcherFunction(*module, regex_graph, function_name);
+
+	llvm::EngineBuilder builder(std::move(module));
+	builder.setEngineKind(llvm::EngineKind::JIT);
+	builder.setMemoryManager(std::make_unique<llvm::SectionMemoryManager>());
+	const std::unique_ptr<llvm::ExecutionEngine> engine(builder.create(target_machine.release())); // Engine takes ownership over target machine.
+	ASSERT_TRUE(engine != nullptr);
+
+	const auto function= reinterpret_cast<MatcherFunctionType>(engine->getFunctionAddress(function_name));
+	ASSERT_TRUE(function != nullptr);
+
+	const std::string test_data= param.data_generation_func();
+
+	size_t count= 0;
+	for(size_t i= 0; i < test_data.size();)
+	{
+		size_t group[2]{};
+		const auto subpatterns_extracted= function(test_data.data(), test_data.size(), i, group, 1);
+
+		if(subpatterns_extracted == 0)
+			++i;
+		else
+		{
+			++count;
+
+			if(group[1] <= i && group[1] <= group[0])
+				break;
+			i= group[1];
+		}
+	}
+}
+
+INSTANTIATE_TEST_CASE_P(BE, GeneratedLLVMBinaryMatcherBenchmarkTest, testing::ValuesIn(g_benchmark_data, g_benchmark_data + g_benchmark_data_size));
 
 } // namespace
 
