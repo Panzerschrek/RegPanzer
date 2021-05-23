@@ -1,3 +1,4 @@
+#include "BenchmarkData.hpp"
 #include "MatcherTestData.hpp"
 #include "GroupsExtractionTestData.hpp"
 #include "Utils.hpp"
@@ -144,6 +145,52 @@ TEST_P(PcreRegexGroupsExtractionTest, TestGroupsExtraction)
 }
 
 INSTANTIATE_TEST_CASE_P(GE, PcreRegexGroupsExtractionTest, testing::ValuesIn(g_groups_extraction_test_data, g_groups_extraction_test_data + g_groups_extraction_test_data_size));
+
+
+
+
+class PcreRegexBenchmarkTest : public ::testing::TestWithParam<BenchmarkDataElement> {};
+
+
+TEST_P(PcreRegexBenchmarkTest, TestMatch)
+{
+	const auto& param= GetParam();
+
+	const char* error_ptr= nullptr;
+	int error_offset= 0;
+	pcre* const r= pcre_compile(param.regex_str.data(), PCRE_UTF8, &error_ptr, &error_offset, nullptr);
+	ASSERT_TRUE(r != nullptr);
+
+	const std::string test_data= param.data_generation_func();
+
+	try
+	{
+		int vec[100*3]{};
+
+		size_t count= 0;
+		for(size_t i= 0; i < test_data.size();)
+		{
+			if(pcre_exec(r, nullptr, test_data.data(), int(test_data.size()), int(i), PCRE_NO_UTF8_CHECK, vec, std::size(vec)) != 0)
+			{
+				if(vec[0] < 0 || vec[1] < 0 || size_t(vec[1]) <= i || size_t(vec[1]) > test_data.size())
+					break;
+				i= size_t(vec[1]);
+			}
+			else
+				++count;
+		}
+
+	}
+	catch(...)
+	{
+		pcre_free(r);
+		throw;
+	}
+
+	pcre_free(r);
+}
+
+INSTANTIATE_TEST_CASE_P(BE, PcreRegexBenchmarkTest, testing::ValuesIn(g_benchmark_data, g_benchmark_data + g_benchmark_data_size));
 
 } // namespace
 
