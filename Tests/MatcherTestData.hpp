@@ -23,4 +23,7 @@ struct MatcherTestDataElement
 extern const MatcherTestDataElement g_matcher_test_data[];
 extern const size_t g_matcher_test_data_size;
 
+extern const MatcherTestDataElement g_matcher_multiline_test_data[];
+extern const size_t g_matcher_multiline_test_data_size;
+
 } // namespace RegPanzer

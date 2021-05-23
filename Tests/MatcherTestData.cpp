@@ -2703,4 +2703,54 @@ const MatcherTestDataElement g_matcher_test_data[]
 
 const size_t g_matcher_test_data_size= std::size(g_matcher_test_data);
 
+const MatcherTestDataElement g_matcher_multiline_test_data[]
+{
+	{ // Line start assertion.
+		"^[0-9]",
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // Match at start of string.
+				"6",
+				{ {0, 1} }
+			},
+			{ // Match at start of line.
+				"  v  \n12 ",
+				{ {6, 7} }
+			},
+			{ // Match both at start of string and at start of line.
+				"5\n9",
+				{ {0, 1}, {2, 3} }
+			},
+		}
+	},
+
+	{ // Line end assertion.
+		"[a-z]$",
+		{
+			{ // Empty string - no matches.
+				"",
+				{}
+			},
+			{ // Match at end of string.
+				"  df",
+				{ {3, 4} }
+			},
+			{ // Match at end of line.
+				"f\n55",
+				{ {0, 1} }
+			},
+			{ // match both at end of string and at end of line.
+				"avuy\nytr",
+				{ {3, 4}, {7, 8} }
+			},
+		}
+	},
+};
+
+const size_t g_matcher_multiline_test_data_size= std::size(g_matcher_multiline_test_data);
+
+
 } // namespace RegPanzer

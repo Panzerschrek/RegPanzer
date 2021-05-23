@@ -17,18 +17,15 @@ bool IsUnsupportedRegex(const std::string& regex_str)
 	return (GetRegexFeatures(regex_str) & RegexFeatureFlag::FourDigitHexCodes) != 0;
 }
 
-class PcreRegexMatchTest : public ::testing::TestWithParam<MatcherTestDataElement> {};
-
-TEST_P(PcreRegexMatchTest, TestMatch)
+void RunTestCase(const MatcherTestDataElement& param, const bool is_multiline)
 {
-	const auto param= GetParam();
-
 	if(IsUnsupportedRegex(param.regex_str))
 		return;
 
 	const char* error_ptr= nullptr;
 	int error_offset= 0;
-	pcre* const r= pcre_compile(param.regex_str.data(), PCRE_UTF8, &error_ptr, &error_offset, nullptr);
+	const int options= PCRE_UTF8 | (is_multiline ? PCRE_MULTILINE : 0);
+	pcre* const r= pcre_compile(param.regex_str.data(), options, &error_ptr, &error_offset, nullptr);
 	ASSERT_TRUE(r != nullptr);
 
 	try
@@ -63,7 +60,24 @@ TEST_P(PcreRegexMatchTest, TestMatch)
 	pcre_free(r);
 }
 
+class PcreRegexMatchTest : public ::testing::TestWithParam<MatcherTestDataElement> {};
+
+TEST_P(PcreRegexMatchTest, TestMatch)
+{
+	RunTestCase(GetParam(), false);
+}
+
 INSTANTIATE_TEST_CASE_P(M, PcreRegexMatchTest, testing::ValuesIn(g_matcher_test_data, g_matcher_test_data + g_matcher_test_data_size));
+
+class PcreRegexMatchMultilineTest : public ::testing::TestWithParam<MatcherTestDataElement> {};
+
+
+TEST_P(PcreRegexMatchMultilineTest, TestMatch)
+{
+	RunTestCase(GetParam(), true);
+}
+
+INSTANTIATE_TEST_CASE_P(M, PcreRegexMatchMultilineTest, testing::ValuesIn(g_matcher_multiline_test_data, g_matcher_multiline_test_data + g_matcher_multiline_test_data_size));
 
 
 class PcreRegexGroupsExtractionTest : public ::testing::TestWithParam<GroupsExtractionTestDataElement> {};
