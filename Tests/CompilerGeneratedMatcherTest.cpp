@@ -1,4 +1,3 @@
-#include "BenchmarkData.hpp"
 #include "MatcherTestData.hpp"
 #include "GroupsExtractionTestData.hpp"
 #include "../RegPanzerLib/MatcherGeneratorLLVM.hpp"
@@ -169,68 +168,6 @@ TEST_P(CompilerGeneratedMatcherGroupsExtractionTest, TestGroupsExtraction)
 }
 
 INSTANTIATE_TEST_CASE_P(GE, CompilerGeneratedMatcherGroupsExtractionTest, testing::ValuesIn(g_groups_extraction_test_data, g_groups_extraction_test_data + g_groups_extraction_test_data_size));
-
-
-class CompilerGeneratedMatcherBenchmarkTest : public ::testing::TestWithParam<BenchmarkDataElement> {};
-
-TEST_P(CompilerGeneratedMatcherBenchmarkTest, TestBench)
-{
-	const auto& param= GetParam();
-
-	// Launch compiler, produce object file, load it into MCJIT Execition engine and run function from it.
-
-	{
-		// This test must be launched from build directory, where also located the Compiler executable.
-
-		const int res= llvm::sys::ExecuteAndWait(
-			compiler_program,
-			{compiler_program, param.regex_str, "--function-name", function_name, "-o", object_file_path, "-O2"});
-		ASSERT_EQ(res, 0);
-	}
-
-	auto target_machine= CreateTargetMachine();
-	ASSERT_TRUE(target_machine != nullptr);
-
-	llvm::LLVMContext llvm_context;
-	auto module= std::make_unique<llvm::Module>("id", llvm_context);
-	module->setDataLayout(target_machine->createDataLayout());
-
-	llvm::EngineBuilder builder(std::move(module));
-	builder.setEngineKind(llvm::EngineKind::JIT);
-	builder.setMemoryManager(std::make_unique<llvm::SectionMemoryManager>());
-	const std::unique_ptr<llvm::ExecutionEngine> engine(builder.create(target_machine.release())); // Engine takes ownership over target machine.
-	ASSERT_TRUE(engine != nullptr);
-
-	auto object_file= llvm::object::ObjectFile::createObjectFile(object_file_path);
-	ASSERT_TRUE(static_cast<bool>(object_file));
-
-	engine->addObjectFile(std::move(*object_file));
-
-	const auto function= reinterpret_cast<MatcherFunctionType>(engine->getFunctionAddress(function_name));
-	ASSERT_TRUE(function != nullptr);
-
-	const std::string test_data= param.data_generation_func();
-
-	size_t count= 0;
-	for(size_t i= 0; i < test_data.size();)
-	{
-		size_t group[2]{};
-		const auto subpatterns_extracted= function(test_data.data(), test_data.size(), i, group, 1);
-
-		if(subpatterns_extracted == 0)
-			++i;
-		else
-		{
-			++count;
-
-			if(group[1] <= i && group[1] <= group[0])
-				break;
-			i= group[1];
-		}
-	}
-}
-
-INSTANTIATE_TEST_CASE_P(BE, CompilerGeneratedMatcherBenchmarkTest, testing::ValuesIn(g_benchmark_data, g_benchmark_data + g_benchmark_data_size));
 
 } // namespace
 
