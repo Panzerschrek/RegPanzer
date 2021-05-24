@@ -1,8 +1,8 @@
 #include "BenchmarkData.hpp"
 #include "MatcherTestData.hpp"
 #include "GroupsExtractionTestData.hpp"
-#include "Utils.hpp"
 #include "../RegPanzerLib/MatcherGeneratorLLVM.hpp"
+#include "../RegPanzerLib/Utils.hpp"
 #include "../RegPanzerLib/PushDisableLLVMWarnings.hpp"
 #include <llvm/ExecutionEngine/ExecutionEngine.h>
 #include <llvm/ExecutionEngine/MCJIT.h>

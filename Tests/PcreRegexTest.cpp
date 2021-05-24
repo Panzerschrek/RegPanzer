@@ -1,7 +1,7 @@
 #include "BenchmarkData.hpp"
 #include "MatcherTestData.hpp"
 #include "GroupsExtractionTestData.hpp"
-#include "Utils.hpp"
+#include "../RegPanzerLib/Utils.hpp"
 #include "../RegPanzerLib/PushDisableLLVMWarnings.hpp"
 #include <gtest/gtest.h>
 #include "../RegPanzerLib/PopLLVMWarnings.hpp"
