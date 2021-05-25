@@ -54,6 +54,50 @@ std::string GenRandomDecimalNumbers()
 	return res;
 }
 
+std::string Gen2BaseNumbers()
+{
+	const size_t word_count= 1024 * 256;
+	const size_t min_word_length= 3;
+	const size_t max_word_length= 40;
+	const char c_symbols[]= "01";
+
+	std::string res;
+
+	std::minstd_rand gen;
+	for(size_t i= 0; i < word_count; ++i)
+	{
+		const size_t len= gen() % (max_word_length - min_word_length) + min_word_length;
+
+		for(size_t j= 0; j < len; ++j)
+			res.push_back(c_symbols[gen() % (std::size(c_symbols) - 1)]);
+		res.push_back(' ');
+	}
+
+	return res;
+}
+
+std::string GenWXYZSequence()
+{
+	const size_t word_count= 1024 * 256;
+	const size_t min_word_length= 3;
+	const size_t max_word_length= 50;
+	const char c_symbols[]= "wwwwwwwwxxxxxxxxzzzzzzzzy"; // Non-event distribution.
+
+	std::string res;
+
+	std::minstd_rand gen;
+	for(size_t i= 0; i < word_count; ++i)
+	{
+		const size_t len= gen() % (max_word_length - min_word_length) + min_word_length;
+
+		for(size_t j= 0; j < len; ++j)
+			res.push_back(c_symbols[gen() % (std::size(c_symbols) - 1)]);
+		res.push_back(' ');
+	}
+
+	return res;
+}
+
 std::string GenRandomDataForPolyndromes()
 {
 	const size_t word_count= 1024 * 1024;
@@ -85,6 +129,12 @@ const BenchmarkDataElement g_benchmark_data[]
 
 	// Sequence with backwalk.
 	{ "[0-9]*3", GenRandomDecimalNumbers },
+
+	// Long fixed sequnce.
+	{ "1101011011101110100101011010101110101", Gen2BaseNumbers },
+
+	// Two sequences with separator present in both sequences.
+	{ "[w-z]+y[w-z]+", GenWXYZSequence },
 
 	// Complex expression with recursion, lookbehind, lookahead, backreference.
 	{ "(?<![a-f])(([a-f])((?1)|[a-f])?\\2)(?![a-f])", GenRandomDataForPolyndromes },

@@ -39,7 +39,7 @@ void PcreMatcherBenchmark(benchmark::State& st)
 	}
 }
 
-BENCHMARK(PcreMatcherBenchmark)->Range(0, int64_t(g_benchmark_data_size) - 1);
+BENCHMARK(PcreMatcherBenchmark)->DenseRange(0, int64_t(g_benchmark_data_size) - 1);
 
 } // namespace
 

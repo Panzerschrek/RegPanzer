@@ -38,7 +38,7 @@ void MatcherBenchmark(benchmark::State& st)
 	}
 }
 
-BENCHMARK(MatcherBenchmark)->Range(0, int64_t(g_benchmark_data_size) - 1);
+BENCHMARK(MatcherBenchmark)->DenseRange(0, int64_t(g_benchmark_data_size) - 1);
 
 } // namespace
 
