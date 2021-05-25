@@ -10,13 +10,12 @@ namespace RegPanzer
 namespace
 {
 
-std::string GenRandomWords()
+std::string GetSpaceSeparatedSequences(
+	const size_t min_word_length,
+	const size_t max_word_length,
+	const std::string_view symbols,
+	const size_t word_count)
 {
-	const size_t word_count= 1024 * 1024;
-	const size_t min_word_length= 1;
-	const size_t max_word_length= 20;
-	const char c_symbols[]= "ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz0123456789";
-
 	std::string res;
 
 	std::minstd_rand gen;
@@ -25,95 +24,7 @@ std::string GenRandomWords()
 		const size_t len= gen() % (max_word_length - min_word_length) + min_word_length;
 
 		for(size_t j= 0; j < len; ++j)
-			res.push_back(c_symbols[gen() % (std::size(c_symbols) - 1)]);
-		res.push_back(' ');
-	}
-
-	return res;
-}
-
-std::string GenRandomDecimalNumbers()
-{
-	const size_t word_count= 1024 * 256;
-	const size_t min_word_length= 1;
-	const size_t max_word_length= 30;
-	const char c_symbols[]= "0123456789";
-
-	std::string res;
-
-	std::minstd_rand gen;
-	for(size_t i= 0; i < word_count; ++i)
-	{
-		const size_t len= gen() % (max_word_length - min_word_length) + min_word_length;
-
-		for(size_t j= 0; j < len; ++j)
-			res.push_back(c_symbols[gen() % (std::size(c_symbols) - 1)]);
-		res.push_back(' ');
-	}
-
-	return res;
-}
-
-std::string Gen2BaseNumbers()
-{
-	const size_t word_count= 1024 * 256;
-	const size_t min_word_length= 3;
-	const size_t max_word_length= 40;
-	const char c_symbols[]= "01";
-
-	std::string res;
-
-	std::minstd_rand gen;
-	for(size_t i= 0; i < word_count; ++i)
-	{
-		const size_t len= gen() % (max_word_length - min_word_length) + min_word_length;
-
-		for(size_t j= 0; j < len; ++j)
-			res.push_back(c_symbols[gen() % (std::size(c_symbols) - 1)]);
-		res.push_back(' ');
-	}
-
-	return res;
-}
-
-std::string GenWXYZSequence()
-{
-	const size_t word_count= 1024 * 256;
-	const size_t min_word_length= 3;
-	const size_t max_word_length= 50;
-	const char c_symbols[]= "wwwwwwwwxxxxxxxxzzzzzzzzy"; // Non-event distribution.
-
-	std::string res;
-
-	std::minstd_rand gen;
-	for(size_t i= 0; i < word_count; ++i)
-	{
-		const size_t len= gen() % (max_word_length - min_word_length) + min_word_length;
-
-		for(size_t j= 0; j < len; ++j)
-			res.push_back(c_symbols[gen() % (std::size(c_symbols) - 1)]);
-		res.push_back(' ');
-	}
-
-	return res;
-}
-
-std::string GenRandomDataForPolyndromes()
-{
-	const size_t word_count= 1024 * 1024;
-	const size_t min_word_length= 1;
-	const size_t max_word_length= 8;
-	const char c_symbols[]= "abcdef";
-
-	std::string res;
-
-	std::minstd_rand gen;
-	for(size_t i= 0; i < word_count; ++i)
-	{
-		const size_t len= gen() % (max_word_length - min_word_length) + min_word_length;
-
-		for(size_t j= 0; j < len; ++j)
-			res.push_back(c_symbols[gen() % (std::size(c_symbols) - 1)]);
+			res.push_back(symbols[gen() % symbols.length()]);
 		res.push_back(' ');
 	}
 
@@ -125,19 +36,34 @@ std::string GenRandomDataForPolyndromes()
 const BenchmarkDataElement g_benchmark_data[]
 {
 	// Simple sequence of symbols.
-	{ "[A-Z_a-z0-9]+", GenRandomWords },
+	{
+		"[A-Z_a-z0-9]+",
+		[]{ return GetSpaceSeparatedSequences(1, 20, "ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz0123456789", 1024 * 1024); }
+	},
 
 	// Sequence with backwalk.
-	{ "[0-9]*3", GenRandomDecimalNumbers },
+	{
+		"[0-9]*3",
+		[]{ return GetSpaceSeparatedSequences(1, 30, "0123456789", 1024 * 256); }
+	},
 
 	// Long fixed sequnce.
-	{ "1101011011101110100101011010101110101", Gen2BaseNumbers },
+	{
+		"1101011011101110100101011010101110101",
+		[]{ return GetSpaceSeparatedSequences(3, 40, "01", 1024 * 256); }
+	},
 
 	// Two sequences with separator present in both sequences.
-	{ "[w-z]+y[w-z]+", GenWXYZSequence },
+	{
+		"[w-z]+y[w-z]+",
+		[]{ return GetSpaceSeparatedSequences(3, 50, "wwwwwwwwxxxxxxxxzzzzzzzzy" /* non-even distribution */, 1024 * 256); }
+	},
 
 	// Complex expression with recursion, lookbehind, lookahead, backreference.
-	{ "(?<![a-f])(([a-f])((?1)|[a-f])?\\2)(?![a-f])", GenRandomDataForPolyndromes },
+	{
+		"(?<![a-f])(([a-f])((?1)|[a-f])?\\2)(?![a-f])",
+		[]{ return GetSpaceSeparatedSequences(1, 8, "abcdef", 1024 * 1024); }
+	},
 };
 
 constexpr size_t g_benchmark_data_size= std::size(g_benchmark_data);
