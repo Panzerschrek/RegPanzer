@@ -1,6 +1,6 @@
 #include "MatcherTestData.hpp"
 #include "GroupsExtractionTestData.hpp"
-#include "Utils.hpp"
+#include "../RegPanzerLib/Utils.hpp"
 #include "../RegPanzerLib/PushDisableLLVMWarnings.hpp"
 #include <gtest/gtest.h>
 #include <llvm/Support/Regex.h>

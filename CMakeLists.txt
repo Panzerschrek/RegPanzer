@@ -88,13 +88,20 @@ target_link_libraries(RegPanzerCompiler PRIVATE RegPanzerLib ${LLVM_LIBS_FOR_REG
 # Tests depends on gtest library which present only in LLVM sources but not in LLVM binary distribution.
 
 if(DEFINED LLVM_SRC_DIR)
-	file(GLOB REG_PANZER_TEST_SOURCES "Tests/*")
 
+	# PCRE libraru used for cross-validation and benchmarks.
 	find_library(PCRE_LIBRARY pcre)
 	if(PCRE_LIBRARY)
 		message("Found PCRE library: ${PCRE_LIBRARY}")
 	else()
 		message("PCRE library not found. Cross-tests with this library will be disabled.")
+	endif()
+
+	#
+	# Tests
+	#
+	file(GLOB REG_PANZER_TEST_SOURCES "Tests/*")
+	if(NOT PCRE_LIBRARY)
 		list(REMOVE_ITEM REG_PANZER_TEST_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/Tests/PcreRegexTest.cpp)
 	endif()
 
@@ -108,4 +115,21 @@ if(DEFINED LLVM_SRC_DIR)
 	endif()
 
 	#add_custom_command(TARGET RegPanzerTest POST_BUILD COMMAND RegPanzerTest)
+
+	#
+	# benchmark
+	#
+	file(GLOB REG_PANZER_BENCHMARK_SOURCES "Benchmark/*")
+	if(NOT PCRE_LIBRARY)
+		list(REMOVE_ITEM REG_PANZER_BENCHMARK_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/Benchmark/PcreBenchmark.cpp)
+	endif()
+
+	add_executable(RegPanzerBenchmark ${REG_PANZER_BENCHMARK_SOURCES})
+	target_link_libraries(RegPanzerBenchmark PRIVATE RegPanzerLib benchmark benchmark_main ${LLVM_LIBS_FOR_REG_PANZER_TEST})
+	target_include_directories(RegPanzerBenchmark PRIVATE ${LLVM_SRC_DIR}/utils/benchmark/include/)
+
+	if(PCRE_LIBRARY)
+		target_link_libraries(RegPanzerBenchmark PRIVATE ${PCRE_LIBRARY})
+	endif()
+
 endif()

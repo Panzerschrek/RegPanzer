@@ -1,7 +1,7 @@
 #include "MatcherTestData.hpp"
 #include "GroupsExtractionTestData.hpp"
-#include "Utils.hpp"
 #include "../RegPanzerLib/MatcherGeneratorLLVM.hpp"
+#include "../RegPanzerLib/Utils.hpp"
 #include "../RegPanzerLib/PushDisableLLVMWarnings.hpp"
 #include <llvm/ExecutionEngine/ExecutionEngine.h>
 #include <llvm/ExecutionEngine/MCJIT.h>
@@ -18,6 +18,7 @@ namespace
 
 const std::string function_name= "test_match";
 const std::string object_file_path= "test.o";
+const std::string compiler_program= "RegPanzerCompiler";
 
 void RunTestCase(const MatcherTestDataElement& param, const bool is_multiline)
 {
@@ -25,8 +26,6 @@ void RunTestCase(const MatcherTestDataElement& param, const bool is_multiline)
 
 	{
 		// This test must be launched from build directory, where also located the Compiler executable.
-
-		const std::string compiler_program= "RegPanzerCompiler";
 
 		llvm::SmallVector<llvm::StringRef, 8> args
 			{compiler_program, param.regex_str, "--function-name", function_name, "-o", object_file_path, "-O2"};
@@ -112,8 +111,6 @@ TEST_P(CompilerGeneratedMatcherGroupsExtractionTest, TestGroupsExtraction)
 
 	{
 		// This test must be launched from build directory, where also located the Compiler executable.
-
-		const std::string compiler_program= "RegPanzerCompiler";
 		const int res= llvm::sys::ExecuteAndWait(
 			compiler_program,
 			{compiler_program, param.regex_str, "--function-name", function_name, "--extract-groups", "-o", object_file_path, "-O2"});
