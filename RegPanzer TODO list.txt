@@ -31,4 +31,3 @@ LLVM Generator:
 
 Tests:
 * More Unicode tests
-* Performance tests (benchmarks)
