@@ -59,7 +59,7 @@ void LlvmRegexMatcherBenchmark(benchmark::State& st)
 	}
 }
 
-BENCHMARK(LlvmRegexMatcherBenchmark)->DenseRange(0, int64_t(g_benchmark_data_size) - 1);
+BENCHMARK(LlvmRegexMatcherBenchmark)->DenseRange(0, int64_t(g_benchmark_data_size) - 1)->Unit(benchmark::kMillisecond);
 
 } // namespace
 

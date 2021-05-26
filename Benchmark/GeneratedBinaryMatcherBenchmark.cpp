@@ -67,7 +67,7 @@ void GeneratedBinaryMatcherBenchmark(benchmark::State& st)
 	}
 }
 
-BENCHMARK(GeneratedBinaryMatcherBenchmark)->DenseRange(0, int64_t(g_benchmark_data_size) - 1);
+BENCHMARK(GeneratedBinaryMatcherBenchmark)->DenseRange(0, int64_t(g_benchmark_data_size) - 1)->Unit(benchmark::kMillisecond);
 
 } // namespace
 

@@ -39,7 +39,7 @@ void PcreMatcherBenchmark(benchmark::State& st)
 	}
 }
 
-BENCHMARK(PcreMatcherBenchmark)->DenseRange(0, int64_t(g_benchmark_data_size) - 1);
+BENCHMARK(PcreMatcherBenchmark)->DenseRange(0, int64_t(g_benchmark_data_size) - 1)->Unit(benchmark::kMillisecond);
 
 void PcreJITMatcherBenchmark(benchmark::State& st)
 {
@@ -77,7 +77,7 @@ void PcreJITMatcherBenchmark(benchmark::State& st)
 	pcre_free_study(jit_extra);
 }
 
-BENCHMARK(PcreJITMatcherBenchmark)->DenseRange(0, int64_t(g_benchmark_data_size) - 1);
+BENCHMARK(PcreJITMatcherBenchmark)->DenseRange(0, int64_t(g_benchmark_data_size) - 1)->Unit(benchmark::kMillisecond);
 
 } // namespace
 
