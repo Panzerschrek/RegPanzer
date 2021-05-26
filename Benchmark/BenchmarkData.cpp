@@ -66,6 +66,6 @@ const BenchmarkDataElement g_benchmark_data[]
 	},
 };
 
-constexpr size_t g_benchmark_data_size= std::size(g_benchmark_data);
+const size_t g_benchmark_data_size= std::size(g_benchmark_data);
 
 } // namespace RegPanzer
