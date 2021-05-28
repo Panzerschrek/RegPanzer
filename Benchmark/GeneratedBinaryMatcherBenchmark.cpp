@@ -54,15 +54,13 @@ void GeneratedBinaryMatcherBenchmark(benchmark::State& st)
 			const auto subpatterns_extracted= function(test_data.data(), test_data.size(), i, group, 1);
 
 			if(subpatterns_extracted == 0)
-				++i;
-			else
-			{
-				++count;
+				break;
 
-				if(group[1] <= i && group[1] <= group[0])
-					break;
-				i= group[1];
-			}
+			++count;
+
+			if(group[1] <= i && group[1] <= group[0])
+				break;
+			i= group[1];
 		}
 	}
 }

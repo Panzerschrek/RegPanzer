@@ -54,14 +54,12 @@ void RunTestCase(const MatcherTestDataElement& param, const bool is_multiline)
 			const auto subpatterns_extracted= function(c.input_str.data(), c.input_str.size(), i, group, 1);
 
 			if(subpatterns_extracted == 0)
-				++i;
-			else
-			{
-				result_ranges.emplace_back(group[0], group[1]);
-				if(group[1] <= i && group[1] <= group[0])
-					break;
-				i= group[1];
-			}
+				break;
+
+			result_ranges.emplace_back(group[0], group[1]);
+			if(group[1] <= i && group[1] <= group[0])
+				break;
+			i= group[1];
 		}
 
 		EXPECT_EQ(result_ranges, c.result_ranges);

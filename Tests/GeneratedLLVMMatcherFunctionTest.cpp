@@ -74,14 +74,12 @@ void RunTestCase(const MatcherTestDataElement& param, const bool is_multiline)
 			const auto subpatterns_extracted= result_value.IntVal.getLimitedValue();
 
 			if(subpatterns_extracted == 0)
-				++i;
-			else
-			{
-				result_ranges.emplace_back(group[0], group[1]);
-				if(group[1] <= i && group[1] <= group[0])
-					break;
-				i= group[1];
-			}
+				break;
+
+			result_ranges.emplace_back(group[0], group[1]);
+			if(group[1] <= i && group[1] <= group[0])
+				break;
+			i= group[1];
 		}
 
 		EXPECT_EQ(result_ranges, c.result_ranges);
@@ -154,20 +152,18 @@ TEST_P(GeneratedLLVMMatcherGroupsExtractionTest, TestGroupsExtraction)
 			const auto subpatterns_extracted= result_value.IntVal.getLimitedValue();
 
 			if(subpatterns_extracted == 0)
-				++i;
-			else
-			{
-				if(groups[0][1] <= i && groups[0][1] <= groups[0][0])
-					break;
-				i= groups[0][1];
+				break;
 
-				GroupsExtractionTestDataElement::GroupMatchResults result;
+			if(groups[0][1] <= i && groups[0][1] <= groups[0][0])
+				break;
+			i= groups[0][1];
 
-				for(size_t j= 0; j < std::min(subpatterns_extracted, std::size(groups)); ++j)
-					result.emplace_back(groups[j][0], groups[j][1]);
+			GroupsExtractionTestDataElement::GroupMatchResults result;
 
-				results.push_back(std::move(result));
-			}
+			for(size_t j= 0; j < std::min(subpatterns_extracted, std::size(groups)); ++j)
+				result.emplace_back(groups[j][0], groups[j][1]);
+
+			results.push_back(std::move(result));
 		}
 
 		EXPECT_EQ(results, c.results);
