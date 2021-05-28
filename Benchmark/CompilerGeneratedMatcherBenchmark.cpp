@@ -56,10 +56,10 @@ void CompilerGeneratedMatcherBenchmark(benchmark::State& st)
 			if(subpatterns_extracted == 0)
 				break;
 
-			++count;
-
 			if(group[1] <= i && group[1] <= group[0])
 				break;
+
+			++count;
 			i= group[1];
 		}
 	}

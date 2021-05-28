@@ -22,19 +22,20 @@ void PcreMatcherBenchmark(benchmark::State& st)
 
 	for (auto _ : st)
 	{
+		size_t count= 0;
 		int vec[100*3]{};
 
-		size_t count= 0;
 		for(size_t i= 0; i < test_data.size();)
 		{
 			if(pcre_exec(r, nullptr, test_data.data(), int(test_data.size()), int(i), PCRE_NO_UTF8_CHECK, vec, std::size(vec)) != 0)
 			{
 				if(vec[0] < 0 || vec[1] < 0 || size_t(vec[1]) <= i || size_t(vec[1]) > test_data.size())
 					break;
+				++count;
 				i= size_t(vec[1]);
 			}
 			else
-				++count;
+				break;
 		}
 	}
 }
@@ -57,19 +58,20 @@ void PcreJITMatcherBenchmark(benchmark::State& st)
 
 	for (auto _ : st)
 	{
+		size_t count= 0;
 		int vec[100*3]{};
 
-		size_t count= 0;
 		for(size_t i= 0; i < test_data.size();)
 		{
 			if(pcre_jit_exec(r, jit_extra, test_data.data(), int(test_data.size()), int(i), PCRE_NO_UTF8_CHECK, vec, std::size(vec), stack) != 0)
 			{
 				if(vec[0] < 0 || vec[1] < 0 || size_t(vec[1]) <= i || size_t(vec[1]) > test_data.size())
 					break;
+				++count;
 				i= size_t(vec[1]);
 			}
 			else
-				++count;
+				break;
 		}
 	}
 
