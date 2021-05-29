@@ -59,6 +59,18 @@ const BenchmarkDataElement g_benchmark_data[]
 		[]{ return GetSpaceSeparatedSequences(3, 50, "wwwwwwwwxxxxxxxxzzzzzzzzy" /* non-even distribution */, 1024 * 256); }
 	},
 
+	// Manulally optimized version of previous expression.
+	{
+		"[w-z]+?y[w-z]+",
+		[]{ return GetSpaceSeparatedSequences(3, 50, "wwwwwwwwxxxxxxxxzzzzzzzzy" /* non-even distribution */, 1024 * 256); }
+	},
+
+	// Simple sequence with fixed size.
+	{
+		"(?:abc){3}",
+		[]{ return GetSpaceSeparatedSequences(6, 20, "abc", 1024 * 1024); }
+	},
+
 	// Complex expression with recursion, lookbehind, lookahead, backreference.
 	{
 		"(?<![a-f])(([a-f])((?1)|[a-f])?\\2)(?![a-f])",
