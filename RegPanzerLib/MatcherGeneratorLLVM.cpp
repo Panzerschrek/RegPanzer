@@ -163,6 +163,8 @@ private:
 	void CreateNextCallRet(
 		IRBuilder& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::NodePtr& next_node);
 
+	void SaveState(IRBuilder& llvm_ir_builder, llvm::Value* state, llvm::Value* state_backup);
+	void RestoreState(IRBuilder& llvm_ir_builder, llvm::Value* state, llvm::Value* state_backup);
 	void CopyState(IRBuilder& llvm_ir_builder, llvm::Value* dst, llvm::Value* src);
 
 	llvm::ConstantInt* GetConstant(llvm::IntegerType* type, uint64_t value) const;
@@ -247,7 +249,6 @@ void Generator::GenerateMatcherFunction(const RegexGraphBuildResult& regex_graph
 	const auto next_iteration_block= llvm::BasicBlock::Create(context_, "next_iteration", root_function);
 	const auto not_found_block= llvm::BasicBlock::Create(context_, "not_found", root_function);
 	const auto found_block= llvm::BasicBlock::Create(context_, "found", root_function);
-
 
 	IRBuilder llvm_ir_builder(start_basic_block);
 
@@ -1027,7 +1028,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 
 	const auto function= llvm_ir_builder.GetInsertBlock()->getParent();
 
-	const auto state_copy_ptr= llvm_ir_builder.CreateAlloca(state_type_, 0, "state_copy");
+	const auto state_backup_ptr= llvm_ir_builder.CreateAlloca(state_type_, 0, "state_backup");
 
 	const auto found_block= llvm::BasicBlock::Create(context_, "found");
 
@@ -1035,12 +1036,13 @@ void Generator::BuildNodeFunctionBodyImpl(
 	{
 		if(&possible_next < &node.next.back())
 		{
-			CopyState(llvm_ir_builder, state_copy_ptr, state_ptr);
-			const auto variant_res= llvm_ir_builder.CreateCall(GetOrCreateNodeFunction(possible_next), {state_copy_ptr});
+			SaveState(llvm_ir_builder, state_ptr, state_backup_ptr);
+			const auto variant_res= llvm_ir_builder.CreateCall(GetOrCreateNodeFunction(possible_next), {state_ptr});
 			const auto next_block= llvm::BasicBlock::Create(context_, "", function);
 
 			llvm_ir_builder.CreateCondBr(variant_res, found_block, next_block);
 			llvm_ir_builder.SetInsertPoint(next_block);
+			RestoreState(llvm_ir_builder, state_ptr, state_backup_ptr);
 		}
 		else
 		{
@@ -1052,7 +1054,6 @@ void Generator::BuildNodeFunctionBodyImpl(
 	// Return true if one of next variants were successfull.
 	found_block->insertInto(function);
 	llvm_ir_builder.SetInsertPoint(found_block);
-	CopyState(llvm_ir_builder, state_ptr, state_copy_ptr);
 	llvm_ir_builder.CreateRet(llvm::ConstantInt::getTrue(context_));
 }
 
@@ -1207,10 +1208,10 @@ void Generator::BuildNodeFunctionBodyImpl(
 {
 	const auto function= llvm_ir_builder.GetInsertBlock()->getParent();
 
-	const auto state_copy_ptr= llvm_ir_builder.CreateAlloca(state_type_, 0, "state_copy");
+	const auto state_backup_ptr= llvm_ir_builder.CreateAlloca(state_type_, 0, "state_backup");
 
-	CopyState(llvm_ir_builder, state_copy_ptr, state_ptr);
-	const auto call_res= llvm_ir_builder.CreateCall(GetOrCreateNodeFunction(node.look_graph), {state_copy_ptr});
+	SaveState(llvm_ir_builder, state_ptr, state_backup_ptr);
+	const auto call_res= llvm_ir_builder.CreateCall(GetOrCreateNodeFunction(node.look_graph), {state_ptr});
 
 	const auto ok_block= llvm::BasicBlock::Create(context_, "ok", function);
 	const auto fail_block= llvm::BasicBlock::Create(context_, "fail", function);
@@ -1222,6 +1223,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 
 	// Ok block.
 	llvm_ir_builder.SetInsertPoint(ok_block);
+	RestoreState(llvm_ir_builder, state_ptr, state_backup_ptr);
 	CreateNextCallRet(llvm_ir_builder, state_ptr, node.next);
 
 	// Fail block.
@@ -1234,11 +1236,11 @@ void Generator::BuildNodeFunctionBodyImpl(
 {
 	const auto function= llvm_ir_builder.GetInsertBlock()->getParent();
 
-	const auto state_copy_ptr= llvm_ir_builder.CreateAlloca(state_type_, 0, "state_copy");
+	const auto state_backup_ptr= llvm_ir_builder.CreateAlloca(state_type_, 0, "state_backup");
 
 	const auto do_look_block= llvm::BasicBlock::Create(context_, "do_look", function);
-	const auto look_ok_block= llvm::BasicBlock::Create(context_, "look_ok", function);
-	const auto look_fail_block= llvm::BasicBlock::Create(context_, "look_fail", function);
+	const auto look_ok_block= llvm::BasicBlock::Create(context_, "ok", function);
+	const auto look_fail_block= llvm::BasicBlock::Create(context_, "fail", function);
 
 	const auto str_begin= llvm_ir_builder.CreateLoad(llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrBegin)}));
 	const auto str_begin_initial= llvm_ir_builder.CreateLoad(llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrBeginInitial)}));
@@ -1250,11 +1252,12 @@ void Generator::BuildNodeFunctionBodyImpl(
 
 	// Do look block.
 	llvm_ir_builder.SetInsertPoint(do_look_block);
-	CopyState(llvm_ir_builder, state_copy_ptr, state_ptr);
+	SaveState(llvm_ir_builder, state_ptr, state_backup_ptr);
 	llvm_ir_builder.CreateStore(
 		str_begin_for_look,
-		llvm_ir_builder.CreateGEP(state_copy_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrBegin)}));
-	const auto look_res= llvm_ir_builder.CreateCall(GetOrCreateNodeFunction(node.look_graph), {state_copy_ptr});
+		llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrBegin)}));
+	const auto look_res= llvm_ir_builder.CreateCall(GetOrCreateNodeFunction(node.look_graph), {state_ptr});
+	RestoreState(llvm_ir_builder, state_ptr, state_backup_ptr);
 	llvm_ir_builder.CreateCondBr(look_res, look_ok_block, look_fail_block);
 
 	if(node.positive)
@@ -1330,11 +1333,12 @@ void Generator::BuildNodeFunctionBodyImpl(
 {
 	const auto function= llvm_ir_builder.GetInsertBlock()->getParent();
 
-	const auto state_copy_ptr= llvm_ir_builder.CreateAlloca(state_type_, 0, "state_copy");
+	const auto state_backup_ptr= llvm_ir_builder.CreateAlloca(state_type_, 0, "state_backup");
 
 	// TODO - do not save state here if next node is "look" which saves state too.
-	CopyState(llvm_ir_builder, state_copy_ptr, state_ptr);
-	const auto call_res= llvm_ir_builder.CreateCall(GetOrCreateNodeFunction(node.condition_node), {state_copy_ptr});
+	SaveState(llvm_ir_builder, state_ptr, state_backup_ptr);
+	const auto call_res= llvm_ir_builder.CreateCall(GetOrCreateNodeFunction(node.condition_node), {state_ptr});
+	RestoreState(llvm_ir_builder, state_ptr, state_backup_ptr);
 
 	const auto true_block = llvm::BasicBlock::Create(context_, "true_block" , function);
 	const auto false_block= llvm::BasicBlock::Create(context_, "false_block", function);
@@ -1371,7 +1375,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 {
 	const auto function= llvm_ir_builder.GetInsertBlock()->getParent();
 
-	const auto state_copy_ptr= llvm_ir_builder.CreateAlloca(state_type_, 0, "state_copy");
+	const auto state_backup_ptr= llvm_ir_builder.CreateAlloca(state_type_, 0, "state_backup");
 
 	const auto counter_ptr=
 		llvm_ir_builder.CreateGEP(
@@ -1436,8 +1440,8 @@ void Generator::BuildNodeFunctionBodyImpl(
 		branches[1]= node.next_iteration;
 	}
 
-	CopyState(llvm_ir_builder, state_copy_ptr, state_ptr);
-	const auto first_call_res= llvm_ir_builder.CreateCall(GetOrCreateNodeFunction(branches[0]), {state_copy_ptr});
+	SaveState(llvm_ir_builder, state_ptr, state_backup_ptr);
+	const auto first_call_res= llvm_ir_builder.CreateCall(GetOrCreateNodeFunction(branches[0]), {state_ptr});
 
 	const auto ok_block= llvm::BasicBlock::Create(context_, "", function);
 	const auto next_block= llvm::BasicBlock::Create(context_, "", function);
@@ -1445,10 +1449,10 @@ void Generator::BuildNodeFunctionBodyImpl(
 	llvm_ir_builder.CreateCondBr(first_call_res, ok_block, next_block);
 
 	llvm_ir_builder.SetInsertPoint(ok_block);
-	CopyState(llvm_ir_builder, state_ptr, state_copy_ptr);
 	llvm_ir_builder.CreateRet(llvm::ConstantInt::getTrue(context_));
 
 	llvm_ir_builder.SetInsertPoint(next_block);
+	RestoreState(llvm_ir_builder, state_ptr, state_backup_ptr);
 	CreateNextCallRet(llvm_ir_builder, state_ptr, branches[1]);
 }
 
@@ -1465,7 +1469,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 {
 	const auto function= llvm_ir_builder.GetInsertBlock()->getParent();
 
-	const auto state_copy_ptr= llvm_ir_builder.CreateAlloca(state_type_, 0, "state_copy");
+	const auto state_backup_ptr= llvm_ir_builder.CreateAlloca(state_type_, 0, "state_backup");
 
 	const auto counter_value_initial= llvm::ConstantInt::getNullValue(ptr_size_int_type_);
 
@@ -1496,8 +1500,8 @@ void Generator::BuildNodeFunctionBodyImpl(
 	// Iteration block.
 	llvm_ir_builder.SetInsertPoint(iteration_block);
 
-	CopyState(llvm_ir_builder, state_copy_ptr, state_ptr);
-	const auto call_res= llvm_ir_builder.CreateCall(GetOrCreateNodeFunction(node.sequence_element), {state_copy_ptr});
+	SaveState(llvm_ir_builder, state_ptr, state_backup_ptr);
+	const auto call_res= llvm_ir_builder.CreateCall(GetOrCreateNodeFunction(node.sequence_element), {state_ptr});
 
 	const auto ok_block= llvm::BasicBlock::Create(context_, "ok", function);
 	const auto fail_block= llvm::BasicBlock::Create(context_, "fail", function);
@@ -1511,11 +1515,11 @@ void Generator::BuildNodeFunctionBodyImpl(
 		llvm_ir_builder.CreateAdd(counter_value_current, GetConstant(ptr_size_int_type_, 1), "counter_value_next");
 	counter_value_current->addIncoming(counter_value_next, ok_block);
 
-	CopyState(llvm_ir_builder, state_ptr, state_copy_ptr);
 	llvm_ir_builder.CreateBr(counter_check_block);
 
 	// Fail block.
 	llvm_ir_builder.SetInsertPoint(fail_block);
+	RestoreState(llvm_ir_builder, state_ptr, state_backup_ptr);
 
 	if(node.min_elements > 0)
 	{
@@ -1784,16 +1788,64 @@ void Generator::CreateNextCallRet(
 	llvm_ir_builder.CreateRet(next_call);
 }
 
+void Generator::SaveState(IRBuilder& llvm_ir_builder, llvm::Value* const state, llvm::Value* const state_backup)
+{
+	CopyState(llvm_ir_builder, state_backup, state);
+}
+
+void Generator::RestoreState(IRBuilder& llvm_ir_builder, llvm::Value* const state, llvm::Value* const state_backup)
+{
+	CopyState(llvm_ir_builder, state, state_backup);
+}
+
 void Generator::CopyState(IRBuilder& llvm_ir_builder, llvm::Value* const dst, llvm::Value* const src)
 {
-	const llvm::DataLayout& data_layout= module_.getDataLayout();
+	const auto copy_scalar_field=
+	[&](const uint32_t field_index)
+	{
+		llvm::Value* const indices[]{GetZeroGEPIndex(), GetFieldGEPIndex(field_index)};
+		llvm_ir_builder.CreateStore(
+			llvm_ir_builder.CreateLoad(llvm_ir_builder.CreateGEP(src, indices)),
+			llvm_ir_builder.CreateGEP(dst, indices));
+	};
 
-	const auto alignment= data_layout.getABITypeAlignment(state_type_); // TODO - is this right alignment?
+	// Do not copy constant fields - StrEnd, StrBeginInitial.
+	copy_scalar_field(StateFieldIndex::StrBegin);
 
-	llvm_ir_builder.CreateMemCpy(
-		dst, alignment,
-		src, alignment,
-		GetConstant(gep_index_type_, data_layout.getTypeAllocSize(state_type_)));
+	// Copy sequence counters.
+	const uint64_t sequence_counters_array_size= state_type_->elements()[StateFieldIndex::SequenceContersArray]->getArrayNumElements();
+	for(uint64_t i= 0; i < sequence_counters_array_size; ++i)
+	{
+		llvm::Value* const indices[]{GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::SequenceContersArray), GetFieldGEPIndex(uint32_t(i))};
+		llvm_ir_builder.CreateStore(
+			llvm_ir_builder.CreateLoad(llvm_ir_builder.CreateGEP(src, indices)),
+			llvm_ir_builder.CreateGEP(dst, indices));
+	}
+
+	// Copy groups.
+	const uint64_t groups_array_size= state_type_->elements()[StateFieldIndex::GroupsArray]->getArrayNumElements();
+	for(uint64_t i= 0; i < groups_array_size; ++i)
+	{
+		for(size_t j= 0; j < 2; ++j)
+		{
+			llvm::Value* const indices[]
+			{
+				GetZeroGEPIndex(),
+				GetFieldGEPIndex(StateFieldIndex::GroupsArray),
+				GetFieldGEPIndex(uint32_t(i)),
+				GetFieldGEPIndex(uint32_t(j)),
+			};
+			llvm_ir_builder.CreateStore(
+				llvm_ir_builder.CreateLoad(llvm_ir_builder.CreateGEP(src, indices)),
+				llvm_ir_builder.CreateGEP(dst, indices));
+		}
+	}
+
+	if(state_type_->getNumElements() > StateFieldIndex::SubroutineCallReturnChainHead)
+		copy_scalar_field(StateFieldIndex::SubroutineCallReturnChainHead);
+
+	if(state_type_->getNumElements() > StateFieldIndex::SubroutineCallStateSaveChainHead)
+		copy_scalar_field(StateFieldIndex::SubroutineCallStateSaveChainHead);
 }
 
 llvm::ConstantInt* Generator::GetConstant(llvm::IntegerType* const type, const uint64_t value) const
