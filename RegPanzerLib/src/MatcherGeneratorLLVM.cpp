@@ -320,10 +320,15 @@ void Generator::GenerateMatcherFunction(const RegexGraphBuildResult& regex_graph
 
 	// Go to next iteration.
 	llvm_ir_builder.SetInsertPoint(next_iteration_block);
-	const auto next_start_offset= llvm_ir_builder.CreateAdd(current_start_offset, GetConstant(ptr_size_int_type_, 1), "next_start_offset");
-	current_start_offset->addIncoming(next_start_offset, next_iteration_block);
-	const auto string_end_condition= llvm_ir_builder.CreateICmpULT(next_start_offset, arg_str_size);
-	llvm_ir_builder.CreateCondBr(string_end_condition, search_loop_block, not_found_block);
+	if(std::get_if<GraphElements::StringStartAssertion>(regex_graph.root.get()) != nullptr)
+		llvm_ir_builder.CreateBr(not_found_block); // Finish loop after single iteration in case if first regex element is string start assertion.
+	else
+	{
+		const auto next_start_offset= llvm_ir_builder.CreateAdd(current_start_offset, GetConstant(ptr_size_int_type_, 1), "next_start_offset");
+		current_start_offset->addIncoming(next_start_offset, next_iteration_block);
+		const auto string_end_condition= llvm_ir_builder.CreateICmpULT(next_start_offset, arg_str_size);
+		llvm_ir_builder.CreateCondBr(string_end_condition, search_loop_block, not_found_block);
+	}
 
 	// Not found block.
 	llvm_ir_builder.SetInsertPoint(not_found_block);
