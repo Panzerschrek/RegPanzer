@@ -1,11 +1,11 @@
-#include "../RegPanzerLib/Parser.hpp"
-#include "Utils.hpp"
-#include "../RegPanzerLib/PushDisableLLVMWarnings.hpp"
+#include "../Parser.hpp"
+#include "../Utils.hpp"
+#include "../PushDisableLLVMWarnings.hpp"
 #include <llvm/MC/SubtargetFeature.h>
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/Support/TargetRegistry.h>
 #include <llvm/Target/TargetMachine.h>
-#include "../RegPanzerLib/PopLLVMWarnings.hpp"
+#include "../PopLLVMWarnings.hpp"
 #include <iostream>
 
 namespace RegPanzer

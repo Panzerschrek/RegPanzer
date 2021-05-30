@@ -1,7 +1,7 @@
-#include "Parser.hpp"
-#include "PushDisableLLVMWarnings.hpp"
+#include "../Parser.hpp"
+#include "../PushDisableLLVMWarnings.hpp"
 #include <llvm/Support/ConvertUTF.h>
-#include "PopLLVMWarnings.hpp"
+#include "../PopLLVMWarnings.hpp"
 
 namespace RegPanzer
 {

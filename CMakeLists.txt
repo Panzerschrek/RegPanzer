@@ -74,7 +74,7 @@ endif()
 
 # RegPanzerLib
 
-file(GLOB REG_LIB_SOURCES "RegPanzerLib/*")
+file(GLOB_RECURSE REG_LIB_SOURCES "RegPanzerLib/*")
 add_library(RegPanzerLib ${REG_LIB_SOURCES})
 target_include_directories(RegPanzerLib PUBLIC ${Boost_INCLUDE_DIRS})
 target_link_libraries(RegPanzerLib PUBLIC ${LLVM_LIBS_FOR_REG_PANZER_LIB})
