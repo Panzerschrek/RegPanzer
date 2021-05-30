@@ -65,10 +65,16 @@ const BenchmarkDataElement g_benchmark_data[]
 		[]{ return GetSpaceSeparatedSequences(3, 50, "wwwwwwwwxxxxxxxxzzzzzzzzy" /* non-even distribution */, 1024 * 256); }
 	},
 
-	// Simple sequence with fixed size.
+	// Simple sequence with fixed size. Regex engine should unroll simple sequence.
 	{
 		"(?:abc){3}",
 		[]{ return GetSpaceSeparatedSequences(6, 20, "abc", 1024 * 1024); }
+	},
+
+	// Match with string start assertion. Regex engine should optimize this match to avoid whole input string scan.
+	{
+		"^[0-9]+",
+		[]{ return GetSpaceSeparatedSequences(6, 20, "0123456789", 1024 * 1024); }
 	},
 
 	// Complex expression with recursion, lookbehind, lookahead, backreference.
