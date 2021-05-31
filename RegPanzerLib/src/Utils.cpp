@@ -27,6 +27,16 @@ RegexFeatureFlags GetSequeneFeaturesForElement(const Look& look)
 		GetSequeneFeatures(look.elements);
 }
 
+RegexFeatureFlags GetSequeneFeaturesForElement(const LineStartAssertion&)
+{
+	return RegexFeatureFlag::LineStartEndAssertions;
+}
+
+RegexFeatureFlags GetSequeneFeaturesForElement(const LineEndAssertion&)
+{
+	return RegexFeatureFlag::LineStartEndAssertions;
+}
+
 RegexFeatureFlags GetSequeneFeaturesForElement(const Group& group)
 {
 	return GetSequeneFeatures(group.elements);
