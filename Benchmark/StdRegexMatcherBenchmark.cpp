@@ -21,8 +21,9 @@ bool IsUnsupportedRegex(const std::string& regex_str)
 			RegexFeatureFlag::AtomicGroups |
 			RegexFeatureFlag::ConditionalElements |
 			RegexFeatureFlag::Subroutines |
-			RegexFeatureFlag::FourDigitHexCodes  |
-			RegexFeatureFlag::LookBehind)) != 0;
+			RegexFeatureFlag::FourDigitHexCodes |
+			RegexFeatureFlag::LookBehind |
+			RegexFeatureFlag::LineStartEndAssertions)) != 0;
 }
 
 void StdRegexMatcherBenchmark(benchmark::State& st)
