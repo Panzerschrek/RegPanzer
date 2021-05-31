@@ -203,23 +203,48 @@ void SearchRecursiveGroupCalls(GroupStats& group_stats)
 // GetRegexChainSize
 //
 
+// Size in UTF-8 bytes.
 using MinMaxSize= std::pair<size_t, size_t>;
 
 MinMaxSize GetRegexChainSize(const RegexElementsChain& regex_chain);
 
 MinMaxSize GetRegexElementSize_impl(const AnySymbol&)
 {
-	return MinMaxSize{1, 1};
+	// All sizes are possible for any symbol.
+	// TODO - maybe process just raw bytes in "any" symbol?
+	return MinMaxSize{1, 6};
 }
 
-MinMaxSize GetRegexElementSize_impl(const SpecificSymbol&)
+MinMaxSize GetRegexElementSize_impl(const SpecificSymbol& specific_symbol)
 {
-	return MinMaxSize{1, 1};
+	const CharType str_utf32[]{specific_symbol.code, 0};
+	const size_t size= Utf32ToUtf8(str_utf32).size();
+	return MinMaxSize{size, size};
 }
 
-MinMaxSize GetRegexElementSize_impl(const OneOf&)
+MinMaxSize GetRegexElementSize_impl(const OneOf& one_of)
 {
-	return MinMaxSize{1, 1};
+	MinMaxSize res{1, 1};
+
+	for(const CharType c : one_of.variants)
+	{
+		const CharType str_utf32[]{c, 0};
+		const size_t size= Utf32ToUtf8(str_utf32).size();
+		res.first = std::min(res.first , size);
+		res.second= std::max(res.second, size);
+	}
+
+	for(const auto& range : one_of.ranges)
+	{
+		const CharType begin_str_utf32[]{range.first, 0};
+		const CharType   end_str_utf32[]{range.second, 0};
+		const size_t min_size= Utf32ToUtf8(begin_str_utf32).size();
+		const size_t max_size= Utf32ToUtf8(  end_str_utf32).size();
+		res.first = std::min(res.first , min_size);
+		res.second= std::max(res.second, max_size);
+	}
+
+	return res;
 }
 
 MinMaxSize GetRegexElementSize_impl(const Group& group)

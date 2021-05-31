@@ -126,7 +126,7 @@ struct LookBehind
 	NodePtr next;
 	NodePtr look_graph;
 	bool positive= true;
-	size_t size= 0; // Now we support look behind with fixed size only.
+	size_t size= 0; // Size in UTF-8 bytes. Now we support look behind with fixed size only.
 };
 
 struct StringStartAssertion
