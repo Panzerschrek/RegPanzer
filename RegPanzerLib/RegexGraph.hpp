@@ -69,6 +69,7 @@ struct AnySymbol
 	NodePtr next;
 };
 
+// TODO - maybe replace it with "string" node?
 struct SpecificSymbol
 {
 	NodePtr next;
@@ -78,7 +79,7 @@ struct SpecificSymbol
 struct String
 {
 	NodePtr next;
-	std::basic_string<CharType> str;
+	std::string str; // UTF-8
 };
 
 struct OneOf

@@ -1,4 +1,5 @@
 #include "../RegexGraph.hpp"
+#include "../Utils.hpp"
 #include <cassert>
 #include <unordered_map>
 
@@ -605,16 +606,21 @@ GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphNodeImpl(const GraphEle
 		if(const auto next_specific_symbol= std::get_if<GraphElements::SpecificSymbol>(next.get()))
 		{
 			GraphElements::String string;
-			string.str.push_back(specific_symbol.code);
-			string.str.push_back(next_specific_symbol->code);
+
+			const CharType str_utf32[]{specific_symbol.code, next_specific_symbol->code, 0};
+			string.str= Utf32ToUtf8(str_utf32);
+
 			string.next= next_specific_symbol->next;
 			return std::make_shared<GraphElements::Node>(std::move(string));
 		}
 		else if(const auto next_string= std::get_if<GraphElements::String>(next.get()))
 		{
 			GraphElements::String string;
-			string.str.push_back(specific_symbol.code);
+
+			const CharType str_utf32[]{specific_symbol.code, 0};
+			string.str= Utf32ToUtf8(str_utf32);
 			string.str+= next_string->str;
+
 			string.next= next_string->next;
 			return std::make_shared<GraphElements::Node>(std::move(string));
 		}
@@ -866,8 +872,9 @@ OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::Specif
 
 OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::String& string)
 {
-	if(!string.str.empty())
-		return OneOf{ {string.str.front()}, {}, false };
+	const auto str_utf32= Utf8ToUtf32(string.str);
+	if(!str_utf32.empty())
+		return OneOf{ {str_utf32.front()}, {}, false };
 	return GetPossibleStartSybmols(string.next);
 }
 

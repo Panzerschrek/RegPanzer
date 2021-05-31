@@ -601,22 +601,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 void Generator::BuildNodeFunctionBodyImpl(
 	IRBuilder& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::String& node)
 {
-	std::string str_utf8;
-	{
-		str_utf8.resize(node.str.size() * 6);
-
-		auto source_start= reinterpret_cast<const llvm::UTF32*>(node.str.data());
-		const auto source_end= source_start + node.str.size();
-
-		const auto target_start_initial= reinterpret_cast<llvm::UTF8*>(str_utf8.data());
-		auto target_start= target_start_initial;
-		auto target_end= target_start + str_utf8.size();
-		const auto res= llvm::ConvertUTF32toUTF8(&source_start, source_end, &target_start, target_end, llvm::ConversionFlags());
-		(void)res;
-		assert(res == llvm::conversionOK && source_start == source_end);
-
-		str_utf8.resize(size_t(target_start - target_start_initial));
-	}
+	const std::string& str_utf8= node.str;
 
 	const auto function= llvm_ir_builder.GetInsertBlock()->getParent();
 
