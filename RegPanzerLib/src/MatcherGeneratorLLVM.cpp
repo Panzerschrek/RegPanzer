@@ -1557,7 +1557,17 @@ void Generator::BuildNodeFunctionBodyImpl(
 
 	llvm_ir_builder.CreateBr(extract_element_loop_block);
 
+	const auto set_str_begin=
+	[&](llvm::Value* const counter)
+	{
+		const auto counter_value_multiplied= llvm_ir_builder.CreateMul(counter, GetConstant(ptr_size_int_type_, node.element_length), "counter_value_multiplied");
+		const auto str_begin_for_current_iteration= llvm_ir_builder.CreateGEP(str_begin_value, counter_value_multiplied, "str_begin_for_current_iteration");
+		llvm_ir_builder.CreateStore(str_begin_for_current_iteration, str_begin_ptr);
+	};
+
 	llvm::Value* counter_value_for_extract_element_block= nullptr;
+	llvm::Value* counter_value_for_counter_increase_block= nullptr;
+
 	{
 		// extract_element_loop_block
 		llvm_ir_builder.SetInsertPoint(extract_element_loop_block);
@@ -1565,9 +1575,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 		counter_value->addIncoming(GetConstant(ptr_size_int_type_, 0), start_block);
 		counter_value_for_extract_element_block= counter_value;
 
-		const auto counter_value_multiplied= llvm_ir_builder.CreateMul(counter_value, GetConstant(ptr_size_int_type_, node.element_length), "counter_value_multiplied");
-		const auto str_begin_for_current_iteration= llvm_ir_builder.CreateGEP(str_begin_value, counter_value_multiplied, "str_begin_for_current_iteration");
-		llvm_ir_builder.CreateStore(str_begin_for_current_iteration, str_begin_ptr);
+		set_str_begin(counter_value);
 
 		const auto call_res= llvm_ir_builder.CreateCall(GetOrCreateNodeFunction(node.sequence_element), {state_ptr});
 		llvm_ir_builder.CreateCondBr(call_res, sequence_counter_increase_block, block_after_extract_loop);
@@ -1581,6 +1589,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 			llvm_ir_builder.CreateBr(extract_element_loop_block);
 		else
 		{
+			counter_value_for_counter_increase_block= counter_value_next;
 			const auto loop_continue_condition= llvm_ir_builder.CreateICmpULT(counter_value_next, GetConstant(ptr_size_int_type_, node.max_elements));
 			llvm_ir_builder.CreateCondBr(loop_continue_condition, extract_element_loop_block, block_after_extract_loop);
 		}
@@ -1590,8 +1599,27 @@ void Generator::BuildNodeFunctionBodyImpl(
 	llvm_ir_builder.SetInsertPoint(block_after_extract_loop);
 	const auto counter_value= llvm_ir_builder.CreatePHI(ptr_size_int_type_, 0, "counter_value_for_end_loop");
 	counter_value->addIncoming(counter_value_for_extract_element_block, extract_element_loop_block);
-	if(node.max_elements != Sequence::c_max)
-		counter_value->addIncoming(counter_value_for_extract_element_block, sequence_counter_increase_block);
+	if(counter_value_for_counter_increase_block != nullptr)
+		counter_value->addIncoming(counter_value_for_counter_increase_block, sequence_counter_increase_block);
+
+	const auto tail_check=
+	[&]
+	{
+		SaveState(llvm_ir_builder, state_ptr, state_backup_ptr);
+
+		set_str_begin(counter_value);
+
+		const auto call_res= llvm_ir_builder.CreateCall(GetOrCreateNodeFunction(node.next), {state_ptr});
+		llvm_ir_builder.CreateCondBr(call_res, ret_true_block, tail_check_continue_block);
+
+		// Ret true block.
+		llvm_ir_builder.SetInsertPoint(ret_true_block);
+		llvm_ir_builder.CreateRet(llvm::ConstantInt::getTrue(context_));
+
+		// tail_check_continue_block
+		llvm_ir_builder.SetInsertPoint(tail_check_continue_block);
+		RestoreState(llvm_ir_builder, state_ptr, state_backup_ptr);
+	};
 
 	if(node.min_elements > 0)
 	{
@@ -1617,22 +1645,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 		// tail_check_block
 		llvm_ir_builder.SetInsertPoint(tail_check_block);
 
-		SaveState(llvm_ir_builder, state_ptr, state_backup_ptr);
-
-		const auto counter_value_multiplied= llvm_ir_builder.CreateMul(counter_value, GetConstant(ptr_size_int_type_, node.element_length), "counter_value_multiplied");
-		const auto str_begin_for_current_iteration= llvm_ir_builder.CreateGEP(str_begin_value, counter_value_multiplied, "str_begin_for_current_iteration");
-		llvm_ir_builder.CreateStore(str_begin_for_current_iteration, str_begin_ptr);
-
-		const auto call_res= llvm_ir_builder.CreateCall(GetOrCreateNodeFunction(node.next), {state_ptr});
-		llvm_ir_builder.CreateCondBr(call_res, ret_true_block, tail_check_continue_block);
-
-		// Ret true block.
-		llvm_ir_builder.SetInsertPoint(ret_true_block);
-		llvm_ir_builder.CreateRet(llvm::ConstantInt::getTrue(context_));
-
-		// tail_check_continue_block
-		llvm_ir_builder.SetInsertPoint(tail_check_continue_block);
-		RestoreState(llvm_ir_builder, state_ptr, state_backup_ptr);
+		tail_check();
 
 		const auto counter_value_next= llvm_ir_builder.CreateSub(counter_value, GetConstant(ptr_size_int_type_, 1), "counter_value_next");
 		counter_value->addIncoming(counter_value_next, tail_check_continue_block);
@@ -1657,22 +1670,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 		}
 		*/
 
-		SaveState(llvm_ir_builder, state_ptr, state_backup_ptr);
-
-		const auto counter_value_multiplied= llvm_ir_builder.CreateMul(counter_value, GetConstant(ptr_size_int_type_, node.element_length), "counter_value_multiplied");
-		const auto str_begin_for_current_iteration= llvm_ir_builder.CreateGEP(str_begin_value, counter_value_multiplied, "str_begin_for_current_iteration");
-		llvm_ir_builder.CreateStore(str_begin_for_current_iteration, str_begin_ptr);
-
-		const auto call_res= llvm_ir_builder.CreateCall(GetOrCreateNodeFunction(node.next), {state_ptr});
-		llvm_ir_builder.CreateCondBr(call_res, ret_true_block, tail_check_continue_block);
-
-		// Ret true block.
-		llvm_ir_builder.SetInsertPoint(ret_true_block);
-		llvm_ir_builder.CreateRet(llvm::ConstantInt::getTrue(context_));
-
-		// tail_check_continue_block
-		llvm_ir_builder.SetInsertPoint(tail_check_continue_block);
-		RestoreState(llvm_ir_builder, state_ptr, state_backup_ptr);
+		tail_check();
 
 		const auto loop_continue_condition= llvm_ir_builder.CreateICmpNE(counter_value, GetConstant(ptr_size_int_type_, 0));
 		llvm_ir_builder.CreateCondBr(loop_continue_condition, tail_check_block, ret_false_block);
