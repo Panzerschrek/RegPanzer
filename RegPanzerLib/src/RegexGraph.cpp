@@ -548,6 +548,25 @@ GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphChain(const GraphElemen
 					element.seq.max_elements,
 					});
 	}
+	else if(element.seq.min_elements == 0 && element.seq.max_elements == 1)
+	{
+		// Implement optional element using alternatives node.
+		GraphElements::Alternatives alternatives;
+
+		const auto node= BuildRegexGraphNode(next_node, element.el);
+		if(element.seq.mode == SequenceMode::Greedy)
+		{
+			alternatives.next.push_back(node);
+			alternatives.next.push_back(next_node);
+		}
+		else
+		{
+			alternatives.next.push_back(next_node);
+			alternatives.next.push_back(node);
+		}
+
+		return std::make_shared<GraphElements::Node>(std::move(alternatives));
+	}
 	/* Auto-possessification optimization.
 		Sequence may be converted into possessive if there is no way to match expression returning back to previous sequence element.
 		It is true if there is no way to match expression after sequence and sequence element simultaniously.
@@ -586,25 +605,6 @@ GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphChain(const GraphElemen
 					element.seq.max_elements,
 					*fixed_length_element_size,
 					});
-	}
-	else if(element.seq.min_elements == 0 && element.seq.max_elements == 1)
-	{
-		// Implement optional element using alternatives node.
-		GraphElements::Alternatives alternatives;
-
-		const auto node= BuildRegexGraphNode(next_node, element.el);
-		if(element.seq.mode == SequenceMode::Greedy)
-		{
-			alternatives.next.push_back(node);
-			alternatives.next.push_back(next_node);
-		}
-		else
-		{
-			alternatives.next.push_back(next_node);
-			alternatives.next.push_back(node);
-		}
-
-		return std::make_shared<GraphElements::Node>(std::move(alternatives));
 	}
 	else if(element.seq.min_elements == 1 && element.seq.max_elements == Sequence::c_max)
 	{
