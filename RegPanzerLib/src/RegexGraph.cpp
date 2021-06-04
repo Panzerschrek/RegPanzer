@@ -1,6 +1,7 @@
 #include "../RegexGraph.hpp"
 #include "../Utils.hpp"
 #include <cassert>
+#include <optional>
 #include <unordered_map>
 
 namespace RegPanzer
@@ -224,7 +225,10 @@ MinMaxSize GetRegexElementSize_impl(const SpecificSymbol& specific_symbol)
 
 MinMaxSize GetRegexElementSize_impl(const OneOf& one_of)
 {
-	MinMaxSize res{1, 1};
+	if(one_of.inverse_flag)
+		return MinMaxSize{1, 6};
+
+	MinMaxSize res{100, 0};
 
 	for(const CharType c : one_of.variants)
 	{
@@ -236,7 +240,7 @@ MinMaxSize GetRegexElementSize_impl(const OneOf& one_of)
 
 	for(const auto& range : one_of.ranges)
 	{
-		const CharType begin_str_utf32[]{range.first, 0};
+		const CharType begin_str_utf32[]{range.first , 0};
 		const CharType   end_str_utf32[]{range.second, 0};
 		const size_t min_size= Utf32ToUtf8(begin_str_utf32).size();
 		const size_t max_size= Utf32ToUtf8(  end_str_utf32).size();
@@ -440,6 +444,34 @@ private:
 	OneOf GetPossibleStartSybmolsImpl(const GraphElements::StateSave& state_save);
 	OneOf GetPossibleStartSybmolsImpl(const GraphElements::StateRestore& state_restore);
 
+	using SizeOpt= std::optional<size_t>;
+	// Returns non-empty value if element is allowed inside fixed length element sequence.
+	SizeOpt GetFixedElementSize(const GraphElements::NodePtr& node);
+
+	SizeOpt GetFixedElementSizeImpl(const GraphElements::AnySymbol& any_symbol);
+	SizeOpt GetFixedElementSizeImpl(const GraphElements::SpecificSymbol& specific_symbol);
+	SizeOpt GetFixedElementSizeImpl(const GraphElements::String& string);
+	SizeOpt GetFixedElementSizeImpl(const GraphElements::OneOf& one_of);
+	SizeOpt GetFixedElementSizeImpl(const GraphElements::Alternatives& alternatives);
+	SizeOpt GetFixedElementSizeImpl(const GraphElements::GroupStart& group_start);
+	SizeOpt GetFixedElementSizeImpl(const GraphElements::GroupEnd& group_end);
+	SizeOpt GetFixedElementSizeImpl(const GraphElements::BackReference& back_reference);
+	SizeOpt GetFixedElementSizeImpl(const GraphElements::LookAhead& look_ahead);
+	SizeOpt GetFixedElementSizeImpl(const GraphElements::LookBehind& look_behind);
+	SizeOpt GetFixedElementSizeImpl(const GraphElements::StringStartAssertion& string_start_assertion);
+	SizeOpt GetFixedElementSizeImpl(const GraphElements::StringEndAssertion& string_end_assertion);
+	SizeOpt GetFixedElementSizeImpl(const GraphElements::ConditionalElement& conditional_element);
+	SizeOpt GetFixedElementSizeImpl(const GraphElements::SequenceCounterReset& sequence_counter_reset);
+	SizeOpt GetFixedElementSizeImpl(const GraphElements::SequenceCounter& sequence_counter);
+	SizeOpt GetFixedElementSizeImpl(const GraphElements::NextWeakNode& next_weak);
+	SizeOpt GetFixedElementSizeImpl(const GraphElements::PossessiveSequence& possessive_sequence);
+	SizeOpt GetFixedElementSizeImpl(const GraphElements::FixedLengthElementSequence& fixed_length_element_sequence);
+	SizeOpt GetFixedElementSizeImpl(const GraphElements::AtomicGroup& atomic_group);
+	SizeOpt GetFixedElementSizeImpl(const GraphElements::SubroutineEnter& subroutine_enter);
+	SizeOpt GetFixedElementSizeImpl(const GraphElements::SubroutineLeave& subroutine_leave);
+	SizeOpt GetFixedElementSizeImpl(const GraphElements::StateSave& state_save);
+	SizeOpt GetFixedElementSizeImpl(const GraphElements::StateRestore& state_restore);
+
 private:
 	const Options options_;
 	GroupStats group_stats_;
@@ -535,6 +567,24 @@ GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphChain(const GraphElemen
 					node_possessive,
 					element.seq.min_elements,
 					element.seq.max_elements,
+					});
+	}
+	/*
+	 * Try to perform fixed length element sequence optimization.
+	 * For such optimization sequence element should have fixed size and should not modify state except position pointer (sequence counters, groups, etc.).
+	*/
+	else if(
+		const auto fixed_length_element_size= GetFixedElementSize(node_possessive);
+		fixed_length_element_size != std::nullopt && element.seq.mode == SequenceMode::Greedy)
+	{
+		return
+			std::make_shared<GraphElements::Node>(
+				GraphElements::FixedLengthElementSequence{
+					next_node,
+					node_possessive,
+					element.seq.min_elements,
+					element.seq.max_elements,
+					*fixed_length_element_size,
 					});
 	}
 	else if(element.seq.min_elements == 0 && element.seq.max_elements == 1)
@@ -1036,6 +1086,221 @@ OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::StateS
 OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::StateRestore& state_restore)
 {
 	return GetPossibleStartSybmols(state_restore.next);
+}
+
+std::optional<size_t> RegexGraphBuilder::GetFixedElementSize(const GraphElements::NodePtr& node)
+{
+	if(node == nullptr)
+		return size_t(0);
+
+	return std::visit([&](const auto& el){ return GetFixedElementSizeImpl(el); }, *node);
+}
+
+RegexGraphBuilder::SizeOpt RegexGraphBuilder::GetFixedElementSizeImpl(const GraphElements::AnySymbol&)
+{
+	// Any symbol has non-fixed size.
+	return std::nullopt;
+}
+
+RegexGraphBuilder::SizeOpt RegexGraphBuilder::GetFixedElementSizeImpl(const GraphElements::SpecificSymbol& specific_symbol)
+{
+	const auto next_size= GetFixedElementSize(specific_symbol.next);
+	if(next_size == std::nullopt)
+		return std::nullopt;
+
+	const CharType str_utf32[]{specific_symbol.code, 0};
+	return *next_size + Utf32ToUtf8(str_utf32).size();
+}
+
+RegexGraphBuilder::SizeOpt RegexGraphBuilder::GetFixedElementSizeImpl(const GraphElements::String& string)
+{
+	const auto next_size= GetFixedElementSize(string.next);
+	if(next_size == std::nullopt)
+		return std::nullopt;
+
+	return *next_size + string.str.size();
+}
+
+RegexGraphBuilder::SizeOpt RegexGraphBuilder::GetFixedElementSizeImpl(const GraphElements::OneOf& one_of)
+{
+	const auto next_size= GetFixedElementSize(one_of.next);
+	if(next_size == std::nullopt)
+		return std::nullopt;
+
+	if(one_of.inverse_flag) // Practically almost all sizes are possible in inverted "OneOf".
+		return std::nullopt;
+
+	// TODO - remove copy-paste.
+	// TODO - what if "OneOf" is empty?
+	MinMaxSize sizes{100, 0};
+
+	for(const CharType c : one_of.variants)
+	{
+		const CharType str_utf32[]{c, 0};
+		const size_t size= Utf32ToUtf8(str_utf32).size();
+		sizes.first = std::min(sizes.first , size);
+		sizes.second= std::max(sizes.second, size);
+	}
+
+	for(const auto& range : one_of.ranges)
+	{
+		const CharType begin_str_utf32[]{range.first , 0};
+		const CharType   end_str_utf32[]{range.second, 0};
+		const size_t min_size= Utf32ToUtf8(begin_str_utf32).size();
+		const size_t max_size= Utf32ToUtf8(  end_str_utf32).size();
+		sizes.first = std::min(sizes.first , min_size);
+		sizes.second= std::max(sizes.second, max_size);
+	}
+
+	if(sizes.first != sizes.second)
+		return std::nullopt;
+	return *next_size + sizes.first;
+}
+
+RegexGraphBuilder::SizeOpt RegexGraphBuilder::GetFixedElementSizeImpl(const GraphElements::Alternatives& alternatives)
+{
+	SizeOpt s;
+	for(const auto& next : alternatives.next)
+	{
+		const auto next_size= GetFixedElementSize(next);
+		if(next_size == std::nullopt)
+			return std::nullopt;
+		if(s == std::nullopt)
+			s= next_size;
+		else if(*s != *next_size)
+			return std::nullopt;
+	}
+
+	return s;
+}
+
+RegexGraphBuilder::SizeOpt RegexGraphBuilder::GetFixedElementSizeImpl(const GraphElements::GroupStart&)
+{
+	// Disable fixed lenght element sequence optimization if we need to capture groups inside sequence element.
+	return std::nullopt;
+}
+
+RegexGraphBuilder::SizeOpt RegexGraphBuilder::GetFixedElementSizeImpl(const GraphElements::GroupEnd&)
+{
+	// Disable fixed lenght element sequence optimization if we need to capture groups inside sequence element.
+	return std::nullopt;
+}
+
+RegexGraphBuilder::SizeOpt RegexGraphBuilder::GetFixedElementSizeImpl(const GraphElements::BackReference&)
+{
+	// Backreference generally has non-fixed size.
+	return std::nullopt;
+}
+
+RegexGraphBuilder::SizeOpt RegexGraphBuilder::GetFixedElementSizeImpl(const GraphElements::LookAhead&)
+{
+	// Disable lookahead in elements of fixed length element sequences.
+	return std::nullopt;
+}
+
+RegexGraphBuilder::SizeOpt RegexGraphBuilder::GetFixedElementSizeImpl(const GraphElements::LookBehind&)
+{
+	// Disable lookbehind in elements of fixed length element sequences.
+	return std::nullopt;
+}
+
+RegexGraphBuilder::SizeOpt RegexGraphBuilder::GetFixedElementSizeImpl(const GraphElements::StringStartAssertion&)
+{
+	// It's probably wrong to have string position assertions in fixed length element sequence elements.
+	return std::nullopt;
+}
+
+RegexGraphBuilder::SizeOpt RegexGraphBuilder::GetFixedElementSizeImpl(const GraphElements::StringEndAssertion&)
+{
+	// It's probably wrong to have string position assertions in fixed length element sequence elements.
+	return std::nullopt;
+}
+
+RegexGraphBuilder::SizeOpt RegexGraphBuilder::GetFixedElementSizeImpl(const GraphElements::ConditionalElement&)
+{
+	// It's too complicated.
+	return std::nullopt;
+}
+
+RegexGraphBuilder::SizeOpt RegexGraphBuilder::GetFixedElementSizeImpl(const GraphElements::SequenceCounterReset&)
+{
+	// It's too complicated.
+	return std::nullopt;
+}
+
+RegexGraphBuilder::SizeOpt RegexGraphBuilder::GetFixedElementSizeImpl(const GraphElements::SequenceCounter&)
+{
+	// It's too complicated.
+	return std::nullopt;
+}
+
+RegexGraphBuilder::SizeOpt RegexGraphBuilder::GetFixedElementSizeImpl(const GraphElements::NextWeakNode&)
+{
+	// Such kind of nodes used only in indirect calls and in greedy sequences. So, disable such nodes inside fixed length element sequences.
+	return std::nullopt;
+}
+
+RegexGraphBuilder::SizeOpt RegexGraphBuilder::GetFixedElementSizeImpl(const GraphElements::PossessiveSequence& possessive_sequence)
+{
+	// Enable posessive sequences inside fixed length element sequences, but only with fixed size.
+
+	if(possessive_sequence.min_elements != possessive_sequence.max_elements)
+		return std::nullopt;
+
+	const auto next_size= GetFixedElementSize(possessive_sequence.next);
+	if(next_size == std::nullopt)
+		return std::nullopt;
+
+	const auto element_size= GetFixedElementSize(possessive_sequence.sequence_element);
+	if(element_size == std::nullopt)
+		return std::nullopt;
+
+	return *next_size + possessive_sequence.min_elements * *element_size;
+}
+
+RegexGraphBuilder::SizeOpt RegexGraphBuilder::GetFixedElementSizeImpl(const GraphElements::FixedLengthElementSequence& fixed_length_element_sequence)
+{
+	if(fixed_length_element_sequence.min_elements != fixed_length_element_sequence.max_elements)
+		return std::nullopt;
+
+	const auto next_size= GetFixedElementSize(fixed_length_element_sequence.next);
+	if(next_size == std::nullopt)
+		return std::nullopt;
+
+	const auto element_size= GetFixedElementSize(fixed_length_element_sequence.sequence_element);
+	if(element_size == std::nullopt)
+		return std::nullopt;
+
+	return *next_size + fixed_length_element_sequence.min_elements * *element_size;
+}
+
+RegexGraphBuilder::SizeOpt RegexGraphBuilder::GetFixedElementSizeImpl(const GraphElements::AtomicGroup& atomic_group)
+{
+	return GetFixedElementSize(atomic_group.group_element);
+}
+
+RegexGraphBuilder::SizeOpt RegexGraphBuilder::GetFixedElementSizeImpl(const GraphElements::SubroutineEnter&)
+{
+	// It's too complicated.
+	return std::nullopt;
+}
+
+RegexGraphBuilder::SizeOpt RegexGraphBuilder::GetFixedElementSizeImpl(const GraphElements::SubroutineLeave&)
+{
+	// It's too complicated.
+	return std::nullopt;
+}
+
+RegexGraphBuilder::SizeOpt RegexGraphBuilder::GetFixedElementSizeImpl(const GraphElements::StateSave&)
+{
+	// It's too complicated.
+	return std::nullopt;
+}
+
+RegexGraphBuilder::SizeOpt RegexGraphBuilder::GetFixedElementSizeImpl(const GraphElements::StateRestore&)
+{
+	// It's too complicated.
+	return std::nullopt;
 }
 
 } // namespace

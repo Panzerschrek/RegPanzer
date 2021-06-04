@@ -269,10 +269,14 @@ bool MatchNodeImpl(const GraphElements::FixedLengthElementSequence& node, State&
 	// Than perform back steps until first match of expression tail is reached.
 	while(true)
 	{
-		state.str= str_initial;
-		state.str.remove_prefix(count * node.element_length);
-		if(MatchNode(node.next, state))
+		State state_copy= state;
+		state_copy.str= str_initial;
+		state_copy.str.remove_prefix(count * node.element_length);
+		if(MatchNode(node.next, state_copy))
+		{
+			state= state_copy;
 			return true;
+		}
 
 		if(count == node.min_elements)
 			return false;
