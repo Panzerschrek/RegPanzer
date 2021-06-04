@@ -433,6 +433,7 @@ private:
 	OneOf GetPossibleStartSybmolsImpl(const GraphElements::SequenceCounter& sequence_counter);
 	OneOf GetPossibleStartSybmolsImpl(const GraphElements::NextWeakNode& next_weak);
 	OneOf GetPossibleStartSybmolsImpl(const GraphElements::PossessiveSequence& possessive_sequence);
+	OneOf GetPossibleStartSybmolsImpl(const GraphElements::FixedLengthElementSequence& fixed_length_element_sequence);
 	OneOf GetPossibleStartSybmolsImpl(const GraphElements::AtomicGroup& atomic_group);
 	OneOf GetPossibleStartSybmolsImpl(const GraphElements::SubroutineEnter& subroutine_enter);
 	OneOf GetPossibleStartSybmolsImpl(const GraphElements::SubroutineLeave& subroutine_leave);
@@ -996,6 +997,14 @@ OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::Posses
 	return CombineSymbolSets(
 		GetPossibleStartSybmols(possessive_sequence.sequence_element),
 		GetPossibleStartSybmols(possessive_sequence.next));
+}
+
+OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::FixedLengthElementSequence& fixed_length_element_sequence)
+{
+	// Combine for cases of empty sequence.
+	return CombineSymbolSets(
+		GetPossibleStartSybmols(fixed_length_element_sequence.sequence_element),
+		GetPossibleStartSybmols(fixed_length_element_sequence.next));
 }
 
 OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::AtomicGroup& atomic_group)

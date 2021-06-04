@@ -248,6 +248,38 @@ bool MatchNodeImpl(const GraphElements::PossessiveSequence& node, State& state)
 	return MatchNode(node.next, state);
 }
 
+bool MatchNodeImpl(const GraphElements::FixedLengthElementSequence& node, State& state)
+{
+	const std::string_view str_initial= state.str;
+	size_t count= 0;
+
+	// First, scan string until first fail or until maximum element count is reached.
+	for (; count < node.max_elements; ++count)
+	{
+		// We do not need to backup state here, because no sequences with counters, captured groups or backreferences are allowed inside such sequence element.
+		state.str= str_initial;
+		state.str.remove_prefix(count * node.element_length);
+		if(!MatchNode(node.sequence_element, state))
+			break;
+	}
+
+	if(count < node.min_elements)
+		return false;
+
+	// Than perform back steps until first match of expression tail is reached.
+	while(true)
+	{
+		state.str= str_initial;
+		state.str.remove_prefix(count * node.element_length);
+		if(MatchNode(node.next, state))
+			return true;
+
+		if(count == node.min_elements)
+			return false;
+		--count;
+	}
+}
+
 bool MatchNodeImpl(const GraphElements::AtomicGroup& node, State& state)
 {
 	if(MatchNode(node.group_element, state))

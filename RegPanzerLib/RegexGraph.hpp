@@ -32,6 +32,7 @@ struct SequenceCounterReset;
 struct SequenceCounter;
 struct NextWeakNode;
 struct PossessiveSequence;
+struct FixedLengthElementSequence;
 struct AtomicGroup;
 struct SubroutineEnter;
 struct SubroutineLeave;
@@ -56,6 +57,7 @@ using Node= std::variant<
 	SequenceCounter,
 	NextWeakNode,
 	PossessiveSequence,
+	FixedLengthElementSequence,
 	AtomicGroup,
 	SubroutineEnter,
 	SubroutineLeave,
@@ -177,6 +179,15 @@ struct PossessiveSequence
 	NodePtr sequence_element;
 	size_t min_elements= 0u;
 	size_t max_elements= 0u;
+};
+
+struct FixedLengthElementSequence
+{
+	NodePtr next;
+	NodePtr sequence_element;
+	size_t min_elements= 0u;
+	size_t max_elements= 0u;
+	size_t element_length= 0u; // In UTF-8 bytes.
 };
 
 struct AtomicGroup
