@@ -1539,8 +1539,155 @@ void Generator::BuildNodeFunctionBodyImpl(
 void Generator::BuildNodeFunctionBodyImpl(
 	IRBuilder& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::FixedLengthElementSequence& node)
 {
-	// TODO
-	CreateNextCallRet(llvm_ir_builder, state_ptr, node.next);
+	const auto function= llvm_ir_builder.GetInsertBlock()->getParent();
+
+	const auto state_backup_ptr= llvm_ir_builder.CreateAlloca(state_type_, 0, "state_backup");
+
+	const auto str_begin_ptr= llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrBegin)}, "str_begin_ptr");
+	const auto str_begin_value= llvm_ir_builder.CreateLoad(str_begin_ptr, "str_begin_initial");
+
+	const auto start_block= llvm_ir_builder.GetInsertBlock();
+	const auto extract_element_loop_block= llvm::BasicBlock::Create(context_, "extract_element", function);
+	const auto sequence_counter_increase_block= llvm::BasicBlock::Create(context_, "counter_increase", function);
+	const auto block_after_extract_loop= llvm::BasicBlock::Create(context_, "block_after_extract_loop", function);
+	const auto tail_check_block= llvm::BasicBlock::Create(context_, "tail_check", function);
+	const auto tail_check_continue_block= llvm::BasicBlock::Create(context_, "tail_check_continue", function);
+	const auto ret_true_block= llvm::BasicBlock::Create(context_, "ret_true", function);
+	const auto ret_false_block= llvm::BasicBlock::Create(context_, "ret_false", function);
+
+	llvm_ir_builder.CreateBr(extract_element_loop_block);
+
+	llvm::Value* counter_value_for_extract_element_block= nullptr;
+	{
+		// extract_element_loop_block
+		llvm_ir_builder.SetInsertPoint(extract_element_loop_block);
+		const auto counter_value= llvm_ir_builder.CreatePHI(ptr_size_int_type_, 0, "counter_value_for_extract_element_block");
+		counter_value->addIncoming(GetConstant(ptr_size_int_type_, 0), start_block);
+		counter_value_for_extract_element_block= counter_value;
+
+		const auto counter_value_multiplied= llvm_ir_builder.CreateMul(counter_value, GetConstant(ptr_size_int_type_, node.element_length), "counter_value_multiplied");
+		const auto str_begin_for_current_iteration= llvm_ir_builder.CreateGEP(str_begin_value, counter_value_multiplied, "str_begin_for_current_iteration");
+		llvm_ir_builder.CreateStore(str_begin_for_current_iteration, str_begin_ptr);
+
+		const auto call_res= llvm_ir_builder.CreateCall(GetOrCreateNodeFunction(node.sequence_element), {state_ptr});
+		llvm_ir_builder.CreateCondBr(call_res, sequence_counter_increase_block, block_after_extract_loop);
+
+		// sequence_counter_increase_block
+		llvm_ir_builder.SetInsertPoint(sequence_counter_increase_block);
+		const auto counter_value_next= llvm_ir_builder.CreateAdd(counter_value, GetConstant(ptr_size_int_type_, 1), "counter_value_next");
+		counter_value->addIncoming(counter_value_next, sequence_counter_increase_block);
+
+		if(node.max_elements == Sequence::c_max)
+			llvm_ir_builder.CreateBr(extract_element_loop_block);
+		else
+		{
+			const auto loop_continue_condition= llvm_ir_builder.CreateICmpULT(counter_value_next, GetConstant(ptr_size_int_type_, node.max_elements));
+			llvm_ir_builder.CreateCondBr(loop_continue_condition, extract_element_loop_block, block_after_extract_loop);
+		}
+	}
+
+	// block_after_extract_loop
+	llvm_ir_builder.SetInsertPoint(block_after_extract_loop);
+	const auto counter_value= llvm_ir_builder.CreatePHI(ptr_size_int_type_, 0, "counter_value_for_end_loop");
+	counter_value->addIncoming(counter_value_for_extract_element_block, extract_element_loop_block);
+	if(node.max_elements != Sequence::c_max)
+		counter_value->addIncoming(counter_value_for_extract_element_block, sequence_counter_increase_block);
+
+	if(node.min_elements > 0)
+	{
+		/*
+		while(counter >= node.min_elements)
+		{
+			SaveState();
+			state.str_begin= str_begin + count * length;
+			if(MatchNode(next))
+			{
+				return true;
+			}
+			RestoreState();
+			--counter;
+			continue;
+		}
+		return false;
+		*/
+
+		const auto loop_continue_condition= llvm_ir_builder.CreateICmpUGE(counter_value, GetConstant(ptr_size_int_type_, node.min_elements));
+		llvm_ir_builder.CreateCondBr(loop_continue_condition, tail_check_block, ret_false_block);
+
+		// tail_check_block
+		llvm_ir_builder.SetInsertPoint(tail_check_block);
+
+		SaveState(llvm_ir_builder, state_ptr, state_backup_ptr);
+
+		const auto counter_value_multiplied= llvm_ir_builder.CreateMul(counter_value, GetConstant(ptr_size_int_type_, node.element_length), "counter_value_multiplied");
+		const auto str_begin_for_current_iteration= llvm_ir_builder.CreateGEP(str_begin_value, counter_value_multiplied, "str_begin_for_current_iteration");
+		llvm_ir_builder.CreateStore(str_begin_for_current_iteration, str_begin_ptr);
+
+		const auto call_res= llvm_ir_builder.CreateCall(GetOrCreateNodeFunction(node.next), {state_ptr});
+		llvm_ir_builder.CreateCondBr(call_res, ret_true_block, tail_check_continue_block);
+
+		// Ret true block.
+		llvm_ir_builder.SetInsertPoint(ret_true_block);
+		llvm_ir_builder.CreateRet(llvm::ConstantInt::getTrue(context_));
+
+		// tail_check_continue_block
+		llvm_ir_builder.SetInsertPoint(tail_check_continue_block);
+		RestoreState(llvm_ir_builder, state_ptr, state_backup_ptr);
+
+		const auto counter_value_next= llvm_ir_builder.CreateSub(counter_value, GetConstant(ptr_size_int_type_, 1), "counter_value_next");
+		counter_value->addIncoming(counter_value_next, tail_check_continue_block);
+		llvm_ir_builder.CreateBr(block_after_extract_loop);
+	}
+	else
+	{
+		/*
+		while(true)
+		{
+			SaveState();
+			state.str_begin= str_begin + count * length;
+			if(MatchNode(next))
+			{
+				return true;
+			}
+			RestoreState();
+			if(counter == 0)
+				return false;
+			--counter;
+			continue;
+		}
+		*/
+
+		SaveState(llvm_ir_builder, state_ptr, state_backup_ptr);
+
+		const auto counter_value_multiplied= llvm_ir_builder.CreateMul(counter_value, GetConstant(ptr_size_int_type_, node.element_length), "counter_value_multiplied");
+		const auto str_begin_for_current_iteration= llvm_ir_builder.CreateGEP(str_begin_value, counter_value_multiplied, "str_begin_for_current_iteration");
+		llvm_ir_builder.CreateStore(str_begin_for_current_iteration, str_begin_ptr);
+
+		const auto call_res= llvm_ir_builder.CreateCall(GetOrCreateNodeFunction(node.next), {state_ptr});
+		llvm_ir_builder.CreateCondBr(call_res, ret_true_block, tail_check_continue_block);
+
+		// Ret true block.
+		llvm_ir_builder.SetInsertPoint(ret_true_block);
+		llvm_ir_builder.CreateRet(llvm::ConstantInt::getTrue(context_));
+
+		// tail_check_continue_block
+		llvm_ir_builder.SetInsertPoint(tail_check_continue_block);
+		RestoreState(llvm_ir_builder, state_ptr, state_backup_ptr);
+
+		const auto loop_continue_condition= llvm_ir_builder.CreateICmpNE(counter_value, GetConstant(ptr_size_int_type_, 0));
+		llvm_ir_builder.CreateCondBr(loop_continue_condition, tail_check_block, ret_false_block);
+
+		// tail_check_block
+		llvm_ir_builder.SetInsertPoint(tail_check_block);
+		tail_check_block->setName("counter_decrease_block");
+		const auto counter_value_next= llvm_ir_builder.CreateSub(counter_value, GetConstant(ptr_size_int_type_, 1), "counter_value_next");
+		counter_value->addIncoming(counter_value_next, tail_check_block);
+		llvm_ir_builder.CreateBr(block_after_extract_loop);
+	}
+
+	// Ret false block.
+	llvm_ir_builder.SetInsertPoint(ret_false_block);
+	llvm_ir_builder.CreateRet(llvm::ConstantInt::getFalse(context_));
 }
 
 void Generator::BuildNodeFunctionBodyImpl(
