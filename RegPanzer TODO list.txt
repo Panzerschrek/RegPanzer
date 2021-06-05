@@ -28,7 +28,6 @@ Library:
 LLVM Generator:
 * Optimization of state save chain node structure size
 * Optimization for expressions started with fixed sequence (like Knuth–Morris–Pratt algorithm)
-* Recursion elimination
 
 Tests:
 * More Unicode tests
