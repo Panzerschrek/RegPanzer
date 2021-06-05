@@ -71,6 +71,14 @@ const TestDataElement g_test_data[]
 		"(?:[a-z])*(?:c)",
 		false,
 	},
+	{ // Should not apply auto-possessification for sequence with 0 or 1 elements.
+		"[a-z]?[a-f]",
+		false,
+	},
+	{ // Should not apply auto-possessification for lazy sequence.
+		"[a-z]+?q",
+		false,
+	},
 };
 
 class PossessificationOptimizationTest : public ::testing::TestWithParam<TestDataElement> {};
