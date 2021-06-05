@@ -1,4 +1,5 @@
 #include "../Parser.hpp"
+#include "../Utils.hpp"
 #include "../PushDisableLLVMWarnings.hpp"
 #include <llvm/Support/ConvertUTF.h>
 #include "../PopLLVMWarnings.hpp"
@@ -681,30 +682,8 @@ void Parser::ReportError(std::string message)
 ParseResult ParseRegexString(const std::string_view str)
 {
 	// Do internal parsing in UTF-32 format (with fixed codepoint size). Convert input string into UTF-32.
-
-	std::u32string str_utf32;
-
-	{
-		str_utf32.resize(str.size()); // utf-8 string always has more elements than utf-32 string with same content.
-		auto src_start= reinterpret_cast<const llvm::UTF8*>(str.data());
-		const auto src_end= src_start + str.size();
-		const auto target_start_initial= reinterpret_cast<llvm::UTF32*>(str_utf32.data());
-		auto target_start= target_start_initial;
-		const auto target_end= target_start + str_utf32.size();
-		const auto res= llvm::ConvertUTF8toUTF32(&src_start, src_end, &target_start, target_end, llvm::strictConversion);
-
-		if(res != llvm::conversionOK)
-		{
-			ParseErrors errors;
-			errors.push_back(ParseError{0, "Invalid UTF-8"});
-			return std::move(errors);
-		}
-
-		str_utf32.resize(size_t(target_start - target_start_initial));
-	}
-
 	Parser parser;
-	return parser.Parse(str_utf32);
+	return parser.Parse(Utf8ToUtf32(str));
 }
 
 } // namespace RegPanzer

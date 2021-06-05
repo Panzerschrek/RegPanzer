@@ -5,6 +5,7 @@
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/Support/TargetRegistry.h>
 #include <llvm/Target/TargetMachine.h>
+#include <llvm/Support/ConvertUTF.h>
 #include "../PopLLVMWarnings.hpp"
 #include <iostream>
 
@@ -171,6 +172,46 @@ std::unique_ptr<llvm::TargetMachine> CreateTargetMachine()
 				llvm::Reloc::Model::PIC_,
 				llvm::Optional<llvm::CodeModel::Model>(),
 				code_gen_optimization_level));
+}
+
+std::string Utf32ToUtf8(const std::basic_string_view<char32_t> str)
+{
+	std::string str_utf8;
+	str_utf8.resize(str.size() * 6);
+
+	auto source_start= reinterpret_cast<const llvm::UTF32*>(str.data());
+	const auto source_end= source_start + str.size();
+
+	const auto target_start_initial= reinterpret_cast<llvm::UTF8*>(str_utf8.data());
+	auto target_start= target_start_initial;
+	auto target_end= target_start + str_utf8.size();
+	const auto res= llvm::ConvertUTF32toUTF8(&source_start, source_end, &target_start, target_end, llvm::ConversionFlags());
+	if(res != llvm::conversionOK || source_start != source_end)
+		return std::string();
+
+	str_utf8.resize(size_t(target_start - target_start_initial));
+
+	return str_utf8;
+}
+
+std::basic_string<char32_t> Utf8ToUtf32(const std::string_view str)
+{
+	std::u32string str_utf32;
+
+	str_utf32.resize(str.size()); // utf-8 string always has more elements than utf-32 string with same content.
+	auto src_start= reinterpret_cast<const llvm::UTF8*>(str.data());
+	const auto src_end= src_start + str.size();
+	const auto target_start_initial= reinterpret_cast<llvm::UTF32*>(str_utf32.data());
+	auto target_start= target_start_initial;
+	const auto target_end= target_start + str_utf32.size();
+	const auto res= llvm::ConvertUTF8toUTF32(&src_start, src_end, &target_start, target_end, llvm::strictConversion);
+
+	if(res != llvm::conversionOK)
+		return std::basic_string<char32_t>();
+
+	str_utf32.resize(size_t(target_start - target_start_initial));
+
+	return str_utf32;
 }
 
 } // namespace RegPanzer

@@ -32,4 +32,7 @@ bool StringContainsNonASCIISymbols(const std::string& str);
 
 std::unique_ptr<llvm::TargetMachine> CreateTargetMachine();
 
+std::string Utf32ToUtf8(std::basic_string_view<char32_t> str);
+std::basic_string<char32_t> Utf8ToUtf32(std::string_view str);
+
 } // namespace RegPanzer

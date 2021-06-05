@@ -65,24 +65,9 @@ bool MatchNodeImpl(const GraphElements::SpecificSymbol& node, State& state)
 
 bool MatchNodeImpl(const GraphElements::String& node, State& state)
 {
-	std::string str_utf8;
-	str_utf8.resize(node.str.size() * 6);
-
-	auto source_start= reinterpret_cast<const llvm::UTF32*>(node.str.data());
-	const auto source_end= source_start + node.str.size();
-
-	const auto target_start_initial= reinterpret_cast<llvm::UTF8*>(str_utf8.data());
-	auto target_start= target_start_initial;
-	auto target_end= target_start + str_utf8.size();
-	const auto res= llvm::ConvertUTF32toUTF8(&source_start, source_end, &target_start, target_end, llvm::ConversionFlags());
-	if(res != llvm::conversionOK || source_start != source_end)
-		return false;
-
-	str_utf8.resize(size_t(target_start - target_start_initial));
-
-	if(state.str.size() >= str_utf8.size() && state.str.substr(0, str_utf8.size()) == str_utf8)
+	if(state.str.size() >= node.str.size() && state.str.substr(0, node.str.size()) == node.str)
 	{
-		state.str.remove_prefix(str_utf8.size());
+		state.str.remove_prefix(node.str.size());
 		return MatchNode(node.next, state);
 	}
 
@@ -261,6 +246,42 @@ bool MatchNodeImpl(const GraphElements::PossessiveSequence& node, State& state)
 	}
 
 	return MatchNode(node.next, state);
+}
+
+bool MatchNodeImpl(const GraphElements::FixedLengthElementSequence& node, State& state)
+{
+	const std::string_view str_initial= state.str;
+	size_t count= 0;
+
+	// First, scan string until first fail or until maximum element count is reached.
+	for (; count < node.max_elements; ++count)
+	{
+		// We do not need to backup state here, because no sequences with counters, captured groups or backreferences are allowed inside such sequence element.
+		state.str= str_initial;
+		state.str.remove_prefix(count * node.element_length);
+		if(!MatchNode(node.sequence_element, state))
+			break;
+	}
+
+	if(count < node.min_elements)
+		return false;
+
+	// Than perform back steps until first match of expression tail is reached.
+	while(true)
+	{
+		State state_copy= state;
+		state_copy.str= str_initial;
+		state_copy.str.remove_prefix(count * node.element_length);
+		if(MatchNode(node.next, state_copy))
+		{
+			state= state_copy;
+			return true;
+		}
+
+		if(count == node.min_elements)
+			return false;
+		--count;
+	}
 }
 
 bool MatchNodeImpl(const GraphElements::AtomicGroup& node, State& state)

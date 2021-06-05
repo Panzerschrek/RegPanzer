@@ -32,6 +32,7 @@ struct SequenceCounterReset;
 struct SequenceCounter;
 struct NextWeakNode;
 struct PossessiveSequence;
+struct FixedLengthElementSequence;
 struct AtomicGroup;
 struct SubroutineEnter;
 struct SubroutineLeave;
@@ -56,6 +57,7 @@ using Node= std::variant<
 	SequenceCounter,
 	NextWeakNode,
 	PossessiveSequence,
+	FixedLengthElementSequence,
 	AtomicGroup,
 	SubroutineEnter,
 	SubroutineLeave,
@@ -69,6 +71,7 @@ struct AnySymbol
 	NodePtr next;
 };
 
+// TODO - maybe replace it with "string" node?
 struct SpecificSymbol
 {
 	NodePtr next;
@@ -78,7 +81,7 @@ struct SpecificSymbol
 struct String
 {
 	NodePtr next;
-	std::basic_string<CharType> str;
+	std::string str; // UTF-8
 };
 
 struct OneOf
@@ -125,7 +128,7 @@ struct LookBehind
 	NodePtr next;
 	NodePtr look_graph;
 	bool positive= true;
-	size_t size= 0; // Now we support look behind with fixed size only.
+	size_t size= 0; // Size in UTF-8 bytes. Now we support look behind with fixed size only.
 };
 
 struct StringStartAssertion
@@ -176,6 +179,15 @@ struct PossessiveSequence
 	NodePtr sequence_element;
 	size_t min_elements= 0u;
 	size_t max_elements= 0u;
+};
+
+struct FixedLengthElementSequence
+{
+	NodePtr next;
+	NodePtr sequence_element;
+	size_t min_elements= 0u;
+	size_t max_elements= 0u;
+	size_t element_length= 0u; // In UTF-8 bytes.
 };
 
 struct AtomicGroup
