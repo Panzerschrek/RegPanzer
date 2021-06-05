@@ -81,6 +81,8 @@ struct SubroutineCallStateSaveChainNodeFieldIndex
 
 using IRBuilder= llvm::IRBuilder<>;
 
+const bool no_unsiged_wrap= true;
+
 class Generator
 {
 public:
@@ -328,7 +330,7 @@ void Generator::GenerateMatcherFunction(const RegexGraphBuildResult& regex_graph
 		llvm_ir_builder.CreateBr(not_found_block); // Finish loop after single iteration in case if first regex element is string start assertion.
 	else
 	{
-		const auto next_start_offset= llvm_ir_builder.CreateAdd(current_start_offset, GetConstant(ptr_size_int_type_, 1), "next_start_offset");
+		const auto next_start_offset= llvm_ir_builder.CreateAdd(current_start_offset, GetConstant(ptr_size_int_type_, 1), "next_start_offset", no_unsiged_wrap);
 		current_start_offset->addIncoming(next_start_offset, next_iteration_block);
 		const auto string_end_condition= llvm_ir_builder.CreateICmpULT(next_start_offset, arg_str_size);
 		llvm_ir_builder.CreateCondBr(string_end_condition, search_loop_block, not_found_block);
@@ -699,7 +701,8 @@ void Generator::BuildNodeFunctionBodyImpl(
 			llvm_ir_builder.CreateAdd(
 				loop_counter_current,
 				llvm::ConstantInt::get(ptr_size_int_type_, 1),
-				"loop_counter_next");
+				"loop_counter_next",
+				no_unsiged_wrap);
 		loop_counter_current->addIncoming(loop_counter_next, loop_counter_increase_block);
 		llvm_ir_builder.CreateBr(loop_counter_check_block);
 
@@ -1182,7 +1185,8 @@ void Generator::BuildNodeFunctionBodyImpl(
 		llvm_ir_builder.CreateAdd(
 			loop_counter_current,
 			llvm::ConstantInt::get(loop_counter_current->getType(), 1),
-			"loop_counter_next");
+			"loop_counter_next",
+			no_unsiged_wrap);
 	loop_counter_current->addIncoming(loop_counter_next, loop_counter_increase_block);
 	llvm_ir_builder.CreateBr(loop_counter_check_block);
 
@@ -1382,7 +1386,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 
 	const auto counter_value= llvm_ir_builder.CreateLoad(counter_ptr, "counter_value");
 	const auto counter_value_next=
-		llvm_ir_builder.CreateAdd(counter_value, GetConstant(ptr_size_int_type_, 1), "counter_value_next");
+		llvm_ir_builder.CreateAdd(counter_value, GetConstant(ptr_size_int_type_, 1), "counter_value_next", no_unsiged_wrap);
 	llvm_ir_builder.CreateStore(counter_value_next, counter_ptr);
 
 	if(node.min_elements > 0)
@@ -1506,7 +1510,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 	llvm_ir_builder.SetInsertPoint(ok_block);
 
 	const auto counter_value_next=
-		llvm_ir_builder.CreateAdd(counter_value_current, GetConstant(ptr_size_int_type_, 1), "counter_value_next");
+		llvm_ir_builder.CreateAdd(counter_value_current, GetConstant(ptr_size_int_type_, 1), "counter_value_next", no_unsiged_wrap);
 	counter_value_current->addIncoming(counter_value_next, ok_block);
 
 	llvm_ir_builder.CreateBr(counter_check_block);
@@ -1575,7 +1579,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 
 		// sequence_counter_increase_block
 		llvm_ir_builder.SetInsertPoint(sequence_counter_increase_block);
-		const auto counter_value_next= llvm_ir_builder.CreateAdd(counter_value, GetConstant(ptr_size_int_type_, 1), "counter_value_next");
+		const auto counter_value_next= llvm_ir_builder.CreateAdd(counter_value, GetConstant(ptr_size_int_type_, 1), "counter_value_next", no_unsiged_wrap);
 		counter_value->addIncoming(counter_value_next, sequence_counter_increase_block);
 
 		if(node.max_elements == Sequence::c_max)
@@ -1670,7 +1674,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 		tail_check_block->setName("counter_decrease_block");
 	}
 
-	const auto counter_value_next= llvm_ir_builder.CreateSub(counter_value, GetConstant(ptr_size_int_type_, node.element_length), "counter_value_next");
+	const auto counter_value_next= llvm_ir_builder.CreateSub(counter_value, GetConstant(ptr_size_int_type_, node.element_length), "counter_value_next", no_unsiged_wrap);
 	counter_value->addIncoming(counter_value_next, llvm_ir_builder.GetInsertBlock());
 	llvm_ir_builder.CreateBr(block_after_extract_loop);
 
