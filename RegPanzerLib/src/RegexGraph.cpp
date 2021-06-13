@@ -574,6 +574,7 @@ GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphChain(const GraphElemen
 		If there is no itersection between two sets of symbols - apply auto-possessification.
 	*/
 	else if(
+		!options_.no_graph_optimizations &&
 		element.seq.mode != SequenceMode::Lazy &&
 		!HasIntersection(
 			GetPossibleStartSybmols(node_possessive),
@@ -594,7 +595,9 @@ GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphChain(const GraphElemen
 	*/
 	else if(
 		const auto fixed_length_element_size= GetFixedElementSize(node_possessive);
-		fixed_length_element_size != std::nullopt && element.seq.mode == SequenceMode::Greedy)
+		!options_.no_graph_optimizations &&
+		fixed_length_element_size != std::nullopt
+		&& element.seq.mode == SequenceMode::Greedy)
 	{
 		return
 			std::make_shared<GraphElements::Node>(
@@ -676,7 +679,7 @@ GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphNodeImpl(const GraphEle
 
 GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphNodeImpl(const GraphElements::NodePtr& next, const SpecificSymbol& specific_symbol)
 {
-	if(next != nullptr)
+	if(!options_.no_graph_optimizations && next != nullptr)
 	{
 		// Combine sequences of symbols into strings, because matcher generator generates more optimal code for strings rather than for chains of symbols.
 		if(const auto next_specific_symbol= std::get_if<GraphElements::SpecificSymbol>(next.get()))

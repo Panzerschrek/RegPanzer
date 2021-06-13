@@ -90,6 +90,12 @@ cl::opt<bool> extract_groups(
 	cl::init(false),
 	cl::cat(options_category) );
 
+cl::opt<bool> no_graph_optimizations(
+	"no-graph-optimizations",
+	cl::desc("Disable graph optimizations."),
+	cl::init(false),
+	cl::cat(options_category) );
+
 cl::opt<bool> multiline(
 	"m",
 	cl::desc("Multiline mode - ^ and $ matches not only at start/end of whole string but also at start/end of line"),
@@ -319,6 +325,7 @@ int Main(int argc, const char* argv[])
 	RegPanzer::Options regex_build_options;
 	regex_build_options.extract_groups= Options::extract_groups;
 	regex_build_options.multiline= Options::multiline;
+	regex_build_options.no_graph_optimizations= Options::no_graph_optimizations;
 
 	const RegexGraphBuildResult regex_graph= BuildRegexGraph(*regex_chain, regex_build_options);
 	GenerateMatcherFunction(module, regex_graph, Options::result_function_name);
