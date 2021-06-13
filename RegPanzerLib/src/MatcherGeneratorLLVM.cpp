@@ -1571,8 +1571,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 		counter_value->addIncoming(GetConstant(ptr_size_int_type_, 0), start_block);
 		counter_value_for_extract_element_block= counter_value;
 
-		const auto str_begin_for_current_iteration= llvm_ir_builder.CreateGEP(str_begin_value, counter_value, "str_begin_for_current_iteration");
-		llvm_ir_builder.CreateStore(str_begin_for_current_iteration, str_begin_ptr);
+		// No need to update "str_begin" here, because in case if successfull previous iteration match it will advanced exactly by "element_length" bytes.
 
 		const auto call_res= llvm_ir_builder.CreateCall(GetOrCreateNodeFunction(node.sequence_element), {state_ptr});
 		llvm_ir_builder.CreateCondBr(call_res, sequence_counter_increase_block, block_after_extract_loop);
