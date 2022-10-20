@@ -89,7 +89,7 @@ target_link_libraries(RegPanzerCompiler PRIVATE RegPanzerLib ${LLVM_LIBS_FOR_REG
 
 if(DEFINED LLVM_SRC_DIR)
 
-	# PCRE libraru used for cross-validation and benchmarks.
+	# PCRE library used for cross-validation and benchmarks.
 	find_library(PCRE_LIBRARY pcre)
 	if(PCRE_LIBRARY)
 		message("Found PCRE library: ${PCRE_LIBRARY}")
@@ -114,7 +114,7 @@ if(DEFINED LLVM_SRC_DIR)
 		target_link_libraries(RegPanzerTest PRIVATE ${PCRE_LIBRARY})
 	endif()
 
-	#add_custom_command(TARGET RegPanzerTest POST_BUILD COMMAND RegPanzerTest)
+	add_custom_command(TARGET RegPanzerTest POST_BUILD COMMAND RegPanzerTest)
 
 	#
 	# benchmark
