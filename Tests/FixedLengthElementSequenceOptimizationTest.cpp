@@ -3,6 +3,7 @@
 #include "../RegPanzerLib/PushDisableLLVMWarnings.hpp"
 #include <gtest/gtest.h>
 #include "../RegPanzerLib/PopLLVMWarnings.hpp"
+#include <optional>
 
 
 namespace RegPanzer
