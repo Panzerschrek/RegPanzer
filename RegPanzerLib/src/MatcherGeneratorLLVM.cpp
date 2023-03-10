@@ -263,11 +263,11 @@ void Generator::GenerateMatcherFunction(const RegexGraphBuildResult& regex_graph
 	// Initialize state constant fields.
 	{
 		// Set begin/end pointers.
-		const auto str_begin_initial_ptr= llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrBeginInitial)});
+		const auto str_begin_initial_ptr= llvm_ir_builder.CreateGEP(state_type_, state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrBeginInitial)});
 		llvm_ir_builder.CreateStore(arg_str_begin, str_begin_initial_ptr);
 
-		const auto str_end_ptr= llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrEnd)});
-		const auto str_end_value= llvm_ir_builder.CreateGEP(arg_str_begin, arg_str_size);
+		const auto str_end_ptr= llvm_ir_builder.CreateGEP(state_type_, state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrEnd)});
+		const auto str_end_value= llvm_ir_builder.CreateGEP(char_type_ptr_, arg_str_begin, arg_str_size);
 		llvm_ir_builder.CreateStore(str_end_value, str_end_ptr);
 	}
 	llvm_ir_builder.CreateBr(search_loop_block);
@@ -279,8 +279,8 @@ void Generator::GenerateMatcherFunction(const RegexGraphBuildResult& regex_graph
 
 	// Initialize non-constant fields.
 	{
-		const auto str_begin_ptr= llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrBegin)});
-		const auto str_begin_value= llvm_ir_builder.CreateGEP(arg_str_begin, current_start_offset);
+		const auto str_begin_ptr= llvm_ir_builder.CreateGEP(state_type_, state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrBegin)});
+		const auto str_begin_value= llvm_ir_builder.CreateGEP(char_type_ptr_, arg_str_begin, current_start_offset);
 		llvm_ir_builder.CreateStore(str_begin_value, str_begin_ptr);
 	}
 	{
@@ -290,6 +290,7 @@ void Generator::GenerateMatcherFunction(const RegexGraphBuildResult& regex_graph
 		{
 			const auto group_ptr=
 				llvm_ir_builder.CreateGEP(
+					state_type_,
 					state_ptr,
 					{
 						GetZeroGEPIndex(),
@@ -297,10 +298,10 @@ void Generator::GenerateMatcherFunction(const RegexGraphBuildResult& regex_graph
 						GetFieldGEPIndex(uint32_t(i)),
 					});
 
-			const auto group_begin_ptr= llvm_ir_builder.CreateGEP(group_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(0)});
-			const auto group_end_ptr  = llvm_ir_builder.CreateGEP(group_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(1)});
+			const auto group_begin_ptr= llvm_ir_builder.CreateGEP(group_type_, group_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(0)});
+			const auto group_end_ptr  = llvm_ir_builder.CreateGEP(group_type_, group_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(1)});
 
-			const auto end_value= llvm_ir_builder.CreateGEP(arg_str_begin, arg_str_size);
+			const auto end_value= llvm_ir_builder.CreateGEP(char_type_ptr_, arg_str_begin, arg_str_size);
 			llvm_ir_builder.CreateStore(end_value, group_begin_ptr);
 			llvm_ir_builder.CreateStore(end_value, group_end_ptr  );
 		}
@@ -308,14 +309,14 @@ void Generator::GenerateMatcherFunction(const RegexGraphBuildResult& regex_graph
 	if(state_type_->getNumElements() > StateFieldIndex::SubroutineCallReturnChainHead)
 	{
 		// Zero subroutine call return chain head.
-		const auto ptr= llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::SubroutineCallReturnChainHead)});
+		const auto ptr= llvm_ir_builder.CreateGEP(state_type_, state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::SubroutineCallReturnChainHead)});
 		const auto null= llvm::Constant::getNullValue(llvm::PointerType::get(subroutine_call_return_chain_node_type_, 0));
 		llvm_ir_builder.CreateStore(null, ptr);
 	}
 	if(state_type_->getNumElements() > StateFieldIndex::SubroutineCallStateSaveChainHead)
 	{
 		// Zero subroutine call state save chain head.
-		const auto ptr= llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::SubroutineCallStateSaveChainHead)});
+		const auto ptr= llvm_ir_builder.CreateGEP(state_type_, state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::SubroutineCallStateSaveChainHead)});
 		const auto null= llvm::Constant::getNullValue(llvm::PointerType::get(subroutine_call_state_save_chain_node_type_, 0));
 		llvm_ir_builder.CreateStore(null, ptr);
 	}
@@ -366,8 +367,8 @@ void Generator::GenerateMatcherFunction(const RegexGraphBuildResult& regex_graph
 		// Group fill block.
 		llvm_ir_builder.SetInsertPoint(fill_group_block);
 
-		const auto group_begin_dst= llvm_ir_builder.CreateGEP(arg_out_subpatterns, GetConstant(ptr_size_int_type_, group_number * 2 + 0));
-		const auto group_end_dst  = llvm_ir_builder.CreateGEP(arg_out_subpatterns, GetConstant(ptr_size_int_type_, group_number * 2 + 1));
+		const auto group_begin_dst= llvm_ir_builder.CreateGEP(ptr_size_int_type_, arg_out_subpatterns, GetConstant(ptr_size_int_type_, group_number * 2 + 0));
+		const auto group_end_dst  = llvm_ir_builder.CreateGEP(ptr_size_int_type_, arg_out_subpatterns, GetConstant(ptr_size_int_type_, group_number * 2 + 1));
 
 		llvm::Value* group_offset_begin= nullptr;
 		llvm::Value* group_offset_end  = nullptr;
@@ -376,15 +377,16 @@ void Generator::GenerateMatcherFunction(const RegexGraphBuildResult& regex_graph
 		{
 			group_offset_begin= current_start_offset;
 
-			const auto current_str_pos_ptr= llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrBegin)});
-			const auto current_str_pos= llvm_ir_builder.CreateLoad(current_str_pos_ptr);
+			const auto current_str_pos_ptr= llvm_ir_builder.CreateGEP(state_type_, state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrBegin)});
+			const auto current_str_pos= llvm_ir_builder.CreateLoad(char_type_ptr_, current_str_pos_ptr);
 
-			group_offset_end= llvm_ir_builder.CreatePtrDiff(current_str_pos, arg_str_begin);
+			group_offset_end= llvm_ir_builder.CreatePtrDiff(char_type_, current_str_pos, arg_str_begin);
 		}
 		else if(const auto field_number_it= group_number_to_field_number_.find(group_number); field_number_it != group_number_to_field_number_.end())
 		{
 			const auto src_group_ptr=
 				llvm_ir_builder.CreateGEP(
+					state_type_,
 					state_ptr,
 					{
 						GetZeroGEPIndex(),
@@ -392,11 +394,11 @@ void Generator::GenerateMatcherFunction(const RegexGraphBuildResult& regex_graph
 						GetFieldGEPIndex(field_number_it->second),
 					});
 
-			const auto src_group_begin= llvm_ir_builder.CreateLoad(llvm_ir_builder.CreateGEP(src_group_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(0)}));
-			const auto src_group_end  = llvm_ir_builder.CreateLoad(llvm_ir_builder.CreateGEP(src_group_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(1)}));
+			const auto src_group_begin= llvm_ir_builder.CreateLoad(char_type_ptr_, llvm_ir_builder.CreateGEP(group_type_, src_group_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(0)}));
+			const auto src_group_end  = llvm_ir_builder.CreateLoad(char_type_ptr_, llvm_ir_builder.CreateGEP(group_type_, src_group_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(1)}));
 
-			group_offset_begin= llvm_ir_builder.CreatePtrDiff(src_group_begin, arg_str_begin);
-			group_offset_end  = llvm_ir_builder.CreatePtrDiff(src_group_end  , arg_str_begin);
+			group_offset_begin= llvm_ir_builder.CreatePtrDiff(char_type_, src_group_begin, arg_str_begin);
+			group_offset_end  = llvm_ir_builder.CreatePtrDiff(char_type_, src_group_end  , arg_str_begin);
 		}
 		else
 		{
@@ -541,11 +543,11 @@ void Generator::BuildNodeFunctionBodyImpl(
 {
 	const auto function= llvm_ir_builder.GetInsertBlock()->getParent();
 
-	const auto str_begin_ptr= llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrBegin)});
-	const auto str_begin_value= llvm_ir_builder.CreateLoad(str_begin_ptr);
+	const auto str_begin_ptr= llvm_ir_builder.CreateGEP(state_type_, state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrBegin)});
+	const auto str_begin_value= llvm_ir_builder.CreateLoad(state_type_, str_begin_ptr);
 
-	const auto str_end_ptr= llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrEnd)});
-	const auto str_end_value= llvm_ir_builder.CreateLoad(str_end_ptr);
+	const auto str_end_ptr= llvm_ir_builder.CreateGEP(state_type_, state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrEnd)});
+	const auto str_end_value= llvm_ir_builder.CreateLoad(char_type_ptr_, str_end_ptr);
 
 	const auto check_content_block= llvm::BasicBlock::Create(context_, "check_content", function);
 	const auto ok_block= llvm::BasicBlock::Create(context_, "ok", function);
@@ -559,20 +561,20 @@ void Generator::BuildNodeFunctionBodyImpl(
 	llvm::Value* next_str_begin_value= nullptr;
 	if(char_size == 1)
 	{
-		next_str_begin_value= llvm_ir_builder.CreateGEP(str_begin_value, GetFieldGEPIndex(1), "next_str_begin_value");
+		next_str_begin_value= llvm_ir_builder.CreateGEP(char_type_ptr_, str_begin_value, GetFieldGEPIndex(1), "next_str_begin_value");
 
 		const auto is_empty= llvm_ir_builder.CreateICmpEQ(str_begin_value, str_end_value);
 		llvm_ir_builder.CreateCondBr(is_empty, fail_block, check_content_block);
 
 		// Check content block.
 		llvm_ir_builder.SetInsertPoint(check_content_block);
-		const auto char_value= llvm_ir_builder.CreateLoad(str_begin_value, "char_value");
+		const auto char_value= llvm_ir_builder.CreateLoad(char_type_, str_begin_value, "char_value");
 		const auto is_same_symbol= llvm_ir_builder.CreateICmpEQ(char_value, GetConstant(char_type_, node.code));
 		llvm_ir_builder.CreateCondBr(is_same_symbol, ok_block, fail_block);
 	}
 	else
 	{
-		next_str_begin_value= llvm_ir_builder.CreateGEP(str_begin_value, GetFieldGEPIndex(char_size), "next_str_begin_value");
+		next_str_begin_value= llvm_ir_builder.CreateGEP(char_type_ptr_, str_begin_value, GetFieldGEPIndex(char_size), "next_str_begin_value");
 
 		const auto not_enough_condition= llvm_ir_builder.CreateICmpULE(next_str_begin_value, str_end_value);
 		llvm_ir_builder.CreateCondBr(not_enough_condition, check_content_block, fail_block);
@@ -583,8 +585,8 @@ void Generator::BuildNodeFunctionBodyImpl(
 		llvm::Value* all_eq_value= nullptr;
 		for(uint32_t i= 0; i < char_size; ++i)
 		{
-			const auto char_ptr= llvm_ir_builder.CreateGEP(str_begin_value, GetFieldGEPIndex(i));
-			const auto char_value= llvm_ir_builder.CreateLoad(char_ptr, "char_value");
+			const auto char_ptr= llvm_ir_builder.CreateGEP(char_type_ptr_, str_begin_value, GetFieldGEPIndex(i));
+			const auto char_value= llvm_ir_builder.CreateLoad(char_type_, char_ptr, "char_value");
 			const auto eq= llvm_ir_builder.CreateICmpEQ(char_value, GetConstant(char_type_, uint64_t(buff[i])), "eq");
 			if(all_eq_value == nullptr)
 				all_eq_value = eq;
@@ -611,13 +613,13 @@ void Generator::BuildNodeFunctionBodyImpl(
 
 	const auto function= llvm_ir_builder.GetInsertBlock()->getParent();
 
-	const auto str_begin_ptr= llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrBegin)});
-	const auto str_begin_value= llvm_ir_builder.CreateLoad(str_begin_ptr, "str_begin_value");
+	const auto str_begin_ptr= llvm_ir_builder.CreateGEP(state_type_, state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrBegin)});
+	const auto str_begin_value= llvm_ir_builder.CreateLoad(char_type_ptr_, str_begin_ptr, "str_begin_value");
 
-	const auto str_end_ptr= llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrEnd)});
-	const auto str_end_value= llvm_ir_builder.CreateLoad(str_end_ptr, "str_end_value");
+	const auto str_end_ptr= llvm_ir_builder.CreateGEP(state_type_, state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrEnd)});
+	const auto str_end_value= llvm_ir_builder.CreateLoad(char_type_ptr_, str_end_ptr, "str_end_value");
 
-	const auto next_str_begin_value= llvm_ir_builder.CreateGEP(str_begin_value, GetFieldGEPIndex(uint32_t(str_utf8.size())), "next_str_begin_value");
+	const auto next_str_begin_value= llvm_ir_builder.CreateGEP(char_type_ptr_, str_begin_value, GetFieldGEPIndex(uint32_t(str_utf8.size())), "next_str_begin_value");
 	const auto not_enough_condition= llvm_ir_builder.CreateICmpULE(next_str_begin_value, str_end_value);
 
 	const size_t c_loop_unroll_size= 16; // Constant optimal for 128-bit registers.
@@ -636,8 +638,8 @@ void Generator::BuildNodeFunctionBodyImpl(
 		llvm::Value* all_eq_value= nullptr;
 		for(uint32_t i= 0; i < str_utf8.size(); ++i)
 		{
-			const auto char_ptr= llvm_ir_builder.CreateGEP(str_begin_value, GetFieldGEPIndex(i));
-			const auto char_value= llvm_ir_builder.CreateLoad(char_ptr, "char_value");
+			const auto char_ptr= llvm_ir_builder.CreateGEP(char_type_ptr_, str_begin_value, GetFieldGEPIndex(i));
+			const auto char_value= llvm_ir_builder.CreateLoad(char_type_, char_ptr, "char_value");
 			const auto eq= llvm_ir_builder.CreateICmpEQ(char_value, GetConstant(char_type_, uint64_t(str_utf8[i])), "eq");
 			if(all_eq_value == nullptr)
 				all_eq_value = eq;
@@ -686,11 +688,11 @@ void Generator::BuildNodeFunctionBodyImpl(
 
 		// Loop body block.
 		llvm_ir_builder.SetInsertPoint(loop_body_block);
-		const auto constant_str_char_ptr= llvm_ir_builder.CreateGEP(constant_str_array, {GetZeroGEPIndex(), loop_counter_current});
-		const auto group_char= llvm_ir_builder.CreateLoad(constant_str_char_ptr, "constant_str_char");
+		const auto constant_str_char_ptr= llvm_ir_builder.CreateGEP(constant_initializer->getType(), constant_str_array, {GetZeroGEPIndex(), loop_counter_current});
+		const auto group_char= llvm_ir_builder.CreateLoad(char_type_, constant_str_char_ptr, "constant_str_char");
 
-		const auto str_char_ptr= llvm_ir_builder.CreateGEP(str_begin_value, loop_counter_current);
-		const auto str_char= llvm_ir_builder.CreateLoad(str_char_ptr, "str_char");
+		const auto str_char_ptr= llvm_ir_builder.CreateGEP(char_type_ptr_, str_begin_value, loop_counter_current);
+		const auto str_char= llvm_ir_builder.CreateLoad(char_type_, str_char_ptr, "str_char");
 
 		const auto char_eq= llvm_ir_builder.CreateICmpEQ(group_char, str_char, "char_eq");
 		llvm_ir_builder.CreateCondBr(char_eq, loop_counter_increase_block, fail_block);
@@ -744,11 +746,11 @@ void Generator::BuildNodeFunctionBodyImpl(
 
 	const auto function= llvm_ir_builder.GetInsertBlock()->getParent();
 
-	const auto str_begin_ptr= llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrBegin)});
-	const auto str_begin_value= llvm_ir_builder.CreateLoad(str_begin_ptr);
+	const auto str_begin_ptr= llvm_ir_builder.CreateGEP(state_type_, state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrBegin)});
+	const auto str_begin_value= llvm_ir_builder.CreateLoad(char_type_ptr_, str_begin_ptr);
 
-	const auto str_end_ptr= llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrEnd)});
-	const auto str_end_value= llvm_ir_builder.CreateLoad(str_end_ptr);
+	const auto str_end_ptr= llvm_ir_builder.CreateGEP(state_type_, state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrEnd)});
+	const auto str_end_value= llvm_ir_builder.CreateLoad(char_type_ptr_, str_end_ptr);
 
 	auto found_block= llvm::BasicBlock::Create(context_, "found");
 	const auto empty_block= llvm::BasicBlock::Create(context_, "empty");
@@ -759,7 +761,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 
 	// Non-empty block.
 	llvm_ir_builder.SetInsertPoint(non_empty_block);
-	const auto char_value= llvm_ir_builder.CreateLoad(str_begin_value, "char_value");
+	const auto char_value= llvm_ir_builder.CreateLoad(char_type_, str_begin_value, "char_value");
 
 	llvm::Value* new_str_begin_value= nullptr;
 	if(has_multi_byte_code_points || node.inverse_flag)
@@ -789,7 +791,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 		// Block 0.
 		llvm_ir_builder.SetInsertPoint(block_0);
 		const auto char_code0= first_char_value;
-		const auto str_begin0= llvm_ir_builder.CreateGEP(str_begin_value, GetFieldGEPIndex(1), "str_begin0");
+		const auto str_begin0= llvm_ir_builder.CreateGEP(char_type_ptr_, str_begin_value, GetFieldGEPIndex(1), "str_begin0");
 		llvm_ir_builder.CreateBr(extract_end_block);
 
 		// Block 1 check.
@@ -800,7 +802,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 
 		// Block 1.
 		llvm_ir_builder.SetInsertPoint(block_1);
-		const auto str_begin1= llvm_ir_builder.CreateGEP(str_begin_value, GetFieldGEPIndex(2), "str_begin1");
+		const auto str_begin1= llvm_ir_builder.CreateGEP(char_type_ptr_, str_begin_value, GetFieldGEPIndex(2), "str_begin1");
 		llvm_ir_builder.CreateCondBr(
 			llvm_ir_builder.CreateICmpULE(str_begin1, str_end_value),
 			block_1_after_size_check,
@@ -813,7 +815,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 			const auto b0= first_char_value;
 			const auto b1=
 				llvm_ir_builder.CreateZExt(
-					llvm_ir_builder.CreateLoad(llvm_ir_builder.CreateGEP(str_begin_value, GetFieldGEPIndex(1))),
+					llvm_ir_builder.CreateLoad(char_type_, llvm_ir_builder.CreateGEP(char_type_ptr_, str_begin_value, GetFieldGEPIndex(1))),
 					code_point_type_);
 			const auto and0= llvm_ir_builder.CreateAnd(b0, GetConstant(code_point_type_, c_bit_masks[5]));
 			const auto and1= llvm_ir_builder.CreateAnd(b1, GetConstant(code_point_type_, c_bit_masks[6]));
@@ -831,7 +833,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 
 		// Block 2.
 		llvm_ir_builder.SetInsertPoint(block_2);
-		const auto str_begin2= llvm_ir_builder.CreateGEP(str_begin_value, GetFieldGEPIndex(3), "str_begin2");
+		const auto str_begin2= llvm_ir_builder.CreateGEP(char_type_ptr_, str_begin_value, GetFieldGEPIndex(3), "str_begin2");
 		llvm_ir_builder.CreateCondBr(
 			llvm_ir_builder.CreateICmpULE(str_begin2, str_end_value),
 			block_2_after_size_check,
@@ -844,11 +846,11 @@ void Generator::BuildNodeFunctionBodyImpl(
 			const auto b0= first_char_value;
 			const auto b1=
 				llvm_ir_builder.CreateZExt(
-					llvm_ir_builder.CreateLoad(llvm_ir_builder.CreateGEP(str_begin_value, GetFieldGEPIndex(1))),
+					llvm_ir_builder.CreateLoad(char_type_, llvm_ir_builder.CreateGEP(char_type_ptr_, str_begin_value, GetFieldGEPIndex(1))),
 					code_point_type_);
 			const auto b2=
 				llvm_ir_builder.CreateZExt(
-					llvm_ir_builder.CreateLoad(llvm_ir_builder.CreateGEP(str_begin_value, GetFieldGEPIndex(2))),
+					llvm_ir_builder.CreateLoad(char_type_, llvm_ir_builder.CreateGEP(char_type_ptr_, str_begin_value, GetFieldGEPIndex(2))),
 					code_point_type_);
 			const auto and0= llvm_ir_builder.CreateAnd(b0, GetConstant(code_point_type_, c_bit_masks[4]));
 			const auto and1= llvm_ir_builder.CreateAnd(b1, GetConstant(code_point_type_, c_bit_masks[6]));
@@ -868,7 +870,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 
 		// Block 3.
 		llvm_ir_builder.SetInsertPoint(block_3);
-		const auto str_begin3= llvm_ir_builder.CreateGEP(str_begin_value, GetFieldGEPIndex(4), "str_begin2");
+		const auto str_begin3= llvm_ir_builder.CreateGEP(char_type_ptr_, str_begin_value, GetFieldGEPIndex(4), "str_begin2");
 		llvm_ir_builder.CreateCondBr(
 			llvm_ir_builder.CreateICmpULE(str_begin3, str_end_value),
 			block_3_after_size_check,
@@ -881,15 +883,15 @@ void Generator::BuildNodeFunctionBodyImpl(
 			const auto b0= first_char_value;
 			const auto b1=
 				llvm_ir_builder.CreateZExt(
-					llvm_ir_builder.CreateLoad(llvm_ir_builder.CreateGEP(str_begin_value, GetFieldGEPIndex(1))),
+					llvm_ir_builder.CreateLoad(char_type_, llvm_ir_builder.CreateGEP(char_type_ptr_, str_begin_value, GetFieldGEPIndex(1))),
 					code_point_type_);
 			const auto b2=
 				llvm_ir_builder.CreateZExt(
-					llvm_ir_builder.CreateLoad(llvm_ir_builder.CreateGEP(str_begin_value, GetFieldGEPIndex(2))),
+					llvm_ir_builder.CreateLoad(char_type_, llvm_ir_builder.CreateGEP(char_type_ptr_, str_begin_value, GetFieldGEPIndex(2))),
 					code_point_type_);
 			const auto b3=
 				llvm_ir_builder.CreateZExt(
-					llvm_ir_builder.CreateLoad(llvm_ir_builder.CreateGEP(str_begin_value, GetFieldGEPIndex(3))),
+					llvm_ir_builder.CreateLoad(char_type_, llvm_ir_builder.CreateGEP(char_type_ptr_, str_begin_value, GetFieldGEPIndex(3))),
 					code_point_type_);
 			const auto and0= llvm_ir_builder.CreateAnd(b0, GetConstant(code_point_type_, c_bit_masks[3]));
 			const auto and1= llvm_ir_builder.CreateAnd(b1, GetConstant(code_point_type_, c_bit_masks[6]));
@@ -905,7 +907,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 
 		// Invalid UTF-8 block.
 		llvm_ir_builder.SetInsertPoint(block_invalid_utf8);
-		const auto str_invalid_utf8= llvm_ir_builder.CreateGEP(str_begin_value, GetFieldGEPIndex(1), "str_invalid_utf8");
+		const auto str_invalid_utf8= llvm_ir_builder.CreateGEP(char_type_ptr_, str_begin_value, GetFieldGEPIndex(1), "str_invalid_utf8");
 		llvm_ir_builder.CreateBr(extract_end_block);
 
 		// Extract end block.
@@ -952,7 +954,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 	{
 		// In positive checks with ASCII-only variants and ranges read only first byte and compare it against byte contants.
 
-		new_str_begin_value= llvm_ir_builder.CreateGEP(str_begin_value, GetFieldGEPIndex(1), "new_str_begin_value");
+		new_str_begin_value= llvm_ir_builder.CreateGEP(char_type_ptr_, str_begin_value, GetFieldGEPIndex(1), "new_str_begin_value");
 		for(const CharType c : node.variants)
 		{
 			const auto is_same_symbol= llvm_ir_builder.CreateICmpEQ(char_value, GetConstant(char_type_, c));
@@ -1059,6 +1061,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 {
 	const auto group_ptr=
 		llvm_ir_builder.CreateGEP(
+		state_type_,
 			state_ptr,
 			{
 				GetZeroGEPIndex(),
@@ -1066,11 +1069,11 @@ void Generator::BuildNodeFunctionBodyImpl(
 				GetFieldGEPIndex(group_number_to_field_number_.at(node.index)),
 			});
 
-	const auto group_begin_ptr= llvm_ir_builder.CreateGEP(group_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(0)});
-	const auto group_end_ptr  = llvm_ir_builder.CreateGEP(group_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(1)});
+	const auto group_begin_ptr= llvm_ir_builder.CreateGEP(group_type_, group_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(0)});
+	const auto group_end_ptr  = llvm_ir_builder.CreateGEP(group_type_, group_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(1)});
 
-	const auto str_begin_ptr= llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrBegin)});
-	const auto str_begin_value= llvm_ir_builder.CreateLoad(str_begin_ptr);
+	const auto str_begin_ptr= llvm_ir_builder.CreateGEP(state_type_, state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrBegin)});
+	const auto str_begin_value= llvm_ir_builder.CreateLoad(char_type_ptr_, str_begin_ptr);
 
 	llvm_ir_builder.CreateStore(str_begin_value, group_begin_ptr);
 	llvm_ir_builder.CreateStore(str_begin_value, group_end_ptr  );
@@ -1083,6 +1086,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 {
 	const auto group_end_ptr=
 		llvm_ir_builder.CreateGEP(
+			state_type_,
 			state_ptr,
 			{
 				GetZeroGEPIndex(),
@@ -1091,8 +1095,8 @@ void Generator::BuildNodeFunctionBodyImpl(
 				GetFieldGEPIndex(1),
 			});
 
-	const auto str_begin_ptr= llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrBegin)});
-	const auto str_begin_value= llvm_ir_builder.CreateLoad(str_begin_ptr);
+	const auto str_begin_ptr= llvm_ir_builder.CreateGEP(group_type_, state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrBegin)});
+	const auto str_begin_value= llvm_ir_builder.CreateLoad(char_type_ptr_, str_begin_ptr);
 
 	llvm_ir_builder.CreateStore(str_begin_value, group_end_ptr);
 
@@ -1127,6 +1131,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 
 	const auto group_ptr=
 		llvm_ir_builder.CreateGEP(
+			state_type_,
 			state_ptr,
 			{
 				GetZeroGEPIndex(),
@@ -1134,20 +1139,20 @@ void Generator::BuildNodeFunctionBodyImpl(
 				GetFieldGEPIndex(group_number_to_field_number_.at(node.index)),
 			});
 
-	const auto str_begin_ptr= llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrBegin)});
-	const auto str_begin_value= llvm_ir_builder.CreateLoad(str_begin_ptr, "str_begin_value");
+	const auto str_begin_ptr= llvm_ir_builder.CreateGEP(state_type_, state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrBegin)});
+	const auto str_begin_value= llvm_ir_builder.CreateLoad(char_type_ptr_, str_begin_ptr, "str_begin_value");
 
-	const auto str_end_ptr= llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrEnd)});
-	const auto str_end_value= llvm_ir_builder.CreateLoad(str_end_ptr, "str_end_value");
+	const auto str_end_ptr= llvm_ir_builder.CreateGEP(state_type_, state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrEnd)});
+	const auto str_end_value= llvm_ir_builder.CreateLoad(char_type_ptr_, str_end_ptr, "str_end_value");
 
-	const auto group_begin_ptr= llvm_ir_builder.CreateGEP(group_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(0)});
-	const auto group_end_ptr  = llvm_ir_builder.CreateGEP(group_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(1)});
+	const auto group_begin_ptr= llvm_ir_builder.CreateGEP(group_type_, group_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(0)});
+	const auto group_end_ptr  = llvm_ir_builder.CreateGEP(group_type_, group_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(1)});
 
-	const auto group_begin_value= llvm_ir_builder.CreateLoad(group_begin_ptr, "group_begin_value");
-	const auto group_end_value  = llvm_ir_builder.CreateLoad(group_end_ptr  , "group_end_value"  );
+	const auto group_begin_value= llvm_ir_builder.CreateLoad(char_type_ptr_, group_begin_ptr, "group_begin_value");
+	const auto group_end_value  = llvm_ir_builder.CreateLoad(char_type_ptr_, group_end_ptr  , "group_end_value"  );
 
-	const auto str_size= llvm_ir_builder.CreatePtrDiff(str_end_value, str_begin_value, "str_size");
-	const auto group_size= llvm_ir_builder.CreatePtrDiff(group_end_value, group_begin_value, "group_size");
+	const auto str_size= llvm_ir_builder.CreatePtrDiff(char_type_, str_end_value, str_begin_value, "str_size");
+	const auto group_size= llvm_ir_builder.CreatePtrDiff(char_type_, group_end_value, group_begin_value, "group_size");
 
 	const auto start_block= llvm_ir_builder.GetInsertBlock();
 	const auto loop_counter_check_block= llvm::BasicBlock::Create(context_, "loop_counter_check", function);
@@ -1170,11 +1175,11 @@ void Generator::BuildNodeFunctionBodyImpl(
 
 	// Loop body block.
 	llvm_ir_builder.SetInsertPoint(loop_body_block);
-	const auto group_char_ptr= llvm_ir_builder.CreateGEP(group_begin_value, loop_counter_current);
-	const auto group_char= llvm_ir_builder.CreateLoad(group_char_ptr, "group_char");
+	const auto group_char_ptr= llvm_ir_builder.CreateGEP(char_type_ptr_, group_begin_value, loop_counter_current);
+	const auto group_char= llvm_ir_builder.CreateLoad(char_type_, group_char_ptr, "group_char");
 
-	const auto str_char_ptr= llvm_ir_builder.CreateGEP(str_begin_value, loop_counter_current);
-	const auto str_char= llvm_ir_builder.CreateLoad(str_char_ptr, "str_char");
+	const auto str_char_ptr= llvm_ir_builder.CreateGEP(char_type_ptr_, str_begin_value, loop_counter_current);
+	const auto str_char= llvm_ir_builder.CreateLoad(char_type_, str_char_ptr, "str_char");
 
 	const auto char_eq= llvm_ir_builder.CreateICmpEQ(group_char, str_char, "char_eq");
 	llvm_ir_builder.CreateCondBr(char_eq, loop_counter_increase_block, fail_block);
@@ -1192,7 +1197,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 
 	// End block.
 	llvm_ir_builder.SetInsertPoint(end_block);
-	const auto new_str_begin_value= llvm_ir_builder.CreateGEP(str_begin_value, group_size);
+	const auto new_str_begin_value= llvm_ir_builder.CreateGEP(char_type_ptr_, str_begin_value, group_size);
 	llvm_ir_builder.CreateStore(new_str_begin_value, str_begin_ptr);
 	CreateNextCallRet(llvm_ir_builder, state_ptr, node.next);
 
@@ -1240,10 +1245,10 @@ void Generator::BuildNodeFunctionBodyImpl(
 	const auto look_ok_block= llvm::BasicBlock::Create(context_, "ok", function);
 	const auto look_fail_block= llvm::BasicBlock::Create(context_, "fail", function);
 
-	const auto str_begin= llvm_ir_builder.CreateLoad(llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrBegin)}));
-	const auto str_begin_initial= llvm_ir_builder.CreateLoad(llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrBeginInitial)}));
+	const auto str_begin= llvm_ir_builder.CreateLoad(char_type_ptr_, llvm_ir_builder.CreateGEP(state_type_, state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrBegin)}));
+	const auto str_begin_initial= llvm_ir_builder.CreateLoad(char_type_ptr_, llvm_ir_builder.CreateGEP(state_type_, state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrBeginInitial)}));
 
-	const auto str_begin_for_look= llvm_ir_builder.CreateGEP(str_begin, GetConstant(ptr_size_int_type_, uint64_t(0) - uint64_t(node.size)));
+	const auto str_begin_for_look= llvm_ir_builder.CreateGEP(char_type_ptr_, str_begin, GetConstant(ptr_size_int_type_, uint64_t(0) - uint64_t(node.size)));
 
 	const auto can_perfrom_look_condition= llvm_ir_builder.CreateICmpUGE(str_begin_for_look, str_begin_initial);
 	llvm_ir_builder.CreateCondBr(can_perfrom_look_condition, do_look_block, look_fail_block);
@@ -1253,7 +1258,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 	SaveState(llvm_ir_builder, state_ptr, state_backup_ptr);
 	llvm_ir_builder.CreateStore(
 		str_begin_for_look,
-		llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrBegin)}));
+		llvm_ir_builder.CreateGEP(state_type_, state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrBegin)}));
 	const auto look_res= llvm_ir_builder.CreateCall(GetOrCreateNodeFunction(node.look_graph), {state_ptr});
 	RestoreState(llvm_ir_builder, state_ptr, state_backup_ptr);
 	llvm_ir_builder.CreateCondBr(look_res, look_ok_block, look_fail_block);
@@ -1285,8 +1290,8 @@ void Generator::BuildNodeFunctionBodyImpl(
 {
 	const auto function= llvm_ir_builder.GetInsertBlock()->getParent();
 
-	const auto str_begin= llvm_ir_builder.CreateLoad(llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrBegin)}));
-	const auto str_begin_initial= llvm_ir_builder.CreateLoad(llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrBeginInitial)}));
+	const auto str_begin= llvm_ir_builder.CreateLoad(char_type_ptr_, llvm_ir_builder.CreateGEP(state_type_, state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrBegin)}));
+	const auto str_begin_initial= llvm_ir_builder.CreateLoad(char_type_ptr_, llvm_ir_builder.CreateGEP(state_type_, state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrBeginInitial)}));
 
 	const auto is_start= llvm_ir_builder.CreateICmpEQ(str_begin, str_begin_initial);
 
@@ -1308,8 +1313,8 @@ void Generator::BuildNodeFunctionBodyImpl(
 {
 	const auto function= llvm_ir_builder.GetInsertBlock()->getParent();
 
-	const auto str_begin= llvm_ir_builder.CreateLoad(llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrBegin)}));
-	const auto str_end= llvm_ir_builder.CreateLoad(llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrEnd)}));
+	const auto str_begin= llvm_ir_builder.CreateLoad(char_type_ptr_,llvm_ir_builder.CreateGEP(state_type_, state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrBegin)}));
+	const auto str_end= llvm_ir_builder.CreateLoad(char_type_ptr_,llvm_ir_builder.CreateGEP(state_type_, state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrEnd)}));
 
 	const auto is_start= llvm_ir_builder.CreateICmpEQ(str_begin, str_end);
 
@@ -1356,6 +1361,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 {
 	const auto counter_ptr=
 		llvm_ir_builder.CreateGEP(
+			state_type_,
 			state_ptr,
 			{
 				GetZeroGEPIndex(),
@@ -1377,6 +1383,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 
 	const auto counter_ptr=
 		llvm_ir_builder.CreateGEP(
+			state_type_,
 			state_ptr,
 			{
 				GetZeroGEPIndex(),
@@ -1384,7 +1391,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 				GetFieldGEPIndex(sequence_id_to_counter_filed_number_.at(node.id)),
 			});
 
-	const auto counter_value= llvm_ir_builder.CreateLoad(counter_ptr, "counter_value");
+	const auto counter_value= llvm_ir_builder.CreateLoad(ptr_size_int_type_, counter_ptr, "counter_value");
 	const auto counter_value_next=
 		llvm_ir_builder.CreateAdd(counter_value, GetConstant(ptr_size_int_type_, 1), "counter_value_next", no_unsiged_wrap);
 	llvm_ir_builder.CreateStore(counter_value_next, counter_ptr);
@@ -1547,8 +1554,8 @@ void Generator::BuildNodeFunctionBodyImpl(
 
 	const auto state_backup_ptr= llvm_ir_builder.CreateAlloca(state_type_, 0, "state_backup");
 
-	const auto str_begin_ptr= llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrBegin)}, "str_begin_ptr");
-	const auto str_begin_value= llvm_ir_builder.CreateLoad(str_begin_ptr, "str_begin_initial");
+	const auto str_begin_ptr= llvm_ir_builder.CreateGEP(state_type_, state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrBegin)}, "str_begin_ptr");
+	const auto str_begin_value= llvm_ir_builder.CreateLoad(char_type_ptr_, str_begin_ptr, "str_begin_initial");
 
 	const auto start_block= llvm_ir_builder.GetInsertBlock();
 	const auto extract_element_loop_block= llvm::BasicBlock::Create(context_, "extract_element", function);
@@ -1603,7 +1610,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 	{
 		SaveState(llvm_ir_builder, state_ptr, state_backup_ptr);
 
-		const auto str_begin_for_current_iteration= llvm_ir_builder.CreateGEP(str_begin_value, counter_value, "str_begin_for_current_iteration");
+		const auto str_begin_for_current_iteration= llvm_ir_builder.CreateGEP(char_type_ptr_, str_begin_value, counter_value, "str_begin_for_current_iteration");
 		llvm_ir_builder.CreateStore(str_begin_for_current_iteration, str_begin_ptr);
 
 		const auto call_res= llvm_ir_builder.CreateCall(GetOrCreateNodeFunction(node.next), {state_ptr});
