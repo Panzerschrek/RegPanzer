@@ -1719,15 +1719,17 @@ void Generator::BuildNodeFunctionBodyImpl(
 	llvm_ir_builder.CreateStore(
 		next_function,
 		llvm_ir_builder.CreateGEP(
+			subroutine_call_return_chain_node_type_,
 			subroutine_call_return_chain_node,
 			{GetZeroGEPIndex(), GetFieldGEPIndex(SubroutineCallReturnChainNodeFieldIndex::NextFunction)}));
 
-	const auto prev_node_ptr= llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::SubroutineCallReturnChainHead)});
-	const auto prev_node_value= llvm_ir_builder.CreateLoad(prev_node_ptr);
+	const auto prev_node_ptr= llvm_ir_builder.CreateGEP(state_type_, state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::SubroutineCallReturnChainHead)});
+	const auto prev_node_value= llvm_ir_builder.CreateLoad(llvm::PointerType::get(subroutine_call_return_chain_node_type_, 0), prev_node_ptr);
 
 	llvm_ir_builder.CreateStore(
 		prev_node_value,
 		llvm_ir_builder.CreateGEP(
+			subroutine_call_return_chain_node_type_,
 			subroutine_call_return_chain_node,
 			{GetZeroGEPIndex(), GetFieldGEPIndex(SubroutineCallReturnChainNodeFieldIndex::Prev)}));
 
@@ -1741,24 +1743,26 @@ void Generator::BuildNodeFunctionBodyImpl(
 {
 	(void)node;
 
-	const auto node_ptr= llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::SubroutineCallReturnChainHead)});
-	const auto node_value= llvm_ir_builder.CreateLoad(node_ptr);
+	const auto node_ptr= llvm_ir_builder.CreateGEP(state_type_, state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::SubroutineCallReturnChainHead)});
+	const auto node_value= llvm_ir_builder.CreateLoad(llvm::PointerType::get(subroutine_call_return_chain_node_type_, 0), node_ptr);
 
 	const auto next_function_ptr=
 		llvm_ir_builder.CreateGEP(
+			subroutine_call_return_chain_node_type_,
 			node_value,
 			{GetZeroGEPIndex(), GetFieldGEPIndex(SubroutineCallReturnChainNodeFieldIndex::NextFunction)});
-	const auto next_function= llvm_ir_builder.CreateLoad(next_function_ptr);
+	const auto next_function= llvm_ir_builder.CreateLoad(llvm::PointerType::get(node_function_type_, 0), next_function_ptr);
 
 	const auto prev_node_ptr=
 		llvm_ir_builder.CreateGEP(
+			subroutine_call_return_chain_node_type_,
 			node_value,
 			{GetZeroGEPIndex(), GetFieldGEPIndex(SubroutineCallReturnChainNodeFieldIndex::Prev)});
-	const auto prev_node_value= llvm_ir_builder.CreateLoad(prev_node_ptr);
+	const auto prev_node_value= llvm_ir_builder.CreateLoad(llvm::PointerType::get(node_function_type_, 0), prev_node_ptr);
 
 	llvm_ir_builder.CreateStore(prev_node_value, node_ptr);
 
-	const auto call_res= llvm_ir_builder.CreateCall(next_function, {state_ptr});
+	const auto call_res= llvm_ir_builder.CreateCall(node_function_type_, next_function, {state_ptr});
 	llvm_ir_builder.CreateRet(call_res);
 }
 
@@ -1770,12 +1774,13 @@ void Generator::BuildNodeFunctionBodyImpl(
 		llvm_ir_builder.CreateAlloca(subroutine_call_state_save_chain_node_type_, 0, "subroutine_state_save_chain_node");
 
 	// Save prev value.
-	const auto prev_node_ptr= llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::SubroutineCallStateSaveChainHead)});
-	const auto prev_node_value= llvm_ir_builder.CreateLoad(prev_node_ptr);
+	const auto prev_node_ptr= llvm_ir_builder.CreateGEP(state_type_, state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::SubroutineCallStateSaveChainHead)});
+	const auto prev_node_value= llvm_ir_builder.CreateLoad(llvm::PointerType::get(subroutine_call_state_save_chain_node_type_, 0), prev_node_ptr);
 
 	llvm_ir_builder.CreateStore(
 		prev_node_value,
 		llvm_ir_builder.CreateGEP(
+			subroutine_call_state_save_chain_node_type_,
 			subroutine_state_save_chain_node,
 			{GetZeroGEPIndex(), GetFieldGEPIndex(SubroutineCallStateSaveChainNodeFieldIndex::Prev)}));
 
@@ -1791,6 +1796,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 
 		const auto sequence_counter_ptr=
 			llvm_ir_builder.CreateGEP(
+				state_type_,
 				state_ptr,
 				{
 					GetZeroGEPIndex(),
@@ -1798,11 +1804,12 @@ void Generator::BuildNodeFunctionBodyImpl(
 					sequence_field_index,
 				});
 
-		const auto sequence_counter= llvm_ir_builder.CreateLoad(sequence_counter_ptr, "sequence_counter");
+		const auto sequence_counter= llvm_ir_builder.CreateLoad(ptr_size_int_type_, sequence_counter_ptr, "sequence_counter");
 
 		llvm_ir_builder.CreateStore(
 			sequence_counter,
 			llvm_ir_builder.CreateGEP(
+				subroutine_call_state_save_chain_node_type_,
 				subroutine_state_save_chain_node,
 				{
 					GetZeroGEPIndex(),
@@ -1816,6 +1823,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 
 		const auto group_ptr_src=
 			llvm_ir_builder.CreateGEP(
+				state_type_,
 				state_ptr,
 				{
 					GetZeroGEPIndex(),
@@ -1826,6 +1834,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 
 		const auto group_ptr_dst=
 			llvm_ir_builder.CreateGEP(
+				subroutine_call_state_save_chain_node_type_,
 				subroutine_state_save_chain_node,
 				{
 					GetZeroGEPIndex(),
@@ -1839,8 +1848,8 @@ void Generator::BuildNodeFunctionBodyImpl(
 		const auto alignment= data_layout.getABITypeAlignment(group_type_); // TODO - is this right alignment?
 
 		llvm_ir_builder.CreateMemCpy(
-			group_ptr_dst, alignment,
-			group_ptr_src, alignment,
+			group_ptr_dst, llvm::MaybeAlign(alignment),
+			group_ptr_src, llvm::MaybeAlign(alignment),
 			GetConstant(gep_index_type_, data_layout.getTypeAllocSize(group_type_)));
 	}
 
@@ -1850,15 +1859,16 @@ void Generator::BuildNodeFunctionBodyImpl(
 void Generator::BuildNodeFunctionBodyImpl(
 	IRBuilder& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::StateRestore& node)
 {
-	const auto node_ptr= llvm_ir_builder.CreateGEP(state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::SubroutineCallStateSaveChainHead)});
-	const auto node_value= llvm_ir_builder.CreateLoad(node_ptr);
+	const auto node_ptr= llvm_ir_builder.CreateGEP(state_type_, state_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::SubroutineCallStateSaveChainHead)});
+	const auto node_value= llvm_ir_builder.CreateLoad(llvm::PointerType::get(subroutine_call_state_save_chain_node_type_, 0), node_ptr);
 
 	// Restore prev chain state.
 	const auto prev_node_ptr=
 		llvm_ir_builder.CreateGEP(
+			subroutine_call_state_save_chain_node_type_,
 			node_value,
 			{GetZeroGEPIndex(), GetFieldGEPIndex(SubroutineCallStateSaveChainNodeFieldIndex::Prev)});
-	const auto prev_node_value= llvm_ir_builder.CreateLoad(prev_node_ptr);
+	const auto prev_node_value= llvm_ir_builder.CreateLoad(llvm::PointerType::get(subroutine_call_state_save_chain_node_type_, 0), prev_node_ptr);
 
 	llvm_ir_builder.CreateStore(prev_node_value, node_ptr);
 
@@ -1872,6 +1882,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 
 		const auto sequence_counter_ptr=
 			llvm_ir_builder.CreateGEP(
+				subroutine_call_state_save_chain_node_type_,
 				node_value,
 				{
 					GetZeroGEPIndex(),
@@ -1879,11 +1890,12 @@ void Generator::BuildNodeFunctionBodyImpl(
 					sequence_field_index,
 				});
 
-		const auto sequence_counter= llvm_ir_builder.CreateLoad(sequence_counter_ptr, "sequence_counter");
+		const auto sequence_counter= llvm_ir_builder.CreateLoad(ptr_size_int_type_, sequence_counter_ptr, "sequence_counter");
 
 		llvm_ir_builder.CreateStore(
 			sequence_counter,
 			llvm_ir_builder.CreateGEP(
+				state_type_,
 				state_ptr,
 				{
 					GetZeroGEPIndex(),
@@ -1897,6 +1909,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 
 		const auto group_ptr_src=
 			llvm_ir_builder.CreateGEP(
+				subroutine_call_state_save_chain_node_type_,
 				node_value,
 				{
 					GetZeroGEPIndex(),
@@ -1907,6 +1920,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 
 		const auto group_ptr_dst=
 			llvm_ir_builder.CreateGEP(
+				state_type_,
 				state_ptr,
 				{
 					GetZeroGEPIndex(),
@@ -1920,8 +1934,8 @@ void Generator::BuildNodeFunctionBodyImpl(
 		const auto alignment= data_layout.getABITypeAlignment(group_type_); // TODO - is this right alignment?
 
 		llvm_ir_builder.CreateMemCpy(
-			group_ptr_dst, alignment,
-			group_ptr_src, alignment,
+			group_ptr_dst, llvm::MaybeAlign(alignment),
+			group_ptr_src, llvm::MaybeAlign(alignment),
 			GetConstant(gep_index_type_, data_layout.getTypeAllocSize(group_type_)));
 	}
 
@@ -1952,8 +1966,8 @@ void Generator::CopyState(IRBuilder& llvm_ir_builder, llvm::Value* const dst, ll
 	{
 		llvm::Value* const indices[]{GetZeroGEPIndex(), GetFieldGEPIndex(field_index)};
 		llvm_ir_builder.CreateStore(
-			llvm_ir_builder.CreateLoad(llvm_ir_builder.CreateGEP(src, indices)),
-			llvm_ir_builder.CreateGEP(dst, indices));
+			llvm_ir_builder.CreateLoad(state_type_->getElementType(field_index), llvm_ir_builder.CreateGEP(state_type_, src, indices)),
+			llvm_ir_builder.CreateGEP(state_type_, dst, indices));
 	};
 
 	// Do not copy constant fields - StrEnd, StrBeginInitial.
@@ -1965,8 +1979,8 @@ void Generator::CopyState(IRBuilder& llvm_ir_builder, llvm::Value* const dst, ll
 	{
 		llvm::Value* const indices[]{GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::SequenceContersArray), GetFieldGEPIndex(uint32_t(i))};
 		llvm_ir_builder.CreateStore(
-			llvm_ir_builder.CreateLoad(llvm_ir_builder.CreateGEP(src, indices)),
-			llvm_ir_builder.CreateGEP(dst, indices));
+			llvm_ir_builder.CreateLoad(ptr_size_int_type_, llvm_ir_builder.CreateGEP(state_type_, src, indices)),
+			llvm_ir_builder.CreateGEP(state_type_, dst, indices));
 	}
 
 	// Copy groups.
@@ -1983,8 +1997,8 @@ void Generator::CopyState(IRBuilder& llvm_ir_builder, llvm::Value* const dst, ll
 				GetFieldGEPIndex(uint32_t(j)),
 			};
 			llvm_ir_builder.CreateStore(
-				llvm_ir_builder.CreateLoad(llvm_ir_builder.CreateGEP(src, indices)),
-				llvm_ir_builder.CreateGEP(dst, indices));
+				llvm_ir_builder.CreateLoad(char_type_ptr_, llvm_ir_builder.CreateGEP(state_type_, src, indices)),
+				llvm_ir_builder.CreateGEP(state_type_, dst, indices));
 		}
 	}
 
