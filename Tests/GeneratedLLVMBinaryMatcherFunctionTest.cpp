@@ -73,7 +73,7 @@ TEST_P(GeneratedLLVMBinaryMatcherTest, TestMatch)
 	RunTestCase(GetParam(), false);
 }
 
-INSTANTIATE_TEST_CASE_P(M, GeneratedLLVMBinaryMatcherTest, testing::ValuesIn(g_matcher_test_data, g_matcher_test_data + g_matcher_test_data_size));
+INSTANTIATE_TEST_SUITE_P(M, GeneratedLLVMBinaryMatcherTest, testing::ValuesIn(g_matcher_test_data, g_matcher_test_data + g_matcher_test_data_size));
 
 
 class GeneratedLLVMBinaryMatcherMultilineTest : public ::testing::TestWithParam<MatcherTestDataElement> {};
@@ -83,7 +83,7 @@ TEST_P(GeneratedLLVMBinaryMatcherMultilineTest, TestMatch)
 	RunTestCase(GetParam(), true);
 }
 
-INSTANTIATE_TEST_CASE_P(M, GeneratedLLVMBinaryMatcherMultilineTest, testing::ValuesIn(g_matcher_multiline_test_data, g_matcher_multiline_test_data + g_matcher_multiline_test_data_size));
+INSTANTIATE_TEST_SUITE_P(M, GeneratedLLVMBinaryMatcherMultilineTest, testing::ValuesIn(g_matcher_multiline_test_data, g_matcher_multiline_test_data + g_matcher_multiline_test_data_size));
 
 } // namespace
 

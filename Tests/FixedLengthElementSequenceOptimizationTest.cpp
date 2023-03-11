@@ -84,7 +84,7 @@ TEST_P(FixedLengthElementSequenceOptimizationTest, TestOptimization)
 		ASSERT_TRUE(seq == nullptr);
 }
 
-INSTANTIATE_TEST_CASE_P(FLES, FixedLengthElementSequenceOptimizationTest, testing::ValuesIn(g_test_data));
+INSTANTIATE_TEST_SUITE_P(FLES, FixedLengthElementSequenceOptimizationTest, testing::ValuesIn(g_test_data));
 
 } // namespace
 

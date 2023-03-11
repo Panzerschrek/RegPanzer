@@ -892,7 +892,7 @@ const TestDataElement c_test_data[]
 	{ "[\\W]", { { OneOf{ { '_' }, { {'a', 'z'}, {'A', 'Z'}, {'0', '9'} }, true  }, { 1, 1, SequenceMode::Greedy }, } } },
 };
 
-INSTANTIATE_TEST_CASE_P(P, ParseTest, testing::ValuesIn(c_test_data));
+INSTANTIATE_TEST_SUITE_P(P, ParseTest, testing::ValuesIn(c_test_data));
 
 } // namespace
 

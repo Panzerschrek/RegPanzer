@@ -4,13 +4,16 @@
 #include <llvm/Analysis/TargetTransformInfo.h>
 #include <llvm/Bitcode/BitcodeWriter.h>
 #include <llvm/CodeGen/TargetPassConfig.h>
+#include <llvm/InitializePasses.h>
 #include <llvm/IR/LegacyPassManager.h>
 #include <llvm/MC/SubtargetFeature.h>
+#include <llvm/MC/TargetRegistry.h>
 #include <llvm/Support/InitLLVM.h>
 #include <llvm/Support/FileSystem.h>
+#include <llvm/Support/CommandLine.h>
+#include <llvm/Support/Host.h>
 #include <llvm/Support/raw_os_ostream.h>
 #include <llvm/Support/TargetSelect.h>
-#include <llvm/Support/TargetRegistry.h>
 #include <llvm/Target/TargetMachine.h>
 #include <llvm/Transforms/IPO.h>
 #include <llvm/Transforms/IPO/PassManagerBuilder.h>
@@ -264,7 +267,7 @@ int Main(int argc, const char* argv[])
 		}
 
 		const std::string cpu_name= (Options::architecture == "native" && Options::target_cpu.empty())
-			? llvm::sys::getHostCPUName()
+			? llvm::sys::getHostCPUName().str()
 			: Options::target_cpu;
 
 		const std::string features_str= (Options::architecture == "native" && Options::target_attributes.empty())
@@ -376,7 +379,7 @@ int Main(int argc, const char* argv[])
 	// Write result file.
 	{
 		std::error_code file_error_code;
-		llvm::raw_fd_ostream out_file_stream(Options::output_file_name, file_error_code, llvm::sys::fs::F_None);
+		llvm::raw_fd_ostream out_file_stream(Options::output_file_name, file_error_code);
 
 		if(Options::file_type == Options::FileType::BC)
 			llvm::WriteBitcodeToFile(module, out_file_stream);
@@ -384,11 +387,11 @@ int Main(int argc, const char* argv[])
 			module.print(out_file_stream, nullptr);
 		else
 		{
-			llvm::TargetMachine::CodeGenFileType file_type= llvm::TargetMachine::CGFT_Null;
+			llvm::CodeGenFileType file_type= llvm::CGFT_Null;
 			switch(Options::file_type)
 			{
-			case Options::FileType::Obj: file_type= llvm::TargetMachine::CGFT_ObjectFile; break;
-			case Options::FileType::Asm: file_type= llvm::TargetMachine::CGFT_AssemblyFile; break;
+			case Options::FileType::Obj: file_type= llvm::CGFT_ObjectFile; break;
+			case Options::FileType::Asm: file_type= llvm::CGFT_AssemblyFile; break;
 			case Options::FileType::BC:
 			case Options::FileType::LL:
 			assert(false);

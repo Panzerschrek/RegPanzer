@@ -106,7 +106,7 @@ if(DEFINED LLVM_SRC_DIR)
 	endif()
 
 	add_executable(RegPanzerTest ${REG_PANZER_TEST_SOURCES})
-	target_link_libraries(RegPanzerTest PRIVATE RegPanzerLib gtest gtest_main ${LLVM_LIBS_FOR_REG_PANZER_TEST})
+	target_link_libraries(RegPanzerTest PRIVATE RegPanzerLib llvm_gtest llvm_gtest_main ${LLVM_LIBS_FOR_REG_PANZER_TEST})
 	target_include_directories(RegPanzerTest PRIVATE ${LLVM_SRC_DIR}/utils/unittest/googletest/include/)
 	target_compile_definitions(RegPanzerTest PRIVATE -DGTEST_LANG_CXX11=1 -DGTEST_HAS_TR1_TUPLE=0)
 
@@ -119,17 +119,19 @@ if(DEFINED LLVM_SRC_DIR)
 	#
 	# benchmark
 	#
-	file(GLOB REG_PANZER_BENCHMARK_SOURCES "Benchmark/*")
-	if(NOT PCRE_LIBRARY)
-		list(REMOVE_ITEM REG_PANZER_BENCHMARK_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/Benchmark/PcreBenchmark.cpp)
-	endif()
+	if(LLVM_INCLUDE_BENCHMARKS)
+		file(GLOB REG_PANZER_BENCHMARK_SOURCES "Benchmark/*")
+		if(NOT PCRE_LIBRARY)
+			list(REMOVE_ITEM REG_PANZER_BENCHMARK_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/Benchmark/PcreBenchmark.cpp)
+		endif()
 
-	add_executable(RegPanzerBenchmark ${REG_PANZER_BENCHMARK_SOURCES})
-	target_link_libraries(RegPanzerBenchmark PRIVATE RegPanzerLib benchmark benchmark_main ${LLVM_LIBS_FOR_REG_PANZER_TEST})
-	target_include_directories(RegPanzerBenchmark PRIVATE ${LLVM_SRC_DIR}/utils/benchmark/include/)
+		add_executable(RegPanzerBenchmark ${REG_PANZER_BENCHMARK_SOURCES})
+		target_link_libraries(RegPanzerBenchmark PRIVATE RegPanzerLib benchmark benchmark_main ${LLVM_LIBS_FOR_REG_PANZER_TEST})
+		target_include_directories(RegPanzerBenchmark PRIVATE ${LLVM_SRC_DIR}/utils/benchmark/include/)
 
-	if(PCRE_LIBRARY)
-		target_link_libraries(RegPanzerBenchmark PRIVATE ${PCRE_LIBRARY})
+		if(PCRE_LIBRARY)
+			target_link_libraries(RegPanzerBenchmark PRIVATE ${PCRE_LIBRARY})
+		endif()
 	endif()
 
 endif()
