@@ -31,7 +31,7 @@ Call this function from your program to perform match for your regular expressio
 
 ## How to build
 
-Download/install LLVM library (LLVM 9.0 used in this project).
+Download/install LLVM library (LLVM 15.0.7 used in this project).
 
 Run _cmake_ for _CmakeListst.txt_ in repository root to generate project for your favorite build system or IDE.
 Specify LLVM_SRC_DIR cmake variable if you wish to build RegPanzer based on LLVM library in source form OR specify LLVM_LIB_DIR variable to build *RegPanzer* using binary LLVM distribution.
@@ -40,4 +40,4 @@ Note that tests/benchamrk build supported only with LLVM in source form.
 
 ## Authors
 
-Copyright © 2021 Artöm "Panzerscrek" Kunç.
+Copyright © 2021-2023 Artöm "Panzerscrek" Kunç.
