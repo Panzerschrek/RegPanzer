@@ -2,10 +2,11 @@
 #include "../Utils.hpp"
 #include "../PushDisableLLVMWarnings.hpp"
 #include <llvm/MC/SubtargetFeature.h>
+#include <llvm/MC/TargetRegistry.h>
+#include <llvm/Support/Host.h>
 #include <llvm/Support/TargetSelect.h>
-#include <llvm/Support/TargetRegistry.h>
-#include <llvm/Target/TargetMachine.h>
 #include <llvm/Support/ConvertUTF.h>
+#include <llvm/Target/TargetMachine.h>
 #include "../PopLLVMWarnings.hpp"
 #include <iostream>
 
