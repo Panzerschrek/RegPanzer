@@ -86,7 +86,7 @@ TEST_P(CompilerGeneratedMatcherTest, TestMatch)
 	RunTestCase(GetParam(), false);
 }
 
-INSTANTIATE_TEST_CASE_P(M, CompilerGeneratedMatcherTest, testing::ValuesIn(g_matcher_test_data, g_matcher_test_data + g_matcher_test_data_size));
+INSTANTIATE_TEST_SUITE_P(M, CompilerGeneratedMatcherTest, testing::ValuesIn(g_matcher_test_data, g_matcher_test_data + g_matcher_test_data_size));
 
 
 class CompilerGeneratedMatcherMultilineTest : public ::testing::TestWithParam<MatcherTestDataElement> {};
@@ -96,7 +96,7 @@ TEST_P(CompilerGeneratedMatcherMultilineTest, TestMatch)
 	RunTestCase(GetParam(), true);
 }
 
-INSTANTIATE_TEST_CASE_P(M, CompilerGeneratedMatcherMultilineTest, testing::ValuesIn(g_matcher_multiline_test_data, g_matcher_multiline_test_data + g_matcher_multiline_test_data_size));
+INSTANTIATE_TEST_SUITE_P(M, CompilerGeneratedMatcherMultilineTest, testing::ValuesIn(g_matcher_multiline_test_data, g_matcher_multiline_test_data + g_matcher_multiline_test_data_size));
 
 
 class CompilerGeneratedMatcherGroupsExtractionTest : public ::testing::TestWithParam<GroupsExtractionTestDataElement> {};
@@ -164,7 +164,7 @@ TEST_P(CompilerGeneratedMatcherGroupsExtractionTest, TestGroupsExtraction)
 	}
 }
 
-INSTANTIATE_TEST_CASE_P(GE, CompilerGeneratedMatcherGroupsExtractionTest, testing::ValuesIn(g_groups_extraction_test_data, g_groups_extraction_test_data + g_groups_extraction_test_data_size));
+INSTANTIATE_TEST_SUITE_P(GE, CompilerGeneratedMatcherGroupsExtractionTest, testing::ValuesIn(g_groups_extraction_test_data, g_groups_extraction_test_data + g_groups_extraction_test_data_size));
 
 } // namespace
 

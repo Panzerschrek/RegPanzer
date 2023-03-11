@@ -66,7 +66,7 @@ TEST_P(LlvmRegexMatchTest, TestMatch)
 	}
 }
 
-INSTANTIATE_TEST_CASE_P(M, LlvmRegexMatchTest, testing::ValuesIn(g_matcher_test_data, g_matcher_test_data + g_matcher_test_data_size));
+INSTANTIATE_TEST_SUITE_P(M, LlvmRegexMatchTest, testing::ValuesIn(g_matcher_test_data, g_matcher_test_data + g_matcher_test_data_size));
 
 
 class LlvmRegexGroupsExtractionTest : public ::testing::TestWithParam<GroupsExtractionTestDataElement> {};
@@ -122,7 +122,7 @@ TEST_P(LlvmRegexGroupsExtractionTest, TestGroupsExtraction)
 	}
 }
 
-INSTANTIATE_TEST_CASE_P(GE, LlvmRegexGroupsExtractionTest, testing::ValuesIn(g_groups_extraction_test_data, g_groups_extraction_test_data + g_groups_extraction_test_data_size));
+INSTANTIATE_TEST_SUITE_P(GE, LlvmRegexGroupsExtractionTest, testing::ValuesIn(g_groups_extraction_test_data, g_groups_extraction_test_data + g_groups_extraction_test_data_size));
 
 } // namespace
 
