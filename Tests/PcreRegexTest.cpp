@@ -67,7 +67,7 @@ TEST_P(PcreRegexMatchTest, TestMatch)
 	RunTestCase(GetParam(), false);
 }
 
-INSTANTIATE_TEST_CASE_P(M, PcreRegexMatchTest, testing::ValuesIn(g_matcher_test_data, g_matcher_test_data + g_matcher_test_data_size));
+INSTANTIATE_TEST_SUITE_P(M, PcreRegexMatchTest, testing::ValuesIn(g_matcher_test_data, g_matcher_test_data + g_matcher_test_data_size));
 
 class PcreRegexMatchMultilineTest : public ::testing::TestWithParam<MatcherTestDataElement> {};
 
@@ -77,7 +77,7 @@ TEST_P(PcreRegexMatchMultilineTest, TestMatch)
 	RunTestCase(GetParam(), true);
 }
 
-INSTANTIATE_TEST_CASE_P(M, PcreRegexMatchMultilineTest, testing::ValuesIn(g_matcher_multiline_test_data, g_matcher_multiline_test_data + g_matcher_multiline_test_data_size));
+INSTANTIATE_TEST_SUITE_P(M, PcreRegexMatchMultilineTest, testing::ValuesIn(g_matcher_multiline_test_data, g_matcher_multiline_test_data + g_matcher_multiline_test_data_size));
 
 
 class PcreRegexGroupsExtractionTest : public ::testing::TestWithParam<GroupsExtractionTestDataElement> {};
@@ -143,7 +143,7 @@ TEST_P(PcreRegexGroupsExtractionTest, TestGroupsExtraction)
 	pcre_free(r);
 }
 
-INSTANTIATE_TEST_CASE_P(GE, PcreRegexGroupsExtractionTest, testing::ValuesIn(g_groups_extraction_test_data, g_groups_extraction_test_data + g_groups_extraction_test_data_size));
+INSTANTIATE_TEST_SUITE_P(GE, PcreRegexGroupsExtractionTest, testing::ValuesIn(g_groups_extraction_test_data, g_groups_extraction_test_data + g_groups_extraction_test_data_size));
 
 } // namespace
 
