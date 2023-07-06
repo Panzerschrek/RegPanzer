@@ -438,6 +438,7 @@ private:
 	OneOf GetPossibleStartSybmolsImpl(const GraphElements::NextWeakNode& next_weak);
 	OneOf GetPossibleStartSybmolsImpl(const GraphElements::PossessiveSequence& possessive_sequence);
 	OneOf GetPossibleStartSybmolsImpl(const GraphElements::FixedLengthElementSequence& fixed_length_element_sequence);
+	OneOf GetPossibleStartSybmolsImpl(const GraphElements::SequenceWithStackStateSave& sequence_with_stack_state_save);
 	OneOf GetPossibleStartSybmolsImpl(const GraphElements::AtomicGroup& atomic_group);
 	OneOf GetPossibleStartSybmolsImpl(const GraphElements::SubroutineEnter& subroutine_enter);
 	OneOf GetPossibleStartSybmolsImpl(const GraphElements::SubroutineLeave& subroutine_leave);
@@ -466,6 +467,7 @@ private:
 	SizeOpt GetFixedElementSizeImpl(const GraphElements::NextWeakNode& next_weak);
 	SizeOpt GetFixedElementSizeImpl(const GraphElements::PossessiveSequence& possessive_sequence);
 	SizeOpt GetFixedElementSizeImpl(const GraphElements::FixedLengthElementSequence& fixed_length_element_sequence);
+	SizeOpt GetFixedElementSizeImpl(const GraphElements::SequenceWithStackStateSave& sequence_with_stack_state_save);
 	SizeOpt GetFixedElementSizeImpl(const GraphElements::AtomicGroup& atomic_group);
 	SizeOpt GetFixedElementSizeImpl(const GraphElements::SubroutineEnter& subroutine_enter);
 	SizeOpt GetFixedElementSizeImpl(const GraphElements::SubroutineLeave& subroutine_leave);
@@ -627,19 +629,28 @@ GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphChain(const GraphElemen
 	}
 	else if(element.seq.min_elements == 0 && element.seq.max_elements == Sequence::c_max)
 	{
-		// In case of zero or more elements first enter alternatives node, than sequence body node.
+		// TODO - remove dead code.
+		if( false )
+		{
+			// In case of zero or more elements first enter alternatives node, than sequence body node.
 
-		const auto alternatives_node= std::make_shared<GraphElements::Node>(GraphElements::Alternatives{{next_node}});
-		const auto alternatives_node_node_weak= std::make_shared<GraphElements::Node>(GraphElements::NextWeakNode{alternatives_node});
-		const auto node= BuildRegexGraphNode(alternatives_node_node_weak, element.el);
+			const auto alternatives_node= std::make_shared<GraphElements::Node>(GraphElements::Alternatives{{next_node}});
+			const auto alternatives_node_node_weak= std::make_shared<GraphElements::Node>(GraphElements::NextWeakNode{alternatives_node});
+			const auto node= BuildRegexGraphNode(alternatives_node_node_weak, element.el);
 
-		auto& alternatives= std::get<GraphElements::Alternatives>(*alternatives_node);
-		if(element.seq.mode == SequenceMode::Lazy)
-			alternatives.next.push_back(node);
+			auto& alternatives= std::get<GraphElements::Alternatives>(*alternatives_node);
+			if(element.seq.mode == SequenceMode::Lazy)
+				alternatives.next.push_back(node);
+			else
+				alternatives.next.insert(alternatives.next.begin(), node);
+
+			return alternatives_node;
+		}
 		else
-			alternatives.next.insert(alternatives.next.begin(), node);
-
-		return alternatives_node;
+		{
+			const bool greedy= element.seq.mode == SequenceMode::Greedy;
+			return std::make_shared<GraphElements::Node>(GraphElements::SequenceWithStackStateSave{next_node, node_possessive, greedy});
+		}
 	}
 	else
 	{
@@ -1060,6 +1071,14 @@ OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::FixedL
 		GetPossibleStartSybmols(fixed_length_element_sequence.next));
 }
 
+OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::SequenceWithStackStateSave& sequence_with_stack_state_save)
+{
+	// Combine for cases of empty sequence.
+	return CombineSymbolSets(
+		GetPossibleStartSybmols(sequence_with_stack_state_save.sequence_element),
+		GetPossibleStartSybmols(sequence_with_stack_state_save.next));
+}
+
 OneOf RegexGraphBuilder::GetPossibleStartSybmolsImpl(const GraphElements::AtomicGroup& atomic_group)
 {
 	// Combine for cases of empty atomic group. TODO - is this really needed? Or maybe symbols set will contain all symbols in empty group?
@@ -1275,6 +1294,12 @@ RegexGraphBuilder::SizeOpt RegexGraphBuilder::GetFixedElementSizeImpl(const Grap
 		return std::nullopt;
 
 	return *next_size + fixed_length_element_sequence.min_elements * *element_size;
+}
+
+RegexGraphBuilder::SizeOpt RegexGraphBuilder::GetFixedElementSizeImpl(const GraphElements::SequenceWithStackStateSave& sequence_with_stack_state_save)
+{
+	(void)sequence_with_stack_state_save;
+	return std::nullopt;
 }
 
 RegexGraphBuilder::SizeOpt RegexGraphBuilder::GetFixedElementSizeImpl(const GraphElements::AtomicGroup& atomic_group)

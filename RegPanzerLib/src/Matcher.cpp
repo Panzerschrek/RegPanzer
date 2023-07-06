@@ -284,6 +284,51 @@ bool MatchNodeImpl(const GraphElements::FixedLengthElementSequence& node, State&
 	}
 }
 
+bool MatchNodeImpl(const GraphElements::SequenceWithStackStateSave& node, State& state)
+{
+	// TODO - check this.
+	// TODO - support min/max amount.
+	if( node.greedy )
+	{
+		llvm::SmallVector<State, 256> stack;
+
+		// Greedy try to match sequence elements, save stack of states.
+		while(true)
+		{
+			stack.push_back(state);
+			if( !MatchNode( node.sequence_element, state ) )
+				break;
+		}
+
+		// Try to match next element. If match is not successfull - restore pop state from stack and continue search.
+		assert( !stack.empty() );
+		while( !stack.empty() )
+		{
+			state= std::move(stack.back());
+			if( MatchNode( node.next, state ) )
+				return true;
+			stack.pop_back();
+		}
+
+		return false;
+	}
+	else
+	{
+		// There is no need in stack for lazy sequence.
+		// Just try to match next node. If it isn't successfull - try to match sequence element and continue search.
+		while( true )
+		{
+			State state_copy= state;
+			if( MatchNode( node.next, state ) )
+				return true;
+
+			state= std::move(state_copy);
+			if( !MatchNode( node.sequence_element, state ) )
+				return false;
+		}
+	}
+}
+
 bool MatchNodeImpl(const GraphElements::AtomicGroup& node, State& state)
 {
 	if(MatchNode(node.group_element, state))

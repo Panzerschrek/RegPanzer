@@ -30,6 +30,7 @@ const char* GetNodeName(const GraphElements::SequenceCounter&) { return "loop_co
 const char* GetNodeName(const GraphElements::NextWeakNode& node) { return GetNodeName(node.next.lock()); }
 const char* GetNodeName(const GraphElements::PossessiveSequence&) { return "possessive_sequence"; }
 const char* GetNodeName(const GraphElements::FixedLengthElementSequence&) { return "fixed_length_element_sequence"; }
+const char* GetNodeName(const GraphElements::SequenceWithStackStateSave&) { return "sequence_with_stack_state_save"; }
 const char* GetNodeName(const GraphElements::AtomicGroup&) { return "atomic_group"; }
 const char* GetNodeName(const GraphElements::SubroutineEnter&) { return "subroutine_enter"; }
 const char* GetNodeName(const GraphElements::SubroutineLeave&) { return "subroutine_leave"; }
@@ -150,6 +151,9 @@ private:
 
 	void BuildNodeFunctionBodyImpl(
 		IRBuilder& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::FixedLengthElementSequence& node);
+
+	void BuildNodeFunctionBodyImpl(
+		IRBuilder& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::SequenceWithStackStateSave& node);
 
 	void BuildNodeFunctionBodyImpl(
 		IRBuilder& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::AtomicGroup& node);
@@ -1687,6 +1691,15 @@ void Generator::BuildNodeFunctionBodyImpl(
 	// Ret false block.
 	llvm_ir_builder.SetInsertPoint(ret_false_block);
 	llvm_ir_builder.CreateRet(llvm::ConstantInt::getFalse(context_));
+}
+
+void Generator::BuildNodeFunctionBodyImpl(
+	IRBuilder& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::SequenceWithStackStateSave& node)
+{
+	// TODO
+	(void)llvm_ir_builder;
+	(void)state_ptr;
+	(void)node;
 }
 
 void Generator::BuildNodeFunctionBodyImpl(
