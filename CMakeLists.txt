@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.10)
 
+option( REG_PANZER_BUILD_BENCHMARK "Build RegPanzer Benchmark" YES )
+
 project(RegPanzer)
 
 set(CMAKE_CXX_STANDARD 17)
@@ -47,6 +49,10 @@ endif()
 llvm_map_components_to_libnames(LLVM_LIBS_FOR_REG_PANZER_LIB Core)
 llvm_map_components_to_libnames(LLVM_LIBS_FOR_REG_PANZER_COMPILER IPO ${LLVM_TARGETS_TO_BUILD})
 llvm_map_components_to_libnames(LLVM_LIBS_FOR_REG_PANZER_TEST Interpreter MCJIT ${LLVM_TARGETS_TO_BUILD})
+
+if(REG_PANZER_BUILD_BENCHMARK)
+	add_subdirectory(google_benchmark)
+endif()
 
 # Setup our project compiler options.
 
@@ -116,22 +122,22 @@ if(DEFINED LLVM_SRC_DIR)
 
 	add_custom_command(TARGET RegPanzerTest POST_BUILD COMMAND RegPanzerTest)
 
-	#
-	# benchmark
-	#
-	if(LLVM_INCLUDE_BENCHMARKS)
-		file(GLOB REG_PANZER_BENCHMARK_SOURCES "Benchmark/*")
-		if(NOT PCRE_LIBRARY)
-			list(REMOVE_ITEM REG_PANZER_BENCHMARK_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/Benchmark/PcreBenchmark.cpp)
-		endif()
+endif()
 
-		add_executable(RegPanzerBenchmark ${REG_PANZER_BENCHMARK_SOURCES})
-		target_link_libraries(RegPanzerBenchmark PRIVATE RegPanzerLib benchmark benchmark_main ${LLVM_LIBS_FOR_REG_PANZER_TEST})
-		target_include_directories(RegPanzerBenchmark PRIVATE ${LLVM_SRC_DIR}/utils/benchmark/include/)
-
-		if(PCRE_LIBRARY)
-			target_link_libraries(RegPanzerBenchmark PRIVATE ${PCRE_LIBRARY})
-		endif()
+#
+# benchmark
+#
+if(REG_PANZER_BUILD_BENCHMARK)
+	file(GLOB REG_PANZER_BENCHMARK_SOURCES "Benchmark/*")
+	if(NOT PCRE_LIBRARY)
+		list(REMOVE_ITEM REG_PANZER_BENCHMARK_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/Benchmark/PcreBenchmark.cpp)
 	endif()
 
+	add_executable(RegPanzerBenchmark ${REG_PANZER_BENCHMARK_SOURCES})
+	target_link_libraries(RegPanzerBenchmark PRIVATE RegPanzerLib benchmark benchmark_main ${LLVM_LIBS_FOR_REG_PANZER_TEST})
+	target_include_directories(RegPanzerBenchmark PRIVATE ${LLVM_SRC_DIR}/utils/benchmark/include/)
+
+	if(PCRE_LIBRARY)
+		target_link_libraries(RegPanzerBenchmark PRIVATE ${PCRE_LIBRARY})
+	endif()
 endif()
