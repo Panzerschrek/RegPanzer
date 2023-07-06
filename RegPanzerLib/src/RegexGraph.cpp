@@ -629,8 +629,7 @@ GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphChain(const GraphElemen
 	}
 	else if(element.seq.min_elements == 0 && element.seq.max_elements == Sequence::c_max)
 	{
-		// TODO - remove dead code.
-		if( false )
+		if( element.seq.mode == SequenceMode::Lazy )
 		{
 			// In case of zero or more elements first enter alternatives node, than sequence body node.
 
@@ -648,8 +647,9 @@ GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphChain(const GraphElemen
 		}
 		else
 		{
-			const bool greedy= element.seq.mode == SequenceMode::Greedy;
-			return std::make_shared<GraphElements::Node>(GraphElements::SequenceWithStackStateSave{next_node, node_possessive, greedy});
+			// Greedy sequence requires recursive-first search.
+			// It is slow, thus, replace recursive approach (with alternative nodes) with state save in stack.
+			return std::make_shared<GraphElements::Node>(GraphElements::SequenceWithStackStateSave{next_node, node_possessive});
 		}
 	}
 	else

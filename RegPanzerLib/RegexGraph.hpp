@@ -196,7 +196,6 @@ struct SequenceWithStackStateSave
 {
 	NodePtr next;
 	NodePtr sequence_element;
-	bool greedy= true;
 };
 
 struct AtomicGroup
