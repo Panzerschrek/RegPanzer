@@ -1254,6 +1254,46 @@ const MatcherTestDataElement g_matcher_test_data[]
 		}
 	},
 
+	// Sequence of element with non-fixed size and with following element, containing one of sequence possible start symbols.
+	// Auto-possessification or fixed length element sequence optimization should not work for this.
+	{
+		"(1|23)*1",
+		{
+			{ // Empty string - no matches.
+				"",
+				{},
+			},
+			{
+				"1",
+				{ {0, 1} },
+			},
+			{
+				"23",
+				{},
+			},
+			{
+				"11",
+				{ {0, 2} },
+			},
+			{
+				"111",
+				{ {0, 3} },
+			},
+			{
+				"2323232323231",
+				{ {0, 13} },
+			},
+			{
+				"1231231",
+				{ {0, 7} },
+			},
+			{
+				"123",
+				{ {0, 1} },  // Only "1" is extracted.
+			},
+		},
+	},
+
 	// Simple positive lookahead.
 	{
 		"w(?=Q)",
