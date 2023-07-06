@@ -1696,10 +1696,78 @@ void Generator::BuildNodeFunctionBodyImpl(
 void Generator::BuildNodeFunctionBodyImpl(
 	IRBuilder& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::SequenceWithStackStateSave& node)
 {
-	// TODO
-	(void)llvm_ir_builder;
-	(void)state_ptr;
-	(void)node;
+	const auto function= llvm_ir_builder.GetInsertBlock()->getParent();
+
+	const auto zero= GetConstant(ptr_size_int_type_, 0);
+	const auto one= GetConstant(ptr_size_int_type_, 1);
+	const auto max_stack_size= 1024; // TODO - increase it.
+
+	// TODO - avoid allocating array of whole state structs.
+	// use struct type with subset of fields, that are really saved.
+	const auto stack_backup_array_type= llvm::ArrayType::get(state_type_, max_stack_size);
+	const auto state_backup_array= llvm_ir_builder.CreateAlloca(stack_backup_array_type, 0, "state_backup");
+
+	const auto start_block= llvm_ir_builder.GetInsertBlock();
+	start_block->setName("start");
+	const auto advance_loop_block= llvm::BasicBlock::Create(context_, "advance_loop", function);
+	const auto rollback_loop_check_block= llvm::BasicBlock::Create(context_, "rollback_loop_check", function);
+	const auto rollback_loop_block= llvm::BasicBlock::Create(context_, "rollback_loop", function);
+	const auto ret_true_block= llvm::BasicBlock::Create(context_, "ret_true", function);
+	const auto ret_false_block= llvm::BasicBlock::Create(context_, "ret_false", function);
+
+	llvm_ir_builder.CreateBr(advance_loop_block);
+
+	// Advance loop.
+	llvm_ir_builder.SetInsertPoint(advance_loop_block);
+	const auto advance_loop_stack_size= llvm_ir_builder.CreatePHI(ptr_size_int_type_, 2, "advance_loop_stack_size");
+	advance_loop_stack_size->addIncoming(zero, start_block);
+
+	const auto advance_loop_next_stack_size= llvm_ir_builder.CreateAdd( advance_loop_stack_size, GetConstant( ptr_size_int_type_, 1 ), "advance_loop_next_stack_size" );
+	advance_loop_stack_size->addIncoming(advance_loop_next_stack_size, advance_loop_block);
+
+	SaveState(
+		llvm_ir_builder,
+		state_ptr,
+		llvm_ir_builder.CreateGEP(
+			stack_backup_array_type,
+			state_backup_array,
+			{GetZeroGEPIndex(), advance_loop_stack_size },
+			"state_backup_ptr"));
+
+	const auto sequence_element_ok= llvm_ir_builder.CreateCall(GetOrCreateNodeFunction(node.sequence_element), {state_ptr});
+	llvm_ir_builder.CreateCondBr(sequence_element_ok, advance_loop_block, rollback_loop_check_block);
+
+	// Rollback loop check block.
+	llvm_ir_builder.SetInsertPoint(rollback_loop_check_block);
+	const auto rollback_loop_stack_size= llvm_ir_builder.CreatePHI(ptr_size_int_type_, 2, "rollback_loop_stack_size");
+	rollback_loop_stack_size->addIncoming(advance_loop_next_stack_size, advance_loop_block);
+	const auto stack_is_non_empty= llvm_ir_builder.CreateICmpNE(rollback_loop_stack_size, zero);
+	llvm_ir_builder.CreateCondBr(stack_is_non_empty, rollback_loop_block, ret_false_block);
+
+	// Rollback loop block.
+	llvm_ir_builder.SetInsertPoint(rollback_loop_block);
+	const auto rollback_loop_next_stack_size= llvm_ir_builder.CreateSub(rollback_loop_stack_size, one, "rollback_loop_next_stack_size");
+	rollback_loop_stack_size->addIncoming(rollback_loop_next_stack_size, rollback_loop_block);
+
+	RestoreState(
+		llvm_ir_builder,
+		state_ptr,
+		llvm_ir_builder.CreateGEP(
+			stack_backup_array_type,
+			state_backup_array,
+			{GetZeroGEPIndex(), rollback_loop_next_stack_size},
+			"state_backup_ptr"));
+
+	const auto next_element_ok= llvm_ir_builder.CreateCall(GetOrCreateNodeFunction(node.next), {state_ptr});
+	llvm_ir_builder.CreateCondBr(next_element_ok, ret_true_block, rollback_loop_check_block);
+
+	// Ret true block.
+	llvm_ir_builder.SetInsertPoint(ret_true_block);
+	llvm_ir_builder.CreateRet(llvm::ConstantInt::getTrue(context_));
+
+	// Ret false block.
+	llvm_ir_builder.SetInsertPoint(ret_false_block);
+	llvm_ir_builder.CreateRet(llvm::ConstantInt::getFalse(context_));
 }
 
 void Generator::BuildNodeFunctionBodyImpl(
