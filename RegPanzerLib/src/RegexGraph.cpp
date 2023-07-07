@@ -535,6 +535,9 @@ GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphChain(const GraphElemen
 
 	const auto node_possessive= BuildRegexGraphNode(nullptr, element.el);
 
+	// Temporary disable wrong optimizations.
+	const bool enable_sequence_optimizations= !options_.no_graph_optimizations && false;
+
 	if(element.seq.min_elements == 1 && element.seq.max_elements == 1)
 		return BuildRegexGraphNode(next_node, element.el);
 	else if(element.seq.mode == SequenceMode::Possessive)
@@ -574,7 +577,7 @@ GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphChain(const GraphElemen
 		If there is no itersection between two sets of symbols - apply auto-possessification.
 	*/
 	else if(
-		!options_.no_graph_optimizations &&
+		enable_sequence_optimizations &&
 		element.seq.mode != SequenceMode::Lazy &&
 		!HasIntersection(
 			GetPossibleStartSybmols(node_possessive),
@@ -595,7 +598,7 @@ GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphChain(const GraphElemen
 	*/
 	else if(
 		const auto fixed_length_element_size= GetFixedElementSize(node_possessive);
-		!options_.no_graph_optimizations &&
+		enable_sequence_optimizations &&
 		fixed_length_element_size != std::nullopt
 		&& element.seq.mode == SequenceMode::Greedy)
 	{

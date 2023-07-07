@@ -99,7 +99,7 @@ TEST_P(PossessificationOptimizationTest, TestOptimization)
 		ASSERT_TRUE(possessive_sequence == nullptr);
 }
 
-INSTANTIATE_TEST_SUITE_P(PO, PossessificationOptimizationTest, testing::ValuesIn(g_test_data));
+INSTANTIATE_TEST_SUITE_P(DISABLED_PO, PossessificationOptimizationTest, testing::ValuesIn(g_test_data));
 
 } // namespace
 
