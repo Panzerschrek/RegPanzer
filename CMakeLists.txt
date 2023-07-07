@@ -114,6 +114,7 @@ if(DEFINED LLVM_SRC_DIR)
 	target_link_libraries(RegPanzerTest PRIVATE RegPanzerLib llvm_gtest llvm_gtest_main ${LLVM_LIBS_FOR_REG_PANZER_TEST})
 	target_include_directories(RegPanzerTest PRIVATE ${LLVM_SRC_DIR}/utils/unittest/googletest/include/)
 	target_compile_definitions(RegPanzerTest PRIVATE -DGTEST_LANG_CXX11=1 -DGTEST_HAS_TR1_TUPLE=0)
+	add_dependencies(RegPanzerTest RegPanzerCompiler) # Compiler is executed inside tests.
 
 	if(PCRE_LIBRARY)
 		target_link_libraries(RegPanzerTest PRIVATE ${PCRE_LIBRARY})
