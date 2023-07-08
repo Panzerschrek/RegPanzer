@@ -198,6 +198,162 @@ OneOf GetPossibleStartSybmolsImpl(const GraphElements::StateRestore& state_resto
 {
 	return GetPossibleStartSybmols(state_restore.next);
 }
+
+using NodeEnumerationFunction= std::function<void(const GraphElements::NodePtr&)>;
+using VisitedNodesSet= std::unordered_set<GraphElements::NodePtr>;
+
+void EnumerateAllNodesOnceImpl(
+	const NodeEnumerationFunction& func,
+	VisitedNodesSet& visited_nodes_set,
+	const GraphElements::NodePtr& node);
+
+void EnumerateAllNodesOnceVisitImpl(const NodeEnumerationFunction& func, VisitedNodesSet& visited_nodes_set, const GraphElements::AnySymbol& any_symbol)
+{
+	EnumerateAllNodesOnceImpl(func, visited_nodes_set, any_symbol.next);
+}
+
+void EnumerateAllNodesOnceVisitImpl(const NodeEnumerationFunction& func, VisitedNodesSet& visited_nodes_set, const GraphElements::SpecificSymbol& specific_symbol)
+{
+	EnumerateAllNodesOnceImpl(func, visited_nodes_set, specific_symbol.next);
+}
+
+void EnumerateAllNodesOnceVisitImpl(const NodeEnumerationFunction& func, VisitedNodesSet& visited_nodes_set, const GraphElements::String& string)
+{
+	EnumerateAllNodesOnceImpl(func, visited_nodes_set, string.next);
+}
+
+void EnumerateAllNodesOnceVisitImpl(const NodeEnumerationFunction& func, VisitedNodesSet& visited_nodes_set, const GraphElements::OneOf& one_of)
+{
+	EnumerateAllNodesOnceImpl(func, visited_nodes_set, one_of.next);
+}
+
+void EnumerateAllNodesOnceVisitImpl(const NodeEnumerationFunction& func, VisitedNodesSet& visited_nodes_set, const GraphElements::Alternatives& alternatives)
+{
+	for(const auto& next : alternatives.next)
+		EnumerateAllNodesOnceImpl(func, visited_nodes_set, next);
+}
+
+void EnumerateAllNodesOnceVisitImpl(const NodeEnumerationFunction& func, VisitedNodesSet& visited_nodes_set, const GraphElements::GroupStart& group_start)
+{
+	EnumerateAllNodesOnceImpl(func, visited_nodes_set, group_start.next);
+}
+
+void EnumerateAllNodesOnceVisitImpl(const NodeEnumerationFunction& func, VisitedNodesSet& visited_nodes_set, const GraphElements::GroupEnd& group_end)
+{
+	EnumerateAllNodesOnceImpl(func, visited_nodes_set, group_end.next);
+}
+
+void EnumerateAllNodesOnceVisitImpl(const NodeEnumerationFunction& func, VisitedNodesSet& visited_nodes_set, const GraphElements::BackReference& back_reference)
+{
+	EnumerateAllNodesOnceImpl(func, visited_nodes_set, back_reference.next);
+}
+
+void EnumerateAllNodesOnceVisitImpl(const NodeEnumerationFunction& func, VisitedNodesSet& visited_nodes_set, const GraphElements::LookAhead& look_ahead)
+{
+	EnumerateAllNodesOnceImpl(func, visited_nodes_set, look_ahead.look_graph);
+	EnumerateAllNodesOnceImpl(func, visited_nodes_set, look_ahead.next);
+}
+
+void EnumerateAllNodesOnceVisitImpl(const NodeEnumerationFunction& func, VisitedNodesSet& visited_nodes_set, const GraphElements::LookBehind& look_behind)
+{
+	EnumerateAllNodesOnceImpl(func, visited_nodes_set, look_behind.look_graph);
+	EnumerateAllNodesOnceImpl(func, visited_nodes_set, look_behind.next);
+}
+
+void EnumerateAllNodesOnceVisitImpl(const NodeEnumerationFunction& func, VisitedNodesSet& visited_nodes_set, const GraphElements::StringStartAssertion& string_start_assertion)
+{
+	EnumerateAllNodesOnceImpl(func, visited_nodes_set, string_start_assertion.next);
+}
+
+void EnumerateAllNodesOnceVisitImpl(const NodeEnumerationFunction& func, VisitedNodesSet& visited_nodes_set, const GraphElements::StringEndAssertion& string_end_assertion)
+{
+	EnumerateAllNodesOnceImpl(func, visited_nodes_set, string_end_assertion.next);
+}
+
+void EnumerateAllNodesOnceVisitImpl(const NodeEnumerationFunction& func, VisitedNodesSet& visited_nodes_set, const GraphElements::ConditionalElement& conditional_element)
+{
+	EnumerateAllNodesOnceImpl(func, visited_nodes_set, conditional_element.condition_node);
+	EnumerateAllNodesOnceImpl(func, visited_nodes_set, conditional_element.next_true);
+	EnumerateAllNodesOnceImpl(func, visited_nodes_set, conditional_element.next_false);
+}
+
+void EnumerateAllNodesOnceVisitImpl(const NodeEnumerationFunction& func, VisitedNodesSet& visited_nodes_set, const GraphElements::SequenceCounterReset& sequence_counter_reset)
+{
+	EnumerateAllNodesOnceImpl(func, visited_nodes_set, sequence_counter_reset.next);
+}
+
+void EnumerateAllNodesOnceVisitImpl(const NodeEnumerationFunction& func, VisitedNodesSet& visited_nodes_set, const GraphElements::SequenceCounter& sequence_counter)
+{
+	EnumerateAllNodesOnceImpl(func, visited_nodes_set, sequence_counter.next_iteration);
+	EnumerateAllNodesOnceImpl(func, visited_nodes_set, sequence_counter.next_sequence_end);
+}
+
+void EnumerateAllNodesOnceVisitImpl(const NodeEnumerationFunction& func, VisitedNodesSet& visited_nodes_set, const GraphElements::NextWeakNode& next_weak_node)
+{
+	if(const auto next= next_weak_node.next.lock())
+		EnumerateAllNodesOnceImpl(func, visited_nodes_set, next);
+}
+
+void EnumerateAllNodesOnceVisitImpl(const NodeEnumerationFunction& func, VisitedNodesSet& visited_nodes_set, const GraphElements::PossessiveSequence& possesive_sequence)
+{
+	EnumerateAllNodesOnceImpl(func, visited_nodes_set, possesive_sequence.sequence_element);
+	EnumerateAllNodesOnceImpl(func, visited_nodes_set, possesive_sequence.next);
+}
+
+void EnumerateAllNodesOnceVisitImpl(const NodeEnumerationFunction& func, VisitedNodesSet& visited_nodes_set, const GraphElements::FixedLengthElementSequence& fixed_length_element_sequence)
+{
+	EnumerateAllNodesOnceImpl(func, visited_nodes_set, fixed_length_element_sequence.sequence_element);
+	EnumerateAllNodesOnceImpl(func, visited_nodes_set, fixed_length_element_sequence.next);
+}
+
+void EnumerateAllNodesOnceVisitImpl(const NodeEnumerationFunction& func, VisitedNodesSet& visited_nodes_set, const GraphElements::AtomicGroup& atomic_group)
+{
+	EnumerateAllNodesOnceImpl(func, visited_nodes_set, atomic_group.group_element);
+	EnumerateAllNodesOnceImpl(func, visited_nodes_set, atomic_group.next);
+}
+
+void EnumerateAllNodesOnceVisitImpl(const NodeEnumerationFunction& func, VisitedNodesSet& visited_nodes_set, const GraphElements::SubroutineEnter& subroutine_enter)
+{
+	EnumerateAllNodesOnceImpl(func, visited_nodes_set, subroutine_enter.subroutine_node);
+	EnumerateAllNodesOnceImpl(func, visited_nodes_set, subroutine_enter.next);
+}
+
+void EnumerateAllNodesOnceVisitImpl(const NodeEnumerationFunction& func, VisitedNodesSet& visited_nodes_set, const GraphElements::SubroutineLeave& subroutine_leave)
+{
+	(void)func;
+	(void)visited_nodes_set;
+	(void)subroutine_leave;
+}
+
+void EnumerateAllNodesOnceVisitImpl(const NodeEnumerationFunction& func, VisitedNodesSet& visited_nodes_set, const GraphElements::StateSave& state_save)
+{
+	EnumerateAllNodesOnceImpl(func, visited_nodes_set, state_save.next);
+}
+
+void EnumerateAllNodesOnceVisitImpl(const NodeEnumerationFunction& func, VisitedNodesSet& visited_nodes_set, const GraphElements::StateRestore& state_restore)
+{
+	EnumerateAllNodesOnceImpl(func, visited_nodes_set, state_restore.next);
+}
+
+void EnumerateAllNodesOnceImpl(
+	const NodeEnumerationFunction& func,
+	VisitedNodesSet& visited_nodes_set,
+	const GraphElements::NodePtr& node)
+{
+	if(visited_nodes_set.count(node) != 0)
+		return;
+	visited_nodes_set.insert(node);
+	func(node);
+
+	return std::visit([&](const auto& el){ return EnumerateAllNodesOnceVisitImpl(func, visited_nodes_set, el); }, *node);
+}
+
+void EnumerateAllNodesOnce(const NodeEnumerationFunction& func, const GraphElements::NodePtr& start_node)
+{
+	VisitedNodesSet nodes_set;
+	return EnumerateAllNodesOnceImpl(func, nodes_set, start_node);
+}
+
 } // namespace
 
 OneOf GetPossibleStartSybmols(const GraphElements::NodePtr& node)
