@@ -12,6 +12,7 @@ OneOf GetPossibleStartSybmolsImpl(const GraphElements::SpecificSymbol& specific_
 OneOf GetPossibleStartSybmolsImpl(const GraphElements::String& string);
 OneOf GetPossibleStartSybmolsImpl(const GraphElements::OneOf& one_of);
 OneOf GetPossibleStartSybmolsImpl(const GraphElements::Alternatives& alternatives);
+OneOf GetPossibleStartSybmolsImpl(const GraphElements::AlternativesWithOptimizedBacktracking& alternatives_with_optimized_backtracking);
 OneOf GetPossibleStartSybmolsImpl(const GraphElements::GroupStart& group_start);
 OneOf GetPossibleStartSybmolsImpl(const GraphElements::GroupEnd& group_end);
 OneOf GetPossibleStartSybmolsImpl(const GraphElements::BackReference& back_reference);
@@ -77,6 +78,11 @@ OneOf GetPossibleStartSybmolsImpl(const GraphElements::Alternatives& alternative
 		res= CombineSymbolSets(res, GetPossibleStartSybmols(next));
 
 	return res;
+}
+
+OneOf GetPossibleStartSybmolsImpl(const GraphElements::AlternativesWithOptimizedBacktracking& alternatives_with_optimized_backtracking)
+{
+	return CombineSymbolSets(GetPossibleStartSybmols(alternatives_with_optimized_backtracking.path0_element), GetPossibleStartSybmols(alternatives_with_optimized_backtracking.path1_next));
 }
 
 OneOf GetPossibleStartSybmolsImpl(const GraphElements::GroupStart& group_start)
@@ -199,13 +205,13 @@ OneOf GetPossibleStartSybmolsImpl(const GraphElements::StateRestore& state_resto
 	return GetPossibleStartSybmols(state_restore.next);
 }
 
-using NodeEnumerationFunction= std::function<void(const GraphElements::NodePtr&)>;
+using NodeEnumerationFunction= std::function<void(const GraphElements::NodePtr)>;
 using VisitedNodesSet= std::unordered_set<GraphElements::NodePtr>;
 
 void EnumerateAllNodesOnceImpl(
 	const NodeEnumerationFunction& func,
 	VisitedNodesSet& visited_nodes_set,
-	const GraphElements::NodePtr& node);
+	const GraphElements::NodePtr node);
 
 void EnumerateAllNodesOnceVisitImpl(const NodeEnumerationFunction& func, VisitedNodesSet& visited_nodes_set, const GraphElements::AnySymbol& any_symbol)
 {
@@ -231,6 +237,13 @@ void EnumerateAllNodesOnceVisitImpl(const NodeEnumerationFunction& func, Visited
 {
 	for(const auto& next : alternatives.next)
 		EnumerateAllNodesOnceImpl(func, visited_nodes_set, next);
+}
+
+void EnumerateAllNodesOnceVisitImpl(const NodeEnumerationFunction& func, VisitedNodesSet& visited_nodes_set, const GraphElements::AlternativesWithOptimizedBacktracking& alternatives_with_optimized_backtracking)
+{
+	EnumerateAllNodesOnceImpl(func, visited_nodes_set, alternatives_with_optimized_backtracking.path0_element);
+	EnumerateAllNodesOnceImpl(func, visited_nodes_set, alternatives_with_optimized_backtracking.path0_next);
+	EnumerateAllNodesOnceImpl(func, visited_nodes_set, alternatives_with_optimized_backtracking.path1_next);
 }
 
 void EnumerateAllNodesOnceVisitImpl(const NodeEnumerationFunction& func, VisitedNodesSet& visited_nodes_set, const GraphElements::GroupStart& group_start)
@@ -338,7 +351,7 @@ void EnumerateAllNodesOnceVisitImpl(const NodeEnumerationFunction& func, Visited
 void EnumerateAllNodesOnceImpl(
 	const NodeEnumerationFunction& func,
 	VisitedNodesSet& visited_nodes_set,
-	const GraphElements::NodePtr& node)
+	const GraphElements::NodePtr node)
 {
 	if(node == nullptr)
 		return;
@@ -358,7 +371,7 @@ void EnumerateAllNodesOnce(const NodeEnumerationFunction& func, const GraphEleme
 	return EnumerateAllNodesOnceImpl(func, nodes_set, start_node);
 }
 
-void ApplyAlternativesBacktrackingEliminationOptimizationToNode(const GraphElements::NodePtr& node)
+void ApplyAlternativesBacktrackingEliminationOptimizationToNode(const GraphElements::NodePtr node)
 {
 	/* Perform following optimization:
 
@@ -382,15 +395,48 @@ void ApplyAlternativesBacktrackingEliminationOptimizationToNode(const GraphEleme
 	if(HasIntersection(start_symbols_first, start_symbols_second))
 		return;
 
-	GraphElements::NodePtr* next;
-	if(const auto specific_symbol= std::get_if<GraphElements::SpecificSymbol>(&*first_alternative))
-		next= &specific_symbol->next;
-	else if(const auto string= std::get_if<GraphElements::String>(&*first_alternative))
-		next= &string->next;
-	else if(const auto one_of= std::get_if<GraphElements::OneOf>(&*first_alternative))
-		next= &one_of->next;
+
+	GraphElements::NodePtr first_alternative_for_check;
+	if(const auto weak_node= std::get_if<GraphElements::NextWeakNode>(&*first_alternative))
+		first_alternative_for_check= weak_node->next.lock();
+	else
+		first_alternative_for_check= first_alternative;
+
+	// Create copy of first alternative node in order to avoid modifying existing node.
+	// TODO - create "weak_ptr" if needed?
+	GraphElements::NodePtr next;
+	GraphElements::NodePtr first_alternative_modified;
+	if(const auto specific_symbol= std::get_if<GraphElements::SpecificSymbol>(&*first_alternative_for_check))
+	{
+		next= specific_symbol->next;
+		GraphElements::SpecificSymbol copy= *specific_symbol;
+		copy.next= nullptr;
+		first_alternative_modified= std::make_shared<GraphElements::Node>(copy);
+	}
+	else if(const auto string= std::get_if<GraphElements::String>(&*first_alternative_for_check))
+	{
+		next= string->next;
+		GraphElements::String copy= *string;
+		copy.next= nullptr;
+		first_alternative_modified= std::make_shared<GraphElements::Node>(copy);
+	}
+	else if(const auto one_of= std::get_if<GraphElements::OneOf>(&*first_alternative_for_check))
+	{
+		next= one_of->next;
+		GraphElements::OneOf copy= *one_of;
+		copy.next= nullptr;
+		first_alternative_modified= std::make_shared<GraphElements::Node>(copy);
+	}
 	else
 		return; // Unsupported kind.
+
+	// Perform the optimization, replace node with new one.
+	GraphElements::AlternativesWithOptimizedBacktracking optimized_node;
+	optimized_node.path0_element= first_alternative_modified;
+	optimized_node.path0_next= next;
+	optimized_node.path1_next= second_alternative;
+
+	*node= std::move(optimized_node);
 }
 
 void ApplyAlternativesBacktrackingEliminationOptimization(const GraphElements::NodePtr& graph_start)

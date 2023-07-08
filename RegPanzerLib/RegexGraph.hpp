@@ -20,6 +20,7 @@ struct SpecificSymbol;
 struct String;
 struct OneOf;
 struct Alternatives;
+struct AlternativesWithOptimizedBacktracking;
 struct GroupStart;
 struct GroupEnd;
 struct BackReference;
@@ -45,6 +46,7 @@ using Node= std::variant<
 	String,
 	OneOf,
 	Alternatives,
+	AlternativesWithOptimizedBacktracking,
 	GroupStart,
 	GroupEnd,
 	BackReference,
@@ -96,6 +98,13 @@ struct OneOf
 struct Alternatives
 {
 	std::vector<NodePtr> next;
+};
+
+struct AlternativesWithOptimizedBacktracking
+{
+	NodePtr path0_element;
+	NodePtr path0_next;
+	NodePtr path1_next;
 };
 
 struct GroupStart

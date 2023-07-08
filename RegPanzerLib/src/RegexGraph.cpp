@@ -378,6 +378,7 @@ private:
 	SizeOpt GetFixedElementSizeImpl(const GraphElements::String& string);
 	SizeOpt GetFixedElementSizeImpl(const GraphElements::OneOf& one_of);
 	SizeOpt GetFixedElementSizeImpl(const GraphElements::Alternatives& alternatives);
+	SizeOpt GetFixedElementSizeImpl(const GraphElements::AlternativesWithOptimizedBacktracking& alternatives_with_opimized_backtracking);
 	SizeOpt GetFixedElementSizeImpl(const GraphElements::GroupStart& group_start);
 	SizeOpt GetFixedElementSizeImpl(const GraphElements::GroupEnd& group_end);
 	SizeOpt GetFixedElementSizeImpl(const GraphElements::BackReference& back_reference);
@@ -940,6 +941,13 @@ RegexGraphBuilder::SizeOpt RegexGraphBuilder::GetFixedElementSizeImpl(const Grap
 	}
 
 	return s;
+}
+
+RegexGraphBuilder::SizeOpt RegexGraphBuilder::GetFixedElementSizeImpl(const GraphElements::AlternativesWithOptimizedBacktracking& alternatives_with_opimized_backtracking)
+{
+	// TODO
+	(void)alternatives_with_opimized_backtracking;
+	return std::nullopt;
 }
 
 RegexGraphBuilder::SizeOpt RegexGraphBuilder::GetFixedElementSizeImpl(const GraphElements::GroupStart&)

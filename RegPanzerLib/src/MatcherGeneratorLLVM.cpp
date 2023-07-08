@@ -17,6 +17,7 @@ const char* GetNodeName(const GraphElements::SpecificSymbol&) { return "specific
 const char* GetNodeName(const GraphElements::String&) { return "string"; }
 const char* GetNodeName(const GraphElements::OneOf&) { return "one_of"; }
 const char* GetNodeName(const GraphElements::Alternatives&) { return "alternatives"; }
+const char* GetNodeName(const GraphElements::AlternativesWithOptimizedBacktracking&) { return "alternatives_with_optimized_backtracking"; }
 const char* GetNodeName(const GraphElements::GroupStart&) { return "group_start"; }
 const char* GetNodeName(const GraphElements::GroupEnd&) { return "group_end"; }
 const char* GetNodeName(const GraphElements::BackReference&) { return "back_reference"; }
@@ -111,6 +112,9 @@ private:
 
 	void BuildNodeFunctionBodyImpl(
 		IRBuilder& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::Alternatives& node);
+
+	void BuildNodeFunctionBodyImpl(
+		IRBuilder& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::AlternativesWithOptimizedBacktracking& node);
 
 	void BuildNodeFunctionBodyImpl(
 		IRBuilder& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::GroupStart& node);
@@ -1054,6 +1058,30 @@ void Generator::BuildNodeFunctionBodyImpl(
 	found_block->insertInto(function);
 	llvm_ir_builder.SetInsertPoint(found_block);
 	llvm_ir_builder.CreateRet(llvm::ConstantInt::getTrue(context_));
+}
+
+void Generator::BuildNodeFunctionBodyImpl(
+	IRBuilder& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::AlternativesWithOptimizedBacktracking& node)
+{
+	const auto state_backup_ptr= llvm_ir_builder.CreateAlloca(state_type_, 0, "state_backup");
+
+	const auto function= llvm_ir_builder.GetInsertBlock()->getParent();
+	const auto path0_block= llvm::BasicBlock::Create(context_, "path0", function);
+	const auto path1_block= llvm::BasicBlock::Create(context_, "path1", function);
+
+	SaveState(llvm_ir_builder, state_ptr, state_backup_ptr);
+	const auto path0_element_res= llvm_ir_builder.CreateCall(GetOrCreateNodeFunction(node.path0_element), {state_ptr});
+
+	llvm_ir_builder.CreateCondBr(path0_element_res, path0_block, path1_block);
+
+	// Path0 block.
+	llvm_ir_builder.SetInsertPoint(path0_block);
+	CreateNextCallRet(llvm_ir_builder, state_ptr, node.path0_next);
+
+	// Path1 block.
+	llvm_ir_builder.SetInsertPoint(path1_block);
+	RestoreState(llvm_ir_builder, state_ptr, state_backup_ptr);
+	CreateNextCallRet(llvm_ir_builder, state_ptr, node.path1_next);
 }
 
 void Generator::BuildNodeFunctionBodyImpl(

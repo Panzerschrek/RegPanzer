@@ -107,6 +107,15 @@ bool MatchNodeImpl(const GraphElements::Alternatives& node, State& state)
 	return false;
 }
 
+bool MatchNodeImpl(const GraphElements::AlternativesWithOptimizedBacktracking& node, State& state)
+{
+	// TODO
+	(void)node;
+	(void)state;
+	assert(false);
+	return false;
+}
+
 bool MatchNodeImpl(const GraphElements::GroupStart& node, State& state)
 {
 	if(node.index >= 1 && node.index <= 9)
