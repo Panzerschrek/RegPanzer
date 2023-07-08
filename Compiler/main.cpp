@@ -1,6 +1,6 @@
 #include "../RegPanzerLib/MatcherGeneratorLLVM.hpp"
 #include "../RegPanzerLib/Parser.hpp"
-#include "../RegPanzerLib/RegexGraphOptizer.hpp"
+#include "../RegPanzerLib/RegexGraphOptimizer.hpp"
 #include "../RegPanzerLib/PushDisableLLVMWarnings.hpp"
 #include <llvm/Analysis/TargetTransformInfo.h>
 #include <llvm/Bitcode/BitcodeWriter.h>

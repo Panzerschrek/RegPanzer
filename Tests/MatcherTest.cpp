@@ -2,7 +2,7 @@
 #include "GroupsExtractionTestData.hpp"
 #include "../RegPanzerLib/Matcher.hpp"
 #include "../RegPanzerLib/Parser.hpp"
-#include "../RegPanzerLib/RegexGraphOptizer.hpp"
+#include "../RegPanzerLib/RegexGraphOptimizer.hpp"
 #include "../RegPanzerLib/PushDisableLLVMWarnings.hpp"
 #include <gtest/gtest.h>
 #include "../RegPanzerLib/PopLLVMWarnings.hpp"

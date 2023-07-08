@@ -1,5 +1,5 @@
 #include "../RegPanzerLib/RegexGraph.hpp"
-#include "../RegPanzerLib/RegexGraphOptizer.hpp"
+#include "../RegPanzerLib/RegexGraphOptimizer.hpp"
 #include "../RegPanzerLib/Parser.hpp"
 #include "../RegPanzerLib/PushDisableLLVMWarnings.hpp"
 #include <gtest/gtest.h>

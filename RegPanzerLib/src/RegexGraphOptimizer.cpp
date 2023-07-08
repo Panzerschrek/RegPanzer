@@ -1,4 +1,4 @@
-#include "../RegexGraphOptizer.hpp"
+#include "../RegexGraphOptimizer.hpp"
 #include "../Utils.hpp"
 
 namespace RegPanzer
