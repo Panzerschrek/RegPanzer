@@ -45,6 +45,12 @@ OneOf CombineSymbolSets(const OneOf& l, const OneOf& r)
 	return res;
 }
 
+OneOf GetAnySymbol()
+{
+	// Inverted empty set.
+	return OneOf{ {}, {}, true };
+}
+
 OneOf GetPossibleStartSybmolsImpl(const GraphElements::AnySymbol& any_symbol)
 {
 	(void)any_symbol;
@@ -73,6 +79,10 @@ OneOf GetPossibleStartSybmolsImpl(const GraphElements::OneOf& one_of)
 
 OneOf GetPossibleStartSybmolsImpl(const GraphElements::Alternatives& alternatives)
 {
+	// Hack to prevent infinite loops.
+	// TODO - fix this.
+	if(true) { return GetAnySymbol(); }
+
 	OneOf res;
 	for(const GraphElements::NodePtr& next : alternatives.next)
 		res= CombineSymbolSets(res, GetPossibleStartSybmols(next));
@@ -82,6 +92,10 @@ OneOf GetPossibleStartSybmolsImpl(const GraphElements::Alternatives& alternative
 
 OneOf GetPossibleStartSybmolsImpl(const GraphElements::AlternativesWithOptimizedBacktracking& alternatives_with_optimized_backtracking)
 {
+	// Hack to prevent infinite loops.
+	// TODO - fix this.
+	if(true) { return GetAnySymbol(); }
+
 	return CombineSymbolSets(GetPossibleStartSybmols(alternatives_with_optimized_backtracking.path0_element), GetPossibleStartSybmols(alternatives_with_optimized_backtracking.path1_next));
 }
 
