@@ -126,39 +126,35 @@ OneOf GetPossibleStartSybmolsImpl(const GraphElements::BackReference& back_refer
 {
 	(void)back_reference;
 	// Any symbol is possible in backreference.
-	return OneOf{ {}, {}, true };
+	 return GetAnySymbol();
 }
 
 OneOf GetPossibleStartSybmolsImpl(const GraphElements::LookAhead& look_ahead)
 {
 	(void)look_ahead;
-
 	// Any symbol is possible in look_ahead.
-	return OneOf{ {}, {}, true };
+	 return GetAnySymbol();
 }
 
 OneOf GetPossibleStartSybmolsImpl(const GraphElements::LookBehind& look_behind)
 {
 	(void)look_behind;
-
 	// Any symbol is possible in look_behind.
-	return OneOf{ {}, {}, true };
+	 return GetAnySymbol();
 }
 
 OneOf GetPossibleStartSybmolsImpl(const GraphElements::StringStartAssertion& string_start_assertion)
 {
 	(void)string_start_assertion;
-
 	// Fail possessification optimization in such case - return all possible symbols.
-	return OneOf{ {}, {}, true };
+	 return GetAnySymbol();
 }
 
 OneOf GetPossibleStartSybmolsImpl(const GraphElements::StringEndAssertion& string_end_assertion)
 {
 	(void)string_end_assertion;
-
 	// Fail possessification optimization in such case - return all possible symbols.
-	return OneOf{ {}, {}, true };
+	 return GetAnySymbol();
 }
 
 OneOf GetPossibleStartSybmolsImpl(const GraphElements::ConditionalElement& conditional_element)
@@ -188,6 +184,7 @@ OneOf GetPossibleStartSybmolsImpl(const GraphElements::NextWeakNode& next_weak)
 OneOf GetPossibleStartSybmolsImpl(const GraphElements::PossessiveSequence& possessive_sequence)
 {
 	// Combine for cases of empty sequence.
+	// TODO - return only first symbol of sequence if min size is greater than zero.
 	return CombineSymbolSets(
 		GetPossibleStartSybmols(possessive_sequence.sequence_element),
 		GetPossibleStartSybmols(possessive_sequence.next));
@@ -217,9 +214,8 @@ OneOf GetPossibleStartSybmolsImpl(const GraphElements::SubroutineEnter& subrouti
 OneOf GetPossibleStartSybmolsImpl(const GraphElements::SubroutineLeave& subroutine_leave)
 {
 	(void)subroutine_leave;
-
 	// Any symbol is possible after subroutine leave.
-	return OneOf{ {}, {}, true };
+	return GetAnySymbol();
 }
 
 OneOf GetPossibleStartSybmolsImpl(const GraphElements::StateSave& state_save)
@@ -507,6 +503,7 @@ void ApplyAlternativesBacktrackingEliminationOptimizationToNode(const GraphEleme
 	if(alternatives == nullptr)
 		return;
 
+	// TODO - support more than 2 branches - combine leftover branches into leftover "Alternative" node.
 	if(alternatives->next.size() != 2)
 		return;
 	const GraphElements::NodePtr first_alternative= alternatives->next[0];
