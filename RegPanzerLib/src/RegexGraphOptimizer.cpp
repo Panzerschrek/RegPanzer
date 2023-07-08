@@ -497,7 +497,6 @@ void ApplySymbolsCombiningOptimization(const GraphElements::NodePtr& graph_start
 void ApplyAlternativesBacktrackingEliminationOptimizationToNode(const GraphElements::NodePtr node)
 {
 	/* Perform following optimization:
-
 	If alternative node has only two branches and both branches starts with some fixed symbols
 	and first alternative branch is single symobl/string/one_of
 	it is possible to disable backtracking after matching of first element of first alternative,
@@ -513,9 +512,7 @@ void ApplyAlternativesBacktrackingEliminationOptimizationToNode(const GraphEleme
 	const GraphElements::NodePtr first_alternative= alternatives->next[0];
 	const GraphElements::NodePtr second_alternative= alternatives->next[1];
 
-	const OneOf start_symbols_first= GetPossibleStartSybmols(first_alternative);
-	const OneOf start_symbols_second= GetPossibleStartSybmols(second_alternative);
-	if(HasIntersection(start_symbols_first, start_symbols_second))
+	if(HasIntersection(GetPossibleStartSybmols(first_alternative), GetPossibleStartSybmols(second_alternative)))
 		return;
 
 	// Create copy of first alternative node in order to avoid modifying existing node.
@@ -527,21 +524,21 @@ void ApplyAlternativesBacktrackingEliminationOptimizationToNode(const GraphEleme
 		next= specific_symbol->next;
 		GraphElements::SpecificSymbol copy= *specific_symbol;
 		copy.next= nullptr;
-		first_alternative_modified= std::make_shared<GraphElements::Node>(copy);
+		first_alternative_modified= std::make_shared<GraphElements::Node>(std::move(copy));
 	}
 	else if(const auto string= std::get_if<GraphElements::String>(&*first_alternative))
 	{
 		next= string->next;
 		GraphElements::String copy= *string;
 		copy.next= nullptr;
-		first_alternative_modified= std::make_shared<GraphElements::Node>(copy);
+		first_alternative_modified= std::make_shared<GraphElements::Node>(std::move(copy));
 	}
 	else if(const auto one_of= std::get_if<GraphElements::OneOf>(&*first_alternative))
 	{
 		next= one_of->next;
 		GraphElements::OneOf copy= *one_of;
 		copy.next= nullptr;
-		first_alternative_modified= std::make_shared<GraphElements::Node>(copy);
+		first_alternative_modified= std::make_shared<GraphElements::Node>(std::move(copy));
 	}
 	else
 		return; // Unsupported kind.
