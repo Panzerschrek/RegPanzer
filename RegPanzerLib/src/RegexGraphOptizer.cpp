@@ -7,30 +7,9 @@ namespace RegPanzer
 namespace
 {
 
-OneOf GetPossibleStartSybmolsImpl(const GraphElements::AnySymbol& any_symbol);
-OneOf GetPossibleStartSybmolsImpl(const GraphElements::SpecificSymbol& specific_symbol);
-OneOf GetPossibleStartSybmolsImpl(const GraphElements::String& string);
-OneOf GetPossibleStartSybmolsImpl(const GraphElements::OneOf& one_of);
-OneOf GetPossibleStartSybmolsImpl(const GraphElements::Alternatives& alternatives);
-OneOf GetPossibleStartSybmolsImpl(const GraphElements::AlternativesWithOptimizedBacktracking& alternatives_with_optimized_backtracking);
-OneOf GetPossibleStartSybmolsImpl(const GraphElements::GroupStart& group_start);
-OneOf GetPossibleStartSybmolsImpl(const GraphElements::GroupEnd& group_end);
-OneOf GetPossibleStartSybmolsImpl(const GraphElements::BackReference& back_reference);
-OneOf GetPossibleStartSybmolsImpl(const GraphElements::LookAhead& look_ahead);
-OneOf GetPossibleStartSybmolsImpl(const GraphElements::LookBehind& look_behind);
-OneOf GetPossibleStartSybmolsImpl(const GraphElements::StringStartAssertion& string_start_assertion);
-OneOf GetPossibleStartSybmolsImpl(const GraphElements::StringEndAssertion& string_end_assertion);
-OneOf GetPossibleStartSybmolsImpl(const GraphElements::ConditionalElement& conditional_element);
-OneOf GetPossibleStartSybmolsImpl(const GraphElements::SequenceCounterReset& sequence_counter_reset);
-OneOf GetPossibleStartSybmolsImpl(const GraphElements::SequenceCounter& sequence_counter);
-OneOf GetPossibleStartSybmolsImpl(const GraphElements::NextWeakNode& next_weak);
-OneOf GetPossibleStartSybmolsImpl(const GraphElements::PossessiveSequence& possessive_sequence);
-OneOf GetPossibleStartSybmolsImpl(const GraphElements::FixedLengthElementSequence& fixed_length_element_sequence);
-OneOf GetPossibleStartSybmolsImpl(const GraphElements::AtomicGroup& atomic_group);
-OneOf GetPossibleStartSybmolsImpl(const GraphElements::SubroutineEnter& subroutine_enter);
-OneOf GetPossibleStartSybmolsImpl(const GraphElements::SubroutineLeave& subroutine_leave);
-OneOf GetPossibleStartSybmolsImpl(const GraphElements::StateSave& state_save);
-OneOf GetPossibleStartSybmolsImpl(const GraphElements::StateRestore& state_restore);
+//
+// Start symbols stuff
+//
 
 OneOf CombineSymbolSets(const OneOf& l, const OneOf& r)
 {
@@ -45,11 +24,45 @@ OneOf CombineSymbolSets(const OneOf& l, const OneOf& r)
 	return res;
 }
 
+bool HasIntersection(const OneOf& l, const OneOf& r)
+{
+	if(l.inverse_flag || r.inverse_flag)
+		return true; // TODO - process such case more precisely.
+
+	// Check variant againt variant.
+	for(const CharType l_char : l.variants)
+	for(const CharType r_char : r.variants)
+		if(l_char == r_char)
+			return true;
+
+	// Check ranges against ranges.
+	for(const auto& l_range : l.ranges)
+	for(const auto& r_range : r.ranges)
+		if(!(l_range.second < r_range.first || l_range.first > r_range.second))
+			return true;
+
+	// Check variants against ranges.
+	for(const CharType l_char : l.variants)
+	for(const auto& r_range : r.ranges)
+		if(l_char >= r_range.first && l_char <= r_range.second)
+			return true;
+
+	// Check ranges against variants.
+	for(const auto& l_range : l.ranges)
+	for(const CharType r_char : r.variants)
+		if(r_char >= l_range.first && r_char <= l_range.second)
+			return true;
+
+	return false;
+}
+
 OneOf GetAnySymbol()
 {
 	// Inverted empty set.
 	return OneOf{ {}, {}, true };
 }
+
+OneOf GetPossibleStartSybmols(const GraphElements::NodePtr& node);
 
 OneOf GetPossibleStartSybmolsImpl(const GraphElements::AnySymbol& any_symbol)
 {
@@ -219,6 +232,18 @@ OneOf GetPossibleStartSybmolsImpl(const GraphElements::StateRestore& state_resto
 	return GetPossibleStartSybmols(state_restore.next);
 }
 
+OneOf GetPossibleStartSybmols(const GraphElements::NodePtr& node)
+{
+	if(node == nullptr)
+		return OneOf{}; // Empty set of symbols.
+
+	return std::visit([&](const auto& el){ return GetPossibleStartSybmolsImpl(el); }, *node);
+}
+
+//
+// Node enumeration
+//
+
 using NodeEnumerationFunction= std::function<void(const GraphElements::NodePtr)>;
 using VisitedNodesSet= std::unordered_set<GraphElements::NodePtr>;
 
@@ -385,6 +410,10 @@ void EnumerateAllNodesOnce(const NodeEnumerationFunction& func, const GraphEleme
 	return EnumerateAllNodesOnceImpl(func, nodes_set, start_node);
 }
 
+//
+// Symbols combination.
+//
+
 // Returns true if something changed.
 bool ApplySymbolsCombiningOptimizationToNode(const GraphElements::NodePtr node)
 {
@@ -461,6 +490,10 @@ void ApplySymbolsCombiningOptimization(const GraphElements::NodePtr& graph_start
 	}
 }
 
+//
+// Alternatives backtracking elimination.
+//
+
 void ApplyAlternativesBacktrackingEliminationOptimizationToNode(const GraphElements::NodePtr node)
 {
 	/* Perform following optimization:
@@ -530,46 +563,6 @@ void ApplyAlternativesBacktrackingEliminationOptimization(const GraphElements::N
 }
 
 } // namespace
-
-OneOf GetPossibleStartSybmols(const GraphElements::NodePtr& node)
-{
-	if(node == nullptr)
-		return OneOf{}; // Empty set of symbols.
-
-	return std::visit([&](const auto& el){ return GetPossibleStartSybmolsImpl(el); }, *node);
-}
-
-bool HasIntersection(const OneOf& l, const OneOf& r)
-{
-	if(l.inverse_flag || r.inverse_flag)
-		return true; // TODO - process such case more precisely.
-
-	// Check variant againt variant.
-	for(const CharType l_char : l.variants)
-	for(const CharType r_char : r.variants)
-		if(l_char == r_char)
-			return true;
-
-	// Check ranges against ranges.
-	for(const auto& l_range : l.ranges)
-	for(const auto& r_range : r.ranges)
-		if(!(l_range.second < r_range.first || l_range.first > r_range.second))
-			return true;
-
-	// Check variants against ranges.
-	for(const CharType l_char : l.variants)
-	for(const auto& r_range : r.ranges)
-		if(l_char >= r_range.first && l_char <= r_range.second)
-			return true;
-
-	// Check ranges against variants.
-	for(const auto& l_range : l.ranges)
-	for(const CharType r_char : r.variants)
-		if(r_char >= l_range.first && r_char <= l_range.second)
-			return true;
-
-	return false;
-}
 
 RegexGraphBuildResult OptimizeRegexGraph(RegexGraphBuildResult input_graph)
 {
