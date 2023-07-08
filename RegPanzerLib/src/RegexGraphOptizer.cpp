@@ -385,6 +385,82 @@ void EnumerateAllNodesOnce(const NodeEnumerationFunction& func, const GraphEleme
 	return EnumerateAllNodesOnceImpl(func, nodes_set, start_node);
 }
 
+// Returns true if something changed.
+bool ApplySymbolsCombiningOptimizationToNode(const GraphElements::NodePtr node)
+{
+	if(const auto specific_symbol= std::get_if<GraphElements::SpecificSymbol>(&*node))
+	{
+		if(const auto specific_symbol_tail= std::get_if<GraphElements::SpecificSymbol>(&*specific_symbol->next))
+		{
+			// Append symbol to symbol.
+			GraphElements::String string;
+			const CharType str_utf32[]{specific_symbol->code, specific_symbol_tail->code, 0};
+			string.str= Utf32ToUtf8(str_utf32);
+			string.next= specific_symbol_tail->next;
+
+			*node= std::move(string);
+			return true;
+		}
+		if(const auto string_tail= std::get_if<GraphElements::String>(&*specific_symbol->next))
+		{
+			// Append string to symbol.
+			GraphElements::String string;
+			const CharType str_utf32[]{specific_symbol->code, 0};
+			string.str= Utf32ToUtf8(str_utf32);
+			string.str+= string_tail->str;
+			string.next= string_tail->next;
+
+			*node= std::move(string);
+			return true;
+		}
+	}
+	if(const auto string= std::get_if<GraphElements::String>(&*node))
+	{
+		if(const auto specific_symbol_tail= std::get_if<GraphElements::SpecificSymbol>(&*string->next))
+		{
+			// Append string to symbol.
+			const CharType str_utf32[]{specific_symbol_tail->code, 0};
+			string->str+= Utf32ToUtf8(str_utf32);
+
+			GraphElements::NodePtr next= specific_symbol_tail->next;
+			string->next= std::move(next);
+
+			return true;
+		}
+		if(const auto string_tail= std::get_if<GraphElements::String>(&*string->next))
+		{
+			// Append string to string.
+			string->str+= string_tail->str;
+
+			GraphElements::NodePtr next= string_tail->next;
+			string->next= std::move(next);
+
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void ApplySymbolsCombiningOptimization(const GraphElements::NodePtr& graph_start)
+{
+	// Perform several steps to ensure full combination.
+	while(true)
+	{
+		bool something_changed= false;
+		EnumerateAllNodesOnce(
+			[&](const GraphElements::NodePtr node)
+			{
+				if(ApplySymbolsCombiningOptimizationToNode(node))
+					something_changed= true;
+			},
+			graph_start);
+
+		if(!something_changed)
+			break;
+	}
+}
+
 void ApplyAlternativesBacktrackingEliminationOptimizationToNode(const GraphElements::NodePtr node)
 {
 	/* Perform following optimization:
@@ -499,6 +575,7 @@ RegexGraphBuildResult OptimizeRegexGraph(RegexGraphBuildResult input_graph)
 {
 	RegexGraphBuildResult result= std::move(input_graph);
 
+	ApplySymbolsCombiningOptimization(result.root);
 	ApplyAlternativesBacktrackingEliminationOptimization(result.root);
 
 	return result;

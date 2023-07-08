@@ -536,31 +536,6 @@ GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphNodeImpl(const GraphEle
 
 GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphNodeImpl(const GraphElements::NodePtr& next, const SpecificSymbol& specific_symbol)
 {
-	if(!options_.no_graph_optimizations && next != nullptr)
-	{
-		// Combine sequences of symbols into strings, because matcher generator generates more optimal code for strings rather than for chains of symbols.
-		if(const auto next_specific_symbol= std::get_if<GraphElements::SpecificSymbol>(next.get()))
-		{
-			GraphElements::String string;
-
-			const CharType str_utf32[]{specific_symbol.code, next_specific_symbol->code, 0};
-			string.str= Utf32ToUtf8(str_utf32);
-
-			string.next= next_specific_symbol->next;
-			return std::make_shared<GraphElements::Node>(std::move(string));
-		}
-		else if(const auto next_string= std::get_if<GraphElements::String>(next.get()))
-		{
-			GraphElements::String string;
-
-			const CharType str_utf32[]{specific_symbol.code, 0};
-			string.str= Utf32ToUtf8(str_utf32);
-			string.str+= next_string->str;
-
-			string.next= next_string->next;
-			return std::make_shared<GraphElements::Node>(std::move(string));
-		}
-	}
 	return std::make_shared<GraphElements::Node>(GraphElements::SpecificSymbol{next, specific_symbol.code});
 }
 
