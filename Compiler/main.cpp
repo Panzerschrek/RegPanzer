@@ -329,7 +329,6 @@ int Main(int argc, const char* argv[])
 	RegPanzer::Options regex_build_options;
 	regex_build_options.extract_groups= Options::extract_groups;
 	regex_build_options.multiline= Options::multiline;
-	regex_build_options.no_graph_optimizations= Options::no_graph_optimizations;
 
 	RegexGraphBuildResult regex_graph= BuildRegexGraph(*regex_chain, regex_build_options);
 	if(!Options::no_graph_optimizations)

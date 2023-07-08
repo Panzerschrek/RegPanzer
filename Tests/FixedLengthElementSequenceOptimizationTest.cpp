@@ -1,4 +1,5 @@
 #include "../RegPanzerLib/RegexGraph.hpp"
+#include "../RegPanzerLib/RegexGraphOptizer.hpp"
 #include "../RegPanzerLib/Parser.hpp"
 #include "../RegPanzerLib/PushDisableLLVMWarnings.hpp"
 #include <gtest/gtest.h>
@@ -75,7 +76,7 @@ TEST_P(FixedLengthElementSequenceOptimizationTest, TestOptimization)
 	const auto regex_chain= std::get_if<RegexElementsChain>(&parse_res);
 	ASSERT_TRUE(regex_chain != nullptr);
 
-	const auto regex_graph= BuildRegexGraph(*regex_chain, Options());
+	const auto regex_graph= OptimizeRegexGraph( BuildRegexGraph(*regex_chain, Options()) );
 
 	const auto seq= std::get_if<GraphElements::FixedLengthElementSequence>(regex_graph.root.get());
 	if(param.length != std::nullopt)

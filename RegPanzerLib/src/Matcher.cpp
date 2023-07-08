@@ -109,11 +109,12 @@ bool MatchNodeImpl(const GraphElements::Alternatives& node, State& state)
 
 bool MatchNodeImpl(const GraphElements::AlternativesWithOptimizedBacktracking& node, State& state)
 {
-	// TODO
-	(void)node;
-	(void)state;
-	assert(false);
-	return false;
+	State state_copy= state;
+	if(MatchNode(node.path0_element, state))
+		return MatchNode(node.path0_next, state);
+
+	state= std::move(state_copy);
+	return MatchNode(node.path1_next, state);
 }
 
 bool MatchNodeImpl(const GraphElements::GroupStart& node, State& state)

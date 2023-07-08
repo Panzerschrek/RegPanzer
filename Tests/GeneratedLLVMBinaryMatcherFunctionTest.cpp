@@ -1,6 +1,7 @@
 #include "MatcherTestData.hpp"
 #include "../RegPanzerLib/MatcherGeneratorLLVM.hpp"
 #include "../RegPanzerLib/Parser.hpp"
+#include "../RegPanzerLib/RegexGraphOptizer.hpp"
 #include "../RegPanzerLib/Utils.hpp"
 #include "../RegPanzerLib/PushDisableLLVMWarnings.hpp"
 #include <llvm/ExecutionEngine/ExecutionEngine.h>
@@ -26,7 +27,7 @@ void RunTestCase(const MatcherTestDataElement& param, const bool is_multiline)
 
 	Options options;
 	options.multiline= is_multiline;
-	const auto regex_graph= BuildRegexGraph(*regex_chain, options);
+	const auto regex_graph= OptimizeRegexGraph( BuildRegexGraph(*regex_chain, options) );
 
 	const std::string function_name= "Match";
 

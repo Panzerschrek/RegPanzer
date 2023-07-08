@@ -2,6 +2,7 @@
 #include "GroupsExtractionTestData.hpp"
 #include "../RegPanzerLib/Matcher.hpp"
 #include "../RegPanzerLib/Parser.hpp"
+#include "../RegPanzerLib/RegexGraphOptizer.hpp"
 #include "../RegPanzerLib/PushDisableLLVMWarnings.hpp"
 #include <gtest/gtest.h>
 #include "../RegPanzerLib/PopLLVMWarnings.hpp"
@@ -20,7 +21,7 @@ void RunTestCase(const MatcherTestDataElement& param, const bool is_multiline)
 
 	Options options;
 	options.multiline= is_multiline;
-	const auto regex_graph= BuildRegexGraph(*regex_chain, options);
+	const auto regex_graph= OptimizeRegexGraph( BuildRegexGraph(*regex_chain, options) );
 
 	for(const MatcherTestDataElement::Case& c : param.cases)
 	{
@@ -75,7 +76,7 @@ TEST_P(GroupsExtractionTest, TestGroupsExtraction)
 
 	Options options;
 	options.extract_groups= true;
-	const auto regex_graph= BuildRegexGraph(*regex_chain, options);
+	const auto regex_graph= OptimizeRegexGraph( BuildRegexGraph(*regex_chain, options) );
 
 	for(const GroupsExtractionTestDataElement::Case& c : param.cases)
 	{
