@@ -340,9 +340,13 @@ void EnumerateAllNodesOnceImpl(
 	VisitedNodesSet& visited_nodes_set,
 	const GraphElements::NodePtr& node)
 {
+	if(node == nullptr)
+		return;
+
 	if(visited_nodes_set.count(node) != 0)
 		return;
 	visited_nodes_set.insert(node);
+
 	func(node);
 
 	return std::visit([&](const auto& el){ return EnumerateAllNodesOnceVisitImpl(func, visited_nodes_set, el); }, *node);
@@ -352,6 +356,48 @@ void EnumerateAllNodesOnce(const NodeEnumerationFunction& func, const GraphEleme
 {
 	VisitedNodesSet nodes_set;
 	return EnumerateAllNodesOnceImpl(func, nodes_set, start_node);
+}
+
+void ApplyAlternativesBacktrackingEliminationOptimizationToNode(const GraphElements::NodePtr& node)
+{
+	/* Perform following optimization:
+
+	If alternative node has only two branches and both branches starts with some fixed symbols
+	and first alternative branch is single symobl/string/one_of
+	it is possible to disable backtracking after matching of first element of first alternative,
+	since if it matches, the second alternative is guaranteed not to match.
+	 */
+
+	const auto alternatives= std::get_if<GraphElements::Alternatives>(&*node);
+	if(alternatives == nullptr)
+		return;
+
+	if(alternatives->next.size() != 2)
+		return;
+	const GraphElements::NodePtr first_alternative= alternatives->next[0];
+	const GraphElements::NodePtr second_alternative= alternatives->next[1];
+
+	const OneOf start_symbols_first= GetPossibleStartSybmols(first_alternative);
+	const OneOf start_symbols_second= GetPossibleStartSybmols(second_alternative);
+	if(HasIntersection(start_symbols_first, start_symbols_second))
+		return;
+
+	GraphElements::NodePtr* next;
+	if(const auto specific_symbol= std::get_if<GraphElements::SpecificSymbol>(&*first_alternative))
+		next= &specific_symbol->next;
+	else if(const auto string= std::get_if<GraphElements::String>(&*first_alternative))
+		next= &string->next;
+	else if(const auto one_of= std::get_if<GraphElements::OneOf>(&*first_alternative))
+		next= &one_of->next;
+	else
+		return; // Unsupported kind.
+}
+
+void ApplyAlternativesBacktrackingEliminationOptimization(const GraphElements::NodePtr& graph_start)
+{
+	EnumerateAllNodesOnce(
+		ApplyAlternativesBacktrackingEliminationOptimizationToNode,
+		graph_start);
 }
 
 } // namespace
@@ -399,6 +445,8 @@ bool HasIntersection(const OneOf& l, const OneOf& r)
 RegexGraphBuildResult OptimizeRegexGraph(RegexGraphBuildResult input_graph)
 {
 	RegexGraphBuildResult result= std::move(input_graph);
+
+	ApplyAlternativesBacktrackingEliminationOptimization(result.root);
 
 	return result;
 }
