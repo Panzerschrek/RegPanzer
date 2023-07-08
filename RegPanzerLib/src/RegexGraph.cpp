@@ -544,7 +544,8 @@ GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphChain(const GraphElemen
 
 		const auto alternatives_node= std::make_shared<GraphElements::Node>(GraphElements::Alternatives{{next_node}});
 		const auto node= BuildRegexGraphNode(alternatives_node, element.el);
-		const auto node_weak= std::make_shared<GraphElements::Node>(GraphElements::NextWeakNode{node});
+		// const auto node_weak= std::make_shared<GraphElements::Node>(GraphElements::NextWeakNode{node});
+		const auto node_weak= node;
 
 		auto& alternatives= std::get<GraphElements::Alternatives>(*alternatives_node);
 		if(element.seq.mode == SequenceMode::Lazy)
@@ -559,7 +560,8 @@ GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphChain(const GraphElemen
 		// In case of zero or more elements first enter alternatives node, than sequence body node.
 
 		const auto alternatives_node= std::make_shared<GraphElements::Node>(GraphElements::Alternatives{{next_node}});
-		const auto alternatives_node_node_weak= std::make_shared<GraphElements::Node>(GraphElements::NextWeakNode{alternatives_node});
+		// const auto alternatives_node_node_weak= std::make_shared<GraphElements::Node>(GraphElements::NextWeakNode{alternatives_node});
+		const auto alternatives_node_node_weak= alternatives_node;
 		const auto node= BuildRegexGraphNode(alternatives_node_node_weak, element.el);
 
 		auto& alternatives= std::get<GraphElements::Alternatives>(*alternatives_node);
@@ -587,7 +589,8 @@ GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphChain(const GraphElemen
 					element.seq.mode != SequenceMode::Lazy,
 					});
 
-		const auto sequence_counter_block_weak= std::make_shared<GraphElements::Node>(GraphElements::NextWeakNode{sequence_counter_block});
+		// const auto sequence_counter_block_weak= std::make_shared<GraphElements::Node>(GraphElements::NextWeakNode{sequence_counter_block});
+		const auto sequence_counter_block_weak= sequence_counter_block;
 		const auto node= BuildRegexGraphNode(sequence_counter_block_weak, element.el);
 
 		std::get<GraphElements::SequenceCounter>(*sequence_counter_block).next_iteration= node;
@@ -850,15 +853,19 @@ void RegexGraphBuilder::SetupSubroutineCalls()
 			const auto subroutine_enter= std::get_if<GraphElements::SubroutineEnter>(node_ptr.get());
 			assert(subroutine_enter != nullptr);
 			// Use weak pointers for indirect calls to prevent strong loops.
-			subroutine_enter->subroutine_node=
-				std::make_shared<GraphElements::Node>(
-					GraphElements::NextWeakNode{group_nodes_.at(subroutine_call_pair.first)});
+			// subroutine_enter->subroutine_node=
+			//	std::make_shared<GraphElements::Node>(
+			//		GraphElements::NextWeakNode{group_nodes_.at(subroutine_call_pair.first)});
+			subroutine_enter->subroutine_node= group_nodes_.at(subroutine_call_pair.first);
 		}
 	}
 }
 
 std::optional<size_t> RegexGraphBuilder::GetFixedElementSize(const GraphElements::NodePtr& node)
 {
+	// Disable for now this call completely.
+	if(true) return std::nullopt;
+
 	if(node == nullptr)
 		return size_t(0);
 

@@ -409,32 +409,25 @@ void ApplyAlternativesBacktrackingEliminationOptimizationToNode(const GraphEleme
 	if(HasIntersection(start_symbols_first, start_symbols_second))
 		return;
 
-
-	GraphElements::NodePtr first_alternative_for_check;
-	if(const auto weak_node= std::get_if<GraphElements::NextWeakNode>(&*first_alternative))
-		first_alternative_for_check= weak_node->next.lock();
-	else
-		first_alternative_for_check= first_alternative;
-
 	// Create copy of first alternative node in order to avoid modifying existing node.
 	// TODO - create "weak_ptr" if needed?
 	GraphElements::NodePtr next;
 	GraphElements::NodePtr first_alternative_modified;
-	if(const auto specific_symbol= std::get_if<GraphElements::SpecificSymbol>(&*first_alternative_for_check))
+	if(const auto specific_symbol= std::get_if<GraphElements::SpecificSymbol>(&*first_alternative))
 	{
 		next= specific_symbol->next;
 		GraphElements::SpecificSymbol copy= *specific_symbol;
 		copy.next= nullptr;
 		first_alternative_modified= std::make_shared<GraphElements::Node>(copy);
 	}
-	else if(const auto string= std::get_if<GraphElements::String>(&*first_alternative_for_check))
+	else if(const auto string= std::get_if<GraphElements::String>(&*first_alternative))
 	{
 		next= string->next;
 		GraphElements::String copy= *string;
 		copy.next= nullptr;
 		first_alternative_modified= std::make_shared<GraphElements::Node>(copy);
 	}
-	else if(const auto one_of= std::get_if<GraphElements::OneOf>(&*first_alternative_for_check))
+	else if(const auto one_of= std::get_if<GraphElements::OneOf>(&*first_alternative))
 	{
 		next= one_of->next;
 		GraphElements::OneOf copy= *one_of;
