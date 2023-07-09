@@ -20,7 +20,7 @@ struct SpecificSymbol;
 struct String;
 struct OneOf;
 struct Alternatives;
-struct AlternativesWithOptimizedBacktracking;
+struct AlternativesPossessive;
 struct GroupStart;
 struct GroupEnd;
 struct BackReference;
@@ -46,7 +46,7 @@ using Node= std::variant<
 	String,
 	OneOf,
 	Alternatives,
-	AlternativesWithOptimizedBacktracking,
+	AlternativesPossessive,
 	GroupStart,
 	GroupEnd,
 	BackReference,
@@ -100,8 +100,11 @@ struct Alternatives
 	std::vector<NodePtr> next;
 };
 
-struct AlternativesWithOptimizedBacktracking
+struct AlternativesPossessive
 {
+	// Save state, evaluate path0_element,
+	// if it is true - evaluate path0_next without state restoring,
+	// else - restore state and evaluate path1_next.
 	NodePtr path0_element;
 	NodePtr path0_next;
 	NodePtr path1_next;

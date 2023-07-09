@@ -107,7 +107,7 @@ bool MatchNodeImpl(const GraphElements::Alternatives& node, State& state)
 	return false;
 }
 
-bool MatchNodeImpl(const GraphElements::AlternativesWithOptimizedBacktracking& node, State& state)
+bool MatchNodeImpl(const GraphElements::AlternativesPossessive& node, State& state)
 {
 	State state_copy= state;
 	if(MatchNode(node.path0_element, state))

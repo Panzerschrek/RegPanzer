@@ -104,11 +104,11 @@ OneOf GetPossibleStartSybmolsImpl(VisitedNodesSet& visited_nodes, const GraphEle
 	return res;
 }
 
-OneOf GetPossibleStartSybmolsImpl(VisitedNodesSet& visited_nodes, const GraphElements::AlternativesWithOptimizedBacktracking& alternatives_with_optimized_backtracking)
+OneOf GetPossibleStartSybmolsImpl(VisitedNodesSet& visited_nodes, const GraphElements::AlternativesPossessive& alternatives_possessive)
 {
 	return CombineSymbolSets(
-			GetPossibleStartSybmols(visited_nodes, alternatives_with_optimized_backtracking.path0_element),
-			GetPossibleStartSybmols(visited_nodes, alternatives_with_optimized_backtracking.path1_next));
+			GetPossibleStartSybmols(visited_nodes, alternatives_possessive.path0_element),
+			GetPossibleStartSybmols(visited_nodes, alternatives_possessive.path1_next));
 }
 
 OneOf GetPossibleStartSybmolsImpl(VisitedNodesSet& visited_nodes, const GraphElements::GroupStart& group_start)
@@ -294,11 +294,11 @@ void EnumerateAllNodesOnceVisitImpl(const NodeEnumerationFunction& func, Visited
 		EnumerateAllNodesOnceImpl(func, visited_nodes_set, next);
 }
 
-void EnumerateAllNodesOnceVisitImpl(const NodeEnumerationFunction& func, VisitedNodesSet& visited_nodes_set, const GraphElements::AlternativesWithOptimizedBacktracking& alternatives_with_optimized_backtracking)
+void EnumerateAllNodesOnceVisitImpl(const NodeEnumerationFunction& func, VisitedNodesSet& visited_nodes_set, const GraphElements::AlternativesPossessive& alternatives_possessive)
 {
-	EnumerateAllNodesOnceImpl(func, visited_nodes_set, alternatives_with_optimized_backtracking.path0_element);
-	EnumerateAllNodesOnceImpl(func, visited_nodes_set, alternatives_with_optimized_backtracking.path0_next);
-	EnumerateAllNodesOnceImpl(func, visited_nodes_set, alternatives_with_optimized_backtracking.path1_next);
+	EnumerateAllNodesOnceImpl(func, visited_nodes_set, alternatives_possessive.path0_element);
+	EnumerateAllNodesOnceImpl(func, visited_nodes_set, alternatives_possessive.path0_next);
+	EnumerateAllNodesOnceImpl(func, visited_nodes_set, alternatives_possessive.path1_next);
 }
 
 void EnumerateAllNodesOnceVisitImpl(const NodeEnumerationFunction& func, VisitedNodesSet& visited_nodes_set, const GraphElements::GroupStart& group_start)
@@ -507,17 +507,18 @@ void ApplySymbolsCombiningOptimization(const GraphElements::NodePtr& graph_start
 }
 
 //
-// Alternatives backtracking elimination.
+// Alternatives possessification.
 //
 
-void ApplyAlternativesBacktrackingEliminationOptimizationToNode(const GraphElements::NodePtr node)
+void ApplyAlternativesPossessificationOptimizationToNode(const GraphElements::NodePtr node)
 {
-	/* Perform following optimization:
-	If alternative node has only two branches and both branches starts with some fixed symbols
-	and first alternative branch is single symobl/string/one_of
-	it is possible to disable backtracking after matching of first element of first alternative,
-	since if it matches, the second alternative is guaranteed not to match.
-	 */
+	/*
+		Perform following optimization:
+		If alternative node has only two branches and both branches starts with some fixed symbols
+		and first alternative branch is single symobl/string/one_of
+		it is possible to disable backtracking after matching of first element of first alternative,
+		since if it matches, the second alternative is guaranteed not to match.
+	*/
 
 	const auto alternatives= std::get_if<GraphElements::Alternatives>(&*node);
 	if(alternatives == nullptr)
@@ -561,18 +562,18 @@ void ApplyAlternativesBacktrackingEliminationOptimizationToNode(const GraphEleme
 		return; // Unsupported kind.
 
 	// Perform the optimization, replace node with new one.
-	GraphElements::AlternativesWithOptimizedBacktracking optimized_node;
-	optimized_node.path0_element= first_alternative_modified;
-	optimized_node.path0_next= next;
-	optimized_node.path1_next= second_alternative;
+	GraphElements::AlternativesPossessive alternatives_possessive;
+	alternatives_possessive.path0_element= first_alternative_modified;
+	alternatives_possessive.path0_next= next;
+	alternatives_possessive.path1_next= second_alternative;
 
-	*node= std::move(optimized_node);
+	*node= std::move(alternatives_possessive);
 }
 
-void ApplyAlternativesBacktrackingEliminationOptimization(const GraphElements::NodePtr& graph_start)
+void ApplyAlternativesPossessificationOptimization(const GraphElements::NodePtr& graph_start)
 {
 	EnumerateAllNodesOnce(
-		ApplyAlternativesBacktrackingEliminationOptimizationToNode,
+		ApplyAlternativesPossessificationOptimizationToNode,
 		graph_start);
 }
 
@@ -653,7 +654,6 @@ void ApplyFixedLengthElementSequenceOptimizationForNode(const GraphElements::Nod
 	else
 		return; // Unsupported kind.
 
-
 	GraphElements::FixedLengthElementSequence fixed_length_element_sequence;
 	fixed_length_element_sequence.next= second_alternative;
 	fixed_length_element_sequence.sequence_element= std::move(sequence_element);
@@ -679,8 +679,11 @@ RegexGraphBuildResult OptimizeRegexGraph(RegexGraphBuildResult input_graph)
 	RegexGraphBuildResult result= std::move(input_graph);
 
 	ApplySymbolsCombiningOptimization(result.root);
-	ApplyAlternativesBacktrackingEliminationOptimization(result.root);
-	// Apply fixed length sequence optimization only after alternatives backtracking elimination optimization, because first optimization is better (produces faster code).
+
+	ApplyAlternativesPossessificationOptimization(result.root);
+
+	// Apply fixed length sequence optimization only after alternatives possessification optimization,
+	// because first optimization is better (produces faster code).
 	ApplyFixedLengthElementSequenceOptimization(result.root);
 
 	return result;
