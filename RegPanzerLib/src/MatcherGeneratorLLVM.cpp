@@ -27,7 +27,7 @@ const char* GetNodeName(const GraphElements::StringStartAssertion&) { return "st
 const char* GetNodeName(const GraphElements::StringEndAssertion&) { return "string_end_assertion"; }
 const char* GetNodeName(const GraphElements::ConditionalElement&) { return "condtinonal_element"; }
 const char* GetNodeName(const GraphElements::SequenceCounterReset&) { return "sequence_counter_reset"; }
-const char* GetNodeName(const GraphElements::SequenceCounter&) { return "loop_counter_block"; }
+const char* GetNodeName(const GraphElements::SequenceCounter&) { return "sequence_counter"; }
 const char* GetNodeName(const GraphElements::NextWeakNode& node) { return GetNodeName(node.next.lock()); }
 const char* GetNodeName(const GraphElements::PossessiveSequence&) { return "possessive_sequence"; }
 const char* GetNodeName(const GraphElements::FixedLengthElementSequence&) { return "fixed_length_element_sequence"; }
