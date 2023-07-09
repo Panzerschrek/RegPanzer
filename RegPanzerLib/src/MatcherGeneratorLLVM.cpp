@@ -10,7 +10,7 @@ namespace RegPanzer
 namespace
 {
 
-const char* GetNodeName(const GraphElements::NodePtr& node);
+const char* GetNodeName(GraphElements::NodePtr node);
 
 const char* GetNodeName(const GraphElements::AnySymbol&) { return "any_symbol"; }
 const char* GetNodeName(const GraphElements::SpecificSymbol&) { return "specific_symbol"; }
@@ -28,7 +28,6 @@ const char* GetNodeName(const GraphElements::StringEndAssertion&) { return "stri
 const char* GetNodeName(const GraphElements::ConditionalElement&) { return "condtinonal_element"; }
 const char* GetNodeName(const GraphElements::SequenceCounterReset&) { return "sequence_counter_reset"; }
 const char* GetNodeName(const GraphElements::SequenceCounter&) { return "sequence_counter"; }
-const char* GetNodeName(const GraphElements::NextWeakNode& node) { return GetNodeName(node.next.lock()); }
 const char* GetNodeName(const GraphElements::PossessiveSequence&) { return "possessive_sequence"; }
 const char* GetNodeName(const GraphElements::FixedLengthElementSequence&) { return "fixed_length_element_sequence"; }
 const char* GetNodeName(const GraphElements::AtomicGroup&) { return "atomic_group"; }
@@ -37,7 +36,7 @@ const char* GetNodeName(const GraphElements::SubroutineLeave&) { return "subrout
 const char* GetNodeName(const GraphElements::StateSave&) { return "state_save"; }
 const char* GetNodeName(const GraphElements::StateRestore&) { return "state_restore"; }
 
-const char* GetNodeName(const GraphElements::NodePtr& node)
+const char* GetNodeName(const GraphElements::NodePtr node)
 {
 	if(node == nullptr)
 		return "true";
@@ -94,9 +93,9 @@ public:
 private:
 	void CreateStateType(const RegexGraphBuildResult& regex_graph);
 
-	llvm::Function* GetOrCreateNodeFunction(const GraphElements::NodePtr& node);
+	llvm::Function* GetOrCreateNodeFunction(const GraphElements::NodePtr node);
 
-	void BuildNodeFunctionBody(const GraphElements::NodePtr& node, llvm::Function* function);
+	void BuildNodeFunctionBody(GraphElements::NodePtr node, llvm::Function* function);
 
 	void BuildNodeFunctionBodyImpl(
 		IRBuilder& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::AnySymbol& node);
@@ -147,9 +146,6 @@ private:
 		IRBuilder& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::SequenceCounter& node);
 
 	void BuildNodeFunctionBodyImpl(
-		IRBuilder& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::NextWeakNode& node);
-
-	void BuildNodeFunctionBodyImpl(
 		IRBuilder& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::PossessiveSequence& node);
 
 	void BuildNodeFunctionBodyImpl(
@@ -171,7 +167,7 @@ private:
 		IRBuilder& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::StateRestore& node);
 
 	void CreateNextCallRet(
-		IRBuilder& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::NodePtr& next_node);
+		IRBuilder& llvm_ir_builder, llvm::Value* state_ptr, GraphElements::NodePtr next_node);
 
 	void SaveState(IRBuilder& llvm_ir_builder, llvm::Value* state, llvm::Value* state_backup);
 	void RestoreState(IRBuilder& llvm_ir_builder, llvm::Value* state, llvm::Value* state_backup);
@@ -331,7 +327,7 @@ void Generator::GenerateMatcherFunction(const RegexGraphBuildResult& regex_graph
 
 	// Go to next iteration.
 	llvm_ir_builder.SetInsertPoint(next_iteration_block);
-	if(std::get_if<GraphElements::StringStartAssertion>(regex_graph.root.get()) != nullptr)
+	if(std::get_if<GraphElements::StringStartAssertion>(regex_graph.root) != nullptr)
 		llvm_ir_builder.CreateBr(not_found_block); // Finish loop after single iteration in case if first regex element is string start assertion.
 	else
 	{
@@ -491,22 +487,10 @@ void Generator::CreateStateType(const RegexGraphBuildResult& regex_graph)
 	state_type_->setBody(members);
 }
 
-llvm::Function* Generator::GetOrCreateNodeFunction(const GraphElements::NodePtr& node)
+llvm::Function* Generator::GetOrCreateNodeFunction(const GraphElements::NodePtr node)
 {
 	if(const auto it= node_functions_.find(node); it != node_functions_.end())
 		return it->second;
-
-	if(node != nullptr)
-	{
-		if(const auto next_weak_node= std::get_if<GraphElements::NextWeakNode>(node.get()))
-		{
-			const auto next= next_weak_node->next.lock();
-			assert(next != nullptr);
-			const auto function= GetOrCreateNodeFunction(next);
-			node_functions_.emplace(node, function);
-			return function;
-		}
-	}
 
 	// Use private linkage for all node functions to avoid possible name conflicts.
 	const auto function= llvm::Function::Create(node_function_type_, llvm::GlobalValue::PrivateLinkage, GetNodeName(node), module_);
@@ -515,7 +499,7 @@ llvm::Function* Generator::GetOrCreateNodeFunction(const GraphElements::NodePtr&
 	return function;
 }
 
-void Generator::BuildNodeFunctionBody(const GraphElements::NodePtr& node, llvm::Function* const function)
+void Generator::BuildNodeFunctionBody(const GraphElements::NodePtr node, llvm::Function* const function)
 {
 	const auto basic_block= llvm::BasicBlock::Create(context_, "", function);
 	IRBuilder llvm_ir_builder(basic_block);
@@ -1035,9 +1019,9 @@ void Generator::BuildNodeFunctionBodyImpl(
 
 	const auto found_block= llvm::BasicBlock::Create(context_, "found");
 
-	for(const GraphElements::NodePtr& possible_next : node.next)
+	for(const GraphElements::NodePtr possible_next : node.next)
 	{
-		if(&possible_next < &node.next.back())
+		if(possible_next != node.next.back())
 		{
 			SaveState(llvm_ir_builder, state_ptr, state_backup_ptr);
 			const auto variant_res= llvm_ir_builder.CreateCall(GetOrCreateNodeFunction(possible_next), {state_ptr});
@@ -1461,7 +1445,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 		llvm_ir_builder.SetInsertPoint(next_block);
 	}
 
-	GraphElements::NodePtr branches[2];
+	GraphElements::NodePtr branches[2]= {nullptr, nullptr};
 	if(node.greedy)
 	{
 		branches[0]= node.next_iteration;
@@ -1487,14 +1471,6 @@ void Generator::BuildNodeFunctionBodyImpl(
 	llvm_ir_builder.SetInsertPoint(next_block);
 	RestoreState(llvm_ir_builder, state_ptr, state_backup_ptr);
 	CreateNextCallRet(llvm_ir_builder, state_ptr, branches[1]);
-}
-
-void Generator::BuildNodeFunctionBodyImpl(
-	IRBuilder& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::NextWeakNode& node)
-{
-	const auto next= node.next.lock();
-	assert(next != nullptr);
-	CreateNextCallRet(llvm_ir_builder, state_ptr, next);
 }
 
 void Generator::BuildNodeFunctionBodyImpl(
@@ -1971,7 +1947,7 @@ void Generator::BuildNodeFunctionBodyImpl(
 }
 
 void Generator::CreateNextCallRet(
-	IRBuilder& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::NodePtr& next_node)
+	IRBuilder& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::NodePtr next_node)
 {
 	const auto next_call= llvm_ir_builder.CreateCall(GetOrCreateNodeFunction(next_node), {state_ptr}, "next_call_res");
 	llvm_ir_builder.CreateRet(next_call);

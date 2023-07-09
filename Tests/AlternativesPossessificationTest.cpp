@@ -121,7 +121,7 @@ TEST_P(AlternativesPossessificationOptimizationTest, TestOptimization)
 
 	const auto regex_graph= OptimizeRegexGraph( BuildRegexGraph(*regex_chain, Options()) );
 
-	const auto possessive_alternative= std::get_if<GraphElements::AlternativesPossessive>(regex_graph.root.get());
+	const auto possessive_alternative= std::get_if<GraphElements::AlternativesPossessive>(regex_graph.root);
 	if(param.is_possessive)
 		ASSERT_TRUE(possessive_alternative != nullptr);
 	else

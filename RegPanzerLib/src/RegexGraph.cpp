@@ -348,23 +348,23 @@ public:
 private:
 	using RegexChainIterator= RegexElementsChain::const_iterator;
 
-	GraphElements::NodePtr BuildRegexGraphChain(const GraphElements::NodePtr& next, const RegexElementsChain& chain);
-	GraphElements::NodePtr BuildRegexGraphChain(const GraphElements::NodePtr& next, RegexChainIterator begin, RegexChainIterator end);
+	GraphElements::NodePtr BuildRegexGraphChain(GraphElements::NodePtr next, const RegexElementsChain& chain);
+	GraphElements::NodePtr BuildRegexGraphChain(GraphElements::NodePtr next, RegexChainIterator begin, RegexChainIterator end);
 
-	GraphElements::NodePtr BuildRegexGraphNode(const GraphElements::NodePtr& next, const RegexElementFull::ElementType& element);
-	GraphElements::NodePtr BuildRegexGraphNodeImpl(const GraphElements::NodePtr& next, const AnySymbol&);
-	GraphElements::NodePtr BuildRegexGraphNodeImpl(const GraphElements::NodePtr& next, const SpecificSymbol& specific_symbol);
-	GraphElements::NodePtr BuildRegexGraphNodeImpl(const GraphElements::NodePtr& next, const OneOf& one_of);
-	GraphElements::NodePtr BuildRegexGraphNodeImpl(const GraphElements::NodePtr& next, const Group& group);
-	GraphElements::NodePtr BuildRegexGraphNodeImpl(const GraphElements::NodePtr& next, const BackReference& back_reference);
-	GraphElements::NodePtr BuildRegexGraphNodeImpl(const GraphElements::NodePtr& next, const NonCapturingGroup& non_capturing_group);
-	GraphElements::NodePtr BuildRegexGraphNodeImpl(const GraphElements::NodePtr& next, const AtomicGroup& atomic_group);
-	GraphElements::NodePtr BuildRegexGraphNodeImpl(const GraphElements::NodePtr& next, const Alternatives& alternatives);
-	GraphElements::NodePtr BuildRegexGraphNodeImpl(const GraphElements::NodePtr& next, const Look& look);
-	GraphElements::NodePtr BuildRegexGraphNodeImpl(const GraphElements::NodePtr& next, const LineStartAssertion& line_start_assertion);
-	GraphElements::NodePtr BuildRegexGraphNodeImpl(const GraphElements::NodePtr& next, const LineEndAssertion& line_end_assertion);
-	GraphElements::NodePtr BuildRegexGraphNodeImpl(const GraphElements::NodePtr& next, const ConditionalElement& conditional_element);
-	GraphElements::NodePtr BuildRegexGraphNodeImpl(const GraphElements::NodePtr& next, const SubroutineCall& subroutine_call);
+	GraphElements::NodePtr BuildRegexGraphNode(GraphElements::NodePtr next, const RegexElementFull::ElementType& element);
+	GraphElements::NodePtr BuildRegexGraphNodeImpl(GraphElements::NodePtr next, const AnySymbol&);
+	GraphElements::NodePtr BuildRegexGraphNodeImpl(GraphElements::NodePtr next, const SpecificSymbol& specific_symbol);
+	GraphElements::NodePtr BuildRegexGraphNodeImpl(GraphElements::NodePtr next, const OneOf& one_of);
+	GraphElements::NodePtr BuildRegexGraphNodeImpl(GraphElements::NodePtr next, const Group& group);
+	GraphElements::NodePtr BuildRegexGraphNodeImpl(GraphElements::NodePtr next, const BackReference& back_reference);
+	GraphElements::NodePtr BuildRegexGraphNodeImpl(GraphElements::NodePtr next, const NonCapturingGroup& non_capturing_group);
+	GraphElements::NodePtr BuildRegexGraphNodeImpl(GraphElements::NodePtr next, const AtomicGroup& atomic_group);
+	GraphElements::NodePtr BuildRegexGraphNodeImpl(GraphElements::NodePtr next, const Alternatives& alternatives);
+	GraphElements::NodePtr BuildRegexGraphNodeImpl(GraphElements::NodePtr next, const Look& look);
+	GraphElements::NodePtr BuildRegexGraphNodeImpl(GraphElements::NodePtr next, const LineStartAssertion& line_start_assertion);
+	GraphElements::NodePtr BuildRegexGraphNodeImpl(GraphElements::NodePtr next, const LineEndAssertion& line_end_assertion);
+	GraphElements::NodePtr BuildRegexGraphNodeImpl(GraphElements::NodePtr next, const ConditionalElement& conditional_element);
+	GraphElements::NodePtr BuildRegexGraphNodeImpl(GraphElements::NodePtr next, const SubroutineCall& subroutine_call);
 
 	void SetupSubroutineCalls();
 
@@ -376,6 +376,7 @@ private:
 	// Collect group enter and subroutine enter nodes to setup pointers to subroutine calls later.
 	std::unordered_map<size_t, GraphElements::NodePtr> group_nodes_;
 	std::unordered_map<size_t, std::vector<GraphElements::NodePtr>> subroutine_enter_nodes_;
+	GraphElements::NodesStorage nodes_storage_;
 };
 
 RegexGraphBuilder::RegexGraphBuilder(const Options& options)
@@ -389,15 +390,15 @@ RegexGraphBuildResult RegexGraphBuilder::BuildRegexGraph(const RegexElementsChai
 	CollectGroupStatsForRegexChain(regex_chain, group_stats_);
 	SearchRecursiveGroupCalls(group_stats_);
 
-	GraphElements::NodePtr root;
+	GraphElements::NodePtr root= nullptr;
 	if(group_stats_.at(0).indirect_call_count == 0)
 		root= BuildRegexGraphChain(nullptr, regex_chain);
 	else
 	{
-		const auto end_node= std::make_shared<GraphElements::Node>(GraphElements::SubroutineLeave{});
+		const auto end_node= nodes_storage_.Allocate(GraphElements::SubroutineLeave{});
 		const auto node= BuildRegexGraphChain(end_node, regex_chain);
 		group_nodes_[0]= node;
-		root= std::make_shared<GraphElements::Node>(GraphElements::SubroutineEnter{nullptr, node, 0u});
+		root= nodes_storage_.Allocate(GraphElements::SubroutineEnter{nullptr, node, 0u});
 	}
 
 	SetupSubroutineCalls();
@@ -407,18 +408,19 @@ RegexGraphBuildResult RegexGraphBuilder::BuildRegexGraph(const RegexElementsChai
 	res.root= root;
 	res.group_stats.swap(group_stats_);
 	res.used_sequence_counters.swap(used_sequence_counters_);
+	std::swap(res.nodes_storage, nodes_storage_);
 
 	group_nodes_.clear();
 	subroutine_enter_nodes_.clear();
 	return res;
 }
 
-GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphChain(const GraphElements::NodePtr& next, const RegexElementsChain& chain)
+GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphChain(const GraphElements::NodePtr next, const RegexElementsChain& chain)
 {
 	return BuildRegexGraphChain(next, chain.begin(), chain.end());
 }
 
-GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphChain(const GraphElements::NodePtr& next, const RegexChainIterator begin, const RegexChainIterator end)
+GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphChain(const GraphElements::NodePtr next, const RegexChainIterator begin, const RegexChainIterator end)
 {
 	if(begin == end)
 		return next;
@@ -436,7 +438,7 @@ GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphChain(const GraphElemen
 	else if(element.seq.mode == SequenceMode::Possessive)
 	{
 		return
-			std::make_shared<GraphElements::Node>(
+			nodes_storage_.Allocate(
 				GraphElements::PossessiveSequence{
 					next_node,
 					node_possessive,
@@ -461,22 +463,20 @@ GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphChain(const GraphElemen
 			alternatives.next.push_back(node);
 		}
 
-		return std::make_shared<GraphElements::Node>(std::move(alternatives));
+		return nodes_storage_.Allocate(std::move(alternatives));
 	}
 	else if(element.seq.min_elements == 1 && element.seq.max_elements == Sequence::c_max)
 	{
 		// In case of one or more elemenst first enter sequence body node, then alternatives node.
 
-		const auto alternatives_node= std::make_shared<GraphElements::Node>(GraphElements::Alternatives{{next_node}});
+		const auto alternatives_node= nodes_storage_.Allocate(GraphElements::Alternatives{{next_node}});
 		const auto node= BuildRegexGraphNode(alternatives_node, element.el);
-		// const auto node_weak= std::make_shared<GraphElements::Node>(GraphElements::NextWeakNode{node});
-		const auto node_weak= node;
 
 		auto& alternatives= std::get<GraphElements::Alternatives>(*alternatives_node);
 		if(element.seq.mode == SequenceMode::Lazy)
-			alternatives.next.push_back(node_weak);
+			alternatives.next.push_back(node);
 		else
-			alternatives.next.insert(alternatives.next.begin(), node_weak);
+			alternatives.next.insert(alternatives.next.begin(), node);
 
 		return node;
 	}
@@ -484,10 +484,8 @@ GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphChain(const GraphElemen
 	{
 		// In case of zero or more elements first enter alternatives node, than sequence body node.
 
-		const auto alternatives_node= std::make_shared<GraphElements::Node>(GraphElements::Alternatives{{next_node}});
-		// const auto alternatives_node_node_weak= std::make_shared<GraphElements::Node>(GraphElements::NextWeakNode{alternatives_node});
-		const auto alternatives_node_node_weak= alternatives_node;
-		const auto node= BuildRegexGraphNode(alternatives_node_node_weak, element.el);
+		const auto alternatives_node= nodes_storage_.Allocate(GraphElements::Alternatives{{next_node}});
+		const auto node= BuildRegexGraphNode(alternatives_node, element.el);
 
 		auto& alternatives= std::get<GraphElements::Alternatives>(*alternatives_node);
 		if(element.seq.mode == SequenceMode::Lazy)
@@ -504,9 +502,9 @@ GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphChain(const GraphElemen
 		used_sequence_counters_.insert(id);
 
 		const auto sequence_counter_block=
-			std::make_shared<GraphElements::Node>(
+			nodes_storage_.Allocate(
 				GraphElements::SequenceCounter{
-					GraphElements::NodePtr(),
+					nullptr,
 					next_node,
 					id,
 					element.seq.min_elements,
@@ -514,42 +512,40 @@ GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphChain(const GraphElemen
 					element.seq.mode != SequenceMode::Lazy,
 					});
 
-		// const auto sequence_counter_block_weak= std::make_shared<GraphElements::Node>(GraphElements::NextWeakNode{sequence_counter_block});
-		const auto sequence_counter_block_weak= sequence_counter_block;
-		const auto node= BuildRegexGraphNode(sequence_counter_block_weak, element.el);
+		const auto node= BuildRegexGraphNode(sequence_counter_block, element.el);
 
 		std::get<GraphElements::SequenceCounter>(*sequence_counter_block).next_iteration= node;
 
-		return std::make_shared<GraphElements::Node>(GraphElements::SequenceCounterReset{sequence_counter_block, id});
+		return nodes_storage_.Allocate(GraphElements::SequenceCounterReset{sequence_counter_block, id});
 	}
 }
 
-GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphNode(const GraphElements::NodePtr& next, const RegexElementFull::ElementType& element)
+GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphNode(const GraphElements::NodePtr next, const RegexElementFull::ElementType& element)
 {
 	return std::visit([&](const auto& el){ return BuildRegexGraphNodeImpl(next, el); }, element);
 }
 
-GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphNodeImpl(const GraphElements::NodePtr& next, const AnySymbol&)
+GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphNodeImpl(const GraphElements::NodePtr next, const AnySymbol&)
 {
-	return std::make_shared<GraphElements::Node>(GraphElements::AnySymbol{next});
+	return nodes_storage_.Allocate(GraphElements::AnySymbol{next});
 }
 
-GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphNodeImpl(const GraphElements::NodePtr& next, const SpecificSymbol& specific_symbol)
+GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphNodeImpl(const GraphElements::NodePtr next, const SpecificSymbol& specific_symbol)
 {
-	return std::make_shared<GraphElements::Node>(GraphElements::SpecificSymbol{next, specific_symbol.code});
+	return nodes_storage_.Allocate(GraphElements::SpecificSymbol{next, specific_symbol.code});
 }
 
-GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphNodeImpl(const GraphElements::NodePtr& next, const OneOf& one_of)
+GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphNodeImpl(const GraphElements::NodePtr next, const OneOf& one_of)
 {
 	GraphElements::OneOf out_node;
 	out_node.next= next;
 	out_node.variants= one_of.variants;
 	out_node.ranges= one_of.ranges;
 	out_node.inverse_flag= one_of.inverse_flag;
-	return std::make_shared<GraphElements::Node>(std::move(out_node));
+	return nodes_storage_.Allocate(std::move(out_node));
 }
 
-GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphNodeImpl(const GraphElements::NodePtr& next, const Group& group)
+GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphNodeImpl(const GraphElements::NodePtr next, const Group& group)
 {
 	const GroupStat& stat= group_stats_.at(group.index);
 
@@ -563,9 +559,9 @@ GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphNodeImpl(const GraphEle
 		else
 		{
 			// Have backreferences - generate start/end nodes.
-			const auto group_end= std::make_shared<GraphElements::Node>(GraphElements::GroupEnd{next, group.index});
+			const auto group_end= nodes_storage_.Allocate(GraphElements::GroupEnd{next, group.index});
 			const auto group_contents= BuildRegexGraphChain(group_end, group.elements);
-			return std::make_shared<GraphElements::Node>(GraphElements::GroupStart{group_contents, group.index});
+			return nodes_storage_.Allocate(GraphElements::GroupStart{group_contents, group.index});
 		}
 	}
 	else
@@ -575,53 +571,53 @@ GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphNodeImpl(const GraphEle
 		if(stat.backreference_count == 0 && !options_.extract_groups)
 		{
 			// No backreferences - generate only enter/leave nodes.
-			const auto subroutine_leave= std::make_shared<GraphElements::Node>(GraphElements::SubroutineLeave{});
+			const auto subroutine_leave= nodes_storage_.Allocate(GraphElements::SubroutineLeave{});
 			const auto group_contents= BuildRegexGraphChain(subroutine_leave, group.elements);
 			group_nodes_[group.index]= group_contents;
-			return std::make_shared<GraphElements::Node>(GraphElements::SubroutineEnter{next, group_contents, group.index});
+			return nodes_storage_.Allocate(GraphElements::SubroutineEnter{next, group_contents, group.index});
 		}
 		else
 		{
 			// Both backreferences and indirect calls needed - generated all nodes.
-			const auto group_end= std::make_shared<GraphElements::Node>(GraphElements::GroupEnd{next, group.index});
-			const auto subroutine_leave= std::make_shared<GraphElements::Node>(GraphElements::SubroutineLeave{});
+			const auto group_end= nodes_storage_.Allocate(GraphElements::GroupEnd{next, group.index});
+			const auto subroutine_leave= nodes_storage_.Allocate(GraphElements::SubroutineLeave{});
 			const auto group_contents= BuildRegexGraphChain(subroutine_leave, group.elements);
 			group_nodes_[group.index]= group_contents;
-			const auto subroutine_enter= std::make_shared<GraphElements::Node>(GraphElements::SubroutineEnter{group_end, group_contents, group.index});
-			return std::make_shared<GraphElements::Node>(GraphElements::GroupStart{subroutine_enter, group.index});
+			const auto subroutine_enter= nodes_storage_.Allocate(GraphElements::SubroutineEnter{group_end, group_contents, group.index});
+			return nodes_storage_.Allocate(GraphElements::GroupStart{subroutine_enter, group.index});
 		}
 	}
 }
 
-GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphNodeImpl(const GraphElements::NodePtr& next, const BackReference& back_reference)
+GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphNodeImpl(const GraphElements::NodePtr next, const BackReference& back_reference)
 {
-	return std::make_shared<GraphElements::Node>(GraphElements::BackReference{next, back_reference.index});
+	return nodes_storage_.Allocate(GraphElements::BackReference{next, back_reference.index});
 }
 
-GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphNodeImpl(const GraphElements::NodePtr& next, const NonCapturingGroup& non_capturing_group)
+GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphNodeImpl(const GraphElements::NodePtr next, const NonCapturingGroup& non_capturing_group)
 {
 	return BuildRegexGraphChain(next, non_capturing_group.elements);
 }
 
-GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphNodeImpl(const GraphElements::NodePtr& next, const AtomicGroup& atomic_group)
+GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphNodeImpl(const GraphElements::NodePtr next, const AtomicGroup& atomic_group)
 {
 	return
-		std::make_shared<GraphElements::Node>(
+		nodes_storage_.Allocate(
 			GraphElements::AtomicGroup{
 				next,
 				BuildRegexGraphChain(nullptr, atomic_group.elements)});
 }
 
-GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphNodeImpl(const GraphElements::NodePtr& next, const Alternatives& alternatives)
+GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphNodeImpl(const GraphElements::NodePtr next, const Alternatives& alternatives)
 {
 	GraphElements::Alternatives out_node;
 	for(const auto& alternative : alternatives.alternatives)
 		out_node.next.push_back(BuildRegexGraphChain(next, alternative));
 
-	return std::make_shared<GraphElements::Node>(std::move(out_node));
+	return nodes_storage_.Allocate(std::move(out_node));
 }
 
-GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphNodeImpl(const GraphElements::NodePtr& next, const Look& look)
+GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphNodeImpl(const GraphElements::NodePtr next, const Look& look)
 {
 	const auto look_graph= BuildRegexGraphChain(nullptr, look.elements);
 	if(look.forward)
@@ -631,7 +627,7 @@ GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphNodeImpl(const GraphEle
 		out_node.look_graph= look_graph;
 		out_node.positive= look.positive;
 
-		return std::make_shared<GraphElements::Node>(std::move(out_node));
+		return nodes_storage_.Allocate(std::move(out_node));
 	}
 	else
 	{
@@ -641,15 +637,15 @@ GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphNodeImpl(const GraphEle
 		out_node.positive= look.positive;
 		out_node.size= GetRegexChainSize(look.elements).first; // TODO - raise error is size is not exact. Now - just use minimum size.
 
-		return std::make_shared<GraphElements::Node>(std::move(out_node));
+		return nodes_storage_.Allocate(std::move(out_node));
 	}
 }
 
-GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphNodeImpl(const GraphElements::NodePtr& next, const LineStartAssertion& line_start_assertion)
+GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphNodeImpl(const GraphElements::NodePtr next, const LineStartAssertion& line_start_assertion)
 {
 	(void)line_start_assertion;
 
-	const auto string_start_assertion_node= std::make_shared<GraphElements::Node>(GraphElements::StringStartAssertion{next});
+	const auto string_start_assertion_node= nodes_storage_.Allocate(GraphElements::StringStartAssertion{next});
 
 	if(options_.multiline)
 	{
@@ -658,25 +654,25 @@ GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphNodeImpl(const GraphEle
 		// TODO - support CR LF
 		GraphElements::OneOf one_of;
 		one_of.variants.push_back('\n');
-		const auto one_of_node= std::make_shared<GraphElements::Node>(std::move(one_of));
+		const auto one_of_node= nodes_storage_.Allocate(std::move(one_of));
 
-		const auto look_behind_node= std::make_shared<GraphElements::Node>(GraphElements::LookBehind{next, one_of_node, true, 1});
+		const auto look_behind_node= nodes_storage_.Allocate(GraphElements::LookBehind{next, one_of_node, true, 1});
 
 		GraphElements::Alternatives alternatives;
 		alternatives.next.push_back(string_start_assertion_node);
 		alternatives.next.push_back(look_behind_node);
 
-		return std::make_shared<GraphElements::Node>(std::move(alternatives));
+		return nodes_storage_.Allocate(std::move(alternatives));
 	}
 	else
 		return string_start_assertion_node;
 }
 
-GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphNodeImpl(const GraphElements::NodePtr& next, const LineEndAssertion& line_end_assertion)
+GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphNodeImpl(const GraphElements::NodePtr next, const LineEndAssertion& line_end_assertion)
 {
 	(void)line_end_assertion;
 
-	const auto string_end_assertion_node= std::make_shared<GraphElements::Node>(GraphElements::StringEndAssertion{next});
+	const auto string_end_assertion_node= nodes_storage_.Allocate(GraphElements::StringEndAssertion{next});
 
 	if(options_.multiline)
 	{
@@ -686,31 +682,31 @@ GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphNodeImpl(const GraphEle
 
 		GraphElements::OneOf one_of;
 		one_of.variants.push_back('\n');
-		const auto one_of_node= std::make_shared<GraphElements::Node>(std::move(one_of));
+		const auto one_of_node= nodes_storage_.Allocate(std::move(one_of));
 
-		const auto look_ahead_node= std::make_shared<GraphElements::Node>(GraphElements::LookAhead{next, one_of_node, true});
+		const auto look_ahead_node= nodes_storage_.Allocate(GraphElements::LookAhead{next, one_of_node, true});
 
 		GraphElements::Alternatives alternatives;
 		alternatives.next.push_back(string_end_assertion_node);
 		alternatives.next.push_back(look_ahead_node);
 
-		return std::make_shared<GraphElements::Node>(std::move(alternatives));
+		return nodes_storage_.Allocate(std::move(alternatives));
 	}
 
 	return string_end_assertion_node;
 }
 
-GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphNodeImpl(const GraphElements::NodePtr& next, const ConditionalElement& conditional_element)
+GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphNodeImpl(const GraphElements::NodePtr next, const ConditionalElement& conditional_element)
 {
 	GraphElements::ConditionalElement out_node;
 	out_node.condition_node= BuildRegexGraphNodeImpl(nullptr, conditional_element.look);
 	out_node.next_true=  BuildRegexGraphChain(next, conditional_element.alternatives.alternatives[0]);
 	out_node.next_false= BuildRegexGraphChain(next, conditional_element.alternatives.alternatives[1]);
 
-	return std::make_shared<GraphElements::Node>(std::move(out_node));
+	return nodes_storage_.Allocate(std::move(out_node));
 }
 
-GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphNodeImpl(const GraphElements::NodePtr& next, const SubroutineCall& subroutine_call)
+GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphNodeImpl(const GraphElements::NodePtr next, const SubroutineCall& subroutine_call)
 {
 	// We need to save and restore state in subroutine calls.
 
@@ -731,16 +727,16 @@ GraphElements::NodePtr RegexGraphBuilder::BuildRegexGraphNodeImpl(const GraphEle
 	const GraphElements::NodePtr subroutine_node= nullptr; // Set actual pointer value later.
 	if(sequences.empty() && groups.empty())
 	{
-		const auto enter_node= std::make_shared<GraphElements::Node>(GraphElements::SubroutineEnter{next, subroutine_node, subroutine_call.index});
+		const auto enter_node= nodes_storage_.Allocate(GraphElements::SubroutineEnter{next, subroutine_node, subroutine_call.index});
 		subroutine_enter_nodes_[subroutine_call.index].push_back(enter_node);
 		return enter_node;
 	}
 	else
 	{
-		const auto state_restore= std::make_shared<GraphElements::Node>(GraphElements::StateRestore{next, sequences, groups});
-		const auto enter_node= std::make_shared<GraphElements::Node>(GraphElements::SubroutineEnter{state_restore, subroutine_node, subroutine_call.index});
+		const auto state_restore= nodes_storage_.Allocate(GraphElements::StateRestore{next, sequences, groups});
+		const auto enter_node= nodes_storage_.Allocate(GraphElements::SubroutineEnter{state_restore, subroutine_node, subroutine_call.index});
 		subroutine_enter_nodes_[subroutine_call.index].push_back(enter_node);
-		return std::make_shared<GraphElements::Node>(GraphElements::StateSave{enter_node, sequences, groups});
+		return nodes_storage_.Allocate(GraphElements::StateSave{enter_node, sequences, groups});
 	}
 }
 
@@ -748,14 +744,10 @@ void RegexGraphBuilder::SetupSubroutineCalls()
 {
 	for(const auto& subroutine_call_pair : subroutine_enter_nodes_)
 	{
-		for(const GraphElements::NodePtr& node_ptr : subroutine_call_pair.second)
+		for(const GraphElements::NodePtr node_ptr : subroutine_call_pair.second)
 		{
-			const auto subroutine_enter= std::get_if<GraphElements::SubroutineEnter>(node_ptr.get());
+			const auto subroutine_enter= std::get_if<GraphElements::SubroutineEnter>(node_ptr);
 			assert(subroutine_enter != nullptr);
-			// Use weak pointers for indirect calls to prevent strong loops.
-			// subroutine_enter->subroutine_node=
-			//	std::make_shared<GraphElements::Node>(
-			//		GraphElements::NextWeakNode{group_nodes_.at(subroutine_call_pair.first)});
 			subroutine_enter->subroutine_node= group_nodes_.at(subroutine_call_pair.first);
 		}
 	}

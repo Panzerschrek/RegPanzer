@@ -64,7 +64,7 @@ OneOf GetAnySymbol()
 	return OneOf{ {}, {}, true };
 }
 
-OneOf GetPossibleStartSybmols(VisitedNodesSet& visited_nodes, const GraphElements::NodePtr& node);
+OneOf GetPossibleStartSybmols(VisitedNodesSet& visited_nodes, GraphElements::NodePtr node);
 
 OneOf GetPossibleStartSybmolsImpl(VisitedNodesSet& visited_nodes, const GraphElements::AnySymbol& any_symbol)
 {
@@ -98,7 +98,7 @@ OneOf GetPossibleStartSybmolsImpl(VisitedNodesSet& visited_nodes, const GraphEle
 OneOf GetPossibleStartSybmolsImpl(VisitedNodesSet& visited_nodes, const GraphElements::Alternatives& alternatives)
 {
 	OneOf res;
-	for(const GraphElements::NodePtr& next : alternatives.next)
+	for(const GraphElements::NodePtr next : alternatives.next)
 		res= CombineSymbolSets(res, GetPossibleStartSybmols(visited_nodes, next));
 
 	return res;
@@ -184,10 +184,6 @@ OneOf GetPossibleStartSybmolsImpl(VisitedNodesSet& visited_nodes, const GraphEle
 		GetPossibleStartSybmols(visited_nodes, sequence_counter.next_sequence_end));
 }
 
-OneOf GetPossibleStartSybmolsImpl(VisitedNodesSet& visited_nodes, const GraphElements::NextWeakNode& next_weak)
-{
-	return GetPossibleStartSybmols(visited_nodes, next_weak.next.lock());
-}
 
 OneOf GetPossibleStartSybmolsImpl(VisitedNodesSet& visited_nodes, const GraphElements::PossessiveSequence& possessive_sequence)
 {
@@ -239,7 +235,7 @@ OneOf GetPossibleStartSybmolsImpl(VisitedNodesSet& visited_nodes, const GraphEle
 	return GetPossibleStartSybmols(visited_nodes, state_restore.next);
 }
 
-OneOf GetPossibleStartSybmols(VisitedNodesSet& visited_nodes, const GraphElements::NodePtr& node)
+OneOf GetPossibleStartSybmols(VisitedNodesSet& visited_nodes, const GraphElements::NodePtr node)
 {
 	if(node == nullptr)
 		return OneOf{}; // Empty set of symbols.
@@ -251,7 +247,7 @@ OneOf GetPossibleStartSybmols(VisitedNodesSet& visited_nodes, const GraphElement
 	return std::visit([&](const auto& el){ return GetPossibleStartSybmolsImpl(visited_nodes, el); }, *node);
 }
 
-OneOf GetPossibleStartSybmolsEntry(const GraphElements::NodePtr& node)
+OneOf GetPossibleStartSybmolsEntry(const GraphElements::NodePtr node)
 {
 	VisitedNodesSet visited_nodes;
 	return GetPossibleStartSybmols(visited_nodes, node);
@@ -261,12 +257,12 @@ OneOf GetPossibleStartSybmolsEntry(const GraphElements::NodePtr& node)
 // Node enumeration
 //
 
-using NodeEnumerationFunction= std::function<void(const GraphElements::NodePtr)>;
+using NodeEnumerationFunction= std::function<void(GraphElements::NodePtr)>;
 
 void EnumerateAllNodesOnceImpl(
 	const NodeEnumerationFunction& func,
 	VisitedNodesSet& visited_nodes_set,
-	const GraphElements::NodePtr node);
+	GraphElements::NodePtr node);
 
 void EnumerateAllNodesOnceVisitImpl(const NodeEnumerationFunction& func, VisitedNodesSet& visited_nodes_set, const GraphElements::AnySymbol& any_symbol)
 {
@@ -356,12 +352,6 @@ void EnumerateAllNodesOnceVisitImpl(const NodeEnumerationFunction& func, Visited
 	EnumerateAllNodesOnceImpl(func, visited_nodes_set, sequence_counter.next_sequence_end);
 }
 
-void EnumerateAllNodesOnceVisitImpl(const NodeEnumerationFunction& func, VisitedNodesSet& visited_nodes_set, const GraphElements::NextWeakNode& next_weak_node)
-{
-	if(const auto next= next_weak_node.next.lock())
-		EnumerateAllNodesOnceImpl(func, visited_nodes_set, next);
-}
-
 void EnumerateAllNodesOnceVisitImpl(const NodeEnumerationFunction& func, VisitedNodesSet& visited_nodes_set, const GraphElements::PossessiveSequence& possesive_sequence)
 {
 	EnumerateAllNodesOnceImpl(func, visited_nodes_set, possesive_sequence.sequence_element);
@@ -420,7 +410,7 @@ void EnumerateAllNodesOnceImpl(
 	return std::visit([&](const auto& el){ return EnumerateAllNodesOnceVisitImpl(func, visited_nodes_set, el); }, *node);
 }
 
-void EnumerateAllNodesOnce(const NodeEnumerationFunction& func, const GraphElements::NodePtr& start_node)
+void EnumerateAllNodesOnce(const NodeEnumerationFunction& func, const GraphElements::NodePtr start_node)
 {
 	VisitedNodesSet nodes_set;
 	return EnumerateAllNodesOnceImpl(func, nodes_set, start_node);
@@ -433,9 +423,9 @@ void EnumerateAllNodesOnce(const NodeEnumerationFunction& func, const GraphEleme
 // Returns true if something changed.
 bool ApplySymbolsCombiningOptimizationToNode(const GraphElements::NodePtr node)
 {
-	if(const auto specific_symbol= std::get_if<GraphElements::SpecificSymbol>(&*node))
+	if(const auto specific_symbol= std::get_if<GraphElements::SpecificSymbol>(node))
 	{
-		if(const auto specific_symbol_tail= std::get_if<GraphElements::SpecificSymbol>(&*specific_symbol->next))
+		if(const auto specific_symbol_tail= std::get_if<GraphElements::SpecificSymbol>(specific_symbol->next))
 		{
 			// Append symbol to symbol.
 			GraphElements::String string;
@@ -446,7 +436,7 @@ bool ApplySymbolsCombiningOptimizationToNode(const GraphElements::NodePtr node)
 			*node= std::move(string);
 			return true;
 		}
-		if(const auto string_tail= std::get_if<GraphElements::String>(&*specific_symbol->next))
+		if(const auto string_tail= std::get_if<GraphElements::String>(specific_symbol->next))
 		{
 			// Append string to symbol.
 			GraphElements::String string;
@@ -459,9 +449,9 @@ bool ApplySymbolsCombiningOptimizationToNode(const GraphElements::NodePtr node)
 			return true;
 		}
 	}
-	if(const auto string= std::get_if<GraphElements::String>(&*node))
+	if(const auto string= std::get_if<GraphElements::String>(node))
 	{
-		if(const auto specific_symbol_tail= std::get_if<GraphElements::SpecificSymbol>(&*string->next))
+		if(const auto specific_symbol_tail= std::get_if<GraphElements::SpecificSymbol>(string->next))
 		{
 			// Append string to symbol.
 			const CharType str_utf32[]{specific_symbol_tail->code, 0};
@@ -472,7 +462,7 @@ bool ApplySymbolsCombiningOptimizationToNode(const GraphElements::NodePtr node)
 
 			return true;
 		}
-		if(const auto string_tail= std::get_if<GraphElements::String>(&*string->next))
+		if(const auto string_tail= std::get_if<GraphElements::String>(string->next))
 		{
 			// Append string to string.
 			string->str+= string_tail->str;
@@ -487,7 +477,7 @@ bool ApplySymbolsCombiningOptimizationToNode(const GraphElements::NodePtr node)
 	return false;
 }
 
-void ApplySymbolsCombiningOptimization(const GraphElements::NodePtr& graph_start)
+void ApplySymbolsCombiningOptimization(const GraphElements::NodePtr graph_start)
 {
 	// Perform several steps to ensure full combination.
 	while(true)
@@ -510,7 +500,7 @@ void ApplySymbolsCombiningOptimization(const GraphElements::NodePtr& graph_start
 // Alternatives possessification.
 //
 
-void ApplyAlternativesPossessificationOptimizationToNode(const GraphElements::NodePtr node)
+void ApplyAlternativesPossessificationOptimizationToNode(const GraphElements::NodePtr node, GraphElements::NodesStorage& nodes_storage)
 {
 	/*
 		Perform following optimization:
@@ -520,7 +510,7 @@ void ApplyAlternativesPossessificationOptimizationToNode(const GraphElements::No
 		since if it matches, the second alternative is guaranteed not to match.
 	*/
 
-	const auto alternatives= std::get_if<GraphElements::Alternatives>(&*node);
+	const auto alternatives= std::get_if<GraphElements::Alternatives>(node);
 	if(alternatives == nullptr)
 		return;
 
@@ -534,29 +524,28 @@ void ApplyAlternativesPossessificationOptimizationToNode(const GraphElements::No
 		return;
 
 	// Create copy of first alternative node in order to avoid modifying existing node.
-	// TODO - create "weak_ptr" if needed?
-	GraphElements::NodePtr next;
-	GraphElements::NodePtr first_alternative_modified;
-	if(const auto specific_symbol= std::get_if<GraphElements::SpecificSymbol>(&*first_alternative))
+	GraphElements::NodePtr next= nullptr;
+	GraphElements::NodePtr first_alternative_modified= nullptr;
+	if(const auto specific_symbol= std::get_if<GraphElements::SpecificSymbol>(first_alternative))
 	{
 		next= specific_symbol->next;
 		GraphElements::SpecificSymbol copy= *specific_symbol;
 		copy.next= nullptr;
-		first_alternative_modified= std::make_shared<GraphElements::Node>(std::move(copy));
+		first_alternative_modified= nodes_storage.Allocate(std::move(copy));
 	}
-	else if(const auto string= std::get_if<GraphElements::String>(&*first_alternative))
+	else if(const auto string= std::get_if<GraphElements::String>(first_alternative))
 	{
 		next= string->next;
 		GraphElements::String copy= *string;
 		copy.next= nullptr;
-		first_alternative_modified= std::make_shared<GraphElements::Node>(std::move(copy));
+		first_alternative_modified= nodes_storage.Allocate(std::move(copy));
 	}
-	else if(const auto one_of= std::get_if<GraphElements::OneOf>(&*first_alternative))
+	else if(const auto one_of= std::get_if<GraphElements::OneOf>(first_alternative))
 	{
 		next= one_of->next;
 		GraphElements::OneOf copy= *one_of;
 		copy.next= nullptr;
-		first_alternative_modified= std::make_shared<GraphElements::Node>(std::move(copy));
+		first_alternative_modified= nodes_storage.Allocate(std::move(copy));
 	}
 	else
 		return; // Unsupported kind.
@@ -570,17 +559,20 @@ void ApplyAlternativesPossessificationOptimizationToNode(const GraphElements::No
 	*node= std::move(alternatives_possessive);
 }
 
-void ApplyAlternativesPossessificationOptimization(const GraphElements::NodePtr& graph_start)
+void ApplyAlternativesPossessificationOptimization(const GraphElements::NodePtr graph_start, GraphElements::NodesStorage& nodes_storage)
 {
 	EnumerateAllNodesOnce(
-		ApplyAlternativesPossessificationOptimizationToNode,
+		[&](const GraphElements::NodePtr node)
+		{
+			ApplyAlternativesPossessificationOptimizationToNode(node, nodes_storage);
+		},
 		graph_start);
 }
 
-void ApplyFixedLengthElementSequenceOptimizationForNode(const GraphElements::NodePtr node)
+void ApplyFixedLengthElementSequenceOptimizationForNode(const GraphElements::NodePtr node,  GraphElements::NodesStorage& nodes_storage)
 {
 	// For now apply the optimization only for sequences, implemented via alternatives node.
-	const auto alternatives= std::get_if<GraphElements::Alternatives>(&*node);
+	const auto alternatives= std::get_if<GraphElements::Alternatives>(node);
 	if(alternatives == nullptr)
 		return;
 
@@ -595,8 +587,8 @@ void ApplyFixedLengthElementSequenceOptimizationForNode(const GraphElements::Nod
 
 	// For now support only sequence body, consisting of single simple element.
 	size_t element_length= 0;
-	GraphElements::NodePtr sequence_element;
-	if(const auto specific_symbol= std::get_if<GraphElements::SpecificSymbol>(&*first_alternative))
+	GraphElements::NodePtr sequence_element= nullptr;
+	if(const auto specific_symbol= std::get_if<GraphElements::SpecificSymbol>(first_alternative))
 	{
 		if(specific_symbol->next != node)
 			return; // Too complicated sequence body.
@@ -606,10 +598,10 @@ void ApplyFixedLengthElementSequenceOptimizationForNode(const GraphElements::Nod
 
 		GraphElements::SpecificSymbol copy= *specific_symbol;
 		copy.next= nullptr;
-		sequence_element= std::make_shared<GraphElements::Node>(std::move(copy));
+		sequence_element= nodes_storage.Allocate(std::move(copy));
 
 	}
-	else if(const auto string= std::get_if<GraphElements::String>(&*first_alternative))
+	else if(const auto string= std::get_if<GraphElements::String>(first_alternative))
 	{
 		if(string->next != node)
 			return; // Too complicated sequence body.
@@ -618,9 +610,9 @@ void ApplyFixedLengthElementSequenceOptimizationForNode(const GraphElements::Nod
 
 		GraphElements::String copy= *string;
 		copy.next= nullptr;
-		sequence_element= std::make_shared<GraphElements::Node>(std::move(copy));
+		sequence_element= nodes_storage.Allocate(std::move(copy));
 	}
-	else if(const auto one_of= std::get_if<GraphElements::OneOf>(&*first_alternative))
+	else if(const auto one_of= std::get_if<GraphElements::OneOf>(first_alternative))
 	{
 		if(one_of->next != node)
 			return; // Too complicated sequence body.
@@ -649,7 +641,7 @@ void ApplyFixedLengthElementSequenceOptimizationForNode(const GraphElements::Nod
 
 		GraphElements::OneOf copy= *one_of;
 		copy.next= nullptr;
-		sequence_element= std::make_shared<GraphElements::Node>(std::move(copy));
+		sequence_element= nodes_storage.Allocate(std::move(copy));
 	}
 	else
 		return; // Unsupported kind.
@@ -665,10 +657,13 @@ void ApplyFixedLengthElementSequenceOptimizationForNode(const GraphElements::Nod
 	*node= GraphElements::Node(std::move(fixed_length_element_sequence));
 }
 
-void ApplyFixedLengthElementSequenceOptimization(const GraphElements::NodePtr& graph_start)
+void ApplyFixedLengthElementSequenceOptimization(const GraphElements::NodePtr graph_start, GraphElements::NodesStorage& nodes_storage)
 {
 	EnumerateAllNodesOnce(
-		ApplyFixedLengthElementSequenceOptimizationForNode,
+		[&](const GraphElements::NodePtr node)
+		{
+			ApplyFixedLengthElementSequenceOptimizationForNode(node, nodes_storage);
+		},
 		graph_start);
 }
 
@@ -680,11 +675,11 @@ RegexGraphBuildResult OptimizeRegexGraph(RegexGraphBuildResult input_graph)
 
 	ApplySymbolsCombiningOptimization(result.root);
 
-	ApplyAlternativesPossessificationOptimization(result.root);
+	ApplyAlternativesPossessificationOptimization(result.root, result.nodes_storage);
 
 	// Apply fixed length sequence optimization only after alternatives possessification optimization,
 	// because first optimization is better (produces faster code).
-	ApplyFixedLengthElementSequenceOptimization(result.root);
+	ApplyFixedLengthElementSequenceOptimization(result.root, result.nodes_storage);
 
 	return result;
 }

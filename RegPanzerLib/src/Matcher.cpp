@@ -51,7 +51,7 @@ std::optional<CharType> ExtractCodePoint(State& state)
 	return CharType(code);
 }
 
-bool MatchNode(const GraphElements::NodePtr& node, State& state);
+bool MatchNode(GraphElements::NodePtr node, State& state);
 
 bool MatchNodeImpl(const GraphElements::AnySymbol& node, State& state)
 {
@@ -94,7 +94,7 @@ bool MatchNodeImpl(const GraphElements::OneOf& node, State& state)
 
 bool MatchNodeImpl(const GraphElements::Alternatives& node, State& state)
 {
-	for(const GraphElements::NodePtr& alternative : node.next)
+	for(const GraphElements::NodePtr alternative : node.next)
 	{
 		State state_copy= state;
 		if(MatchNode(alternative, state_copy))
@@ -234,13 +234,6 @@ bool MatchNodeImpl(const GraphElements::SequenceCounter& node, State& state)
 	}
 }
 
-bool MatchNodeImpl(const GraphElements::NextWeakNode& node, State& state)
-{
-	const auto next= node.next.lock();
-	assert(next != nullptr);
-	return MatchNode(next, state);
-}
-
 bool MatchNodeImpl(const GraphElements::PossessiveSequence& node, State& state)
 {
 	for(size_t i= 0; i < node.max_elements; ++i)
@@ -357,7 +350,7 @@ bool MatchNodeImpl(const GraphElements::StateRestore& node, State& state)
 	return MatchNode(node.next, state);
 }
 
-bool MatchNode(const GraphElements::NodePtr& node, State& state)
+bool MatchNode(const GraphElements::NodePtr node, State& state)
 {
 	if(node == nullptr)
 		return true;

@@ -78,7 +78,7 @@ TEST_P(FixedLengthElementSequenceOptimizationTest, TestOptimization)
 
 	const auto regex_graph= OptimizeRegexGraph( BuildRegexGraph(*regex_chain, Options()) );
 
-	const auto seq= std::get_if<GraphElements::FixedLengthElementSequence>(regex_graph.root.get());
+	const auto seq= std::get_if<GraphElements::FixedLengthElementSequence>(regex_graph.root);
 	if(param.length != std::nullopt)
 		ASSERT_TRUE(seq != nullptr && seq->element_length == *param.length);
 	else

@@ -31,7 +31,6 @@ struct StringEndAssertion;
 struct ConditionalElement;
 struct SequenceCounterReset;
 struct SequenceCounter;
-struct NextWeakNode;
 struct PossessiveSequence;
 struct FixedLengthElementSequence;
 struct AtomicGroup;
@@ -57,7 +56,6 @@ using Node= std::variant<
 	ConditionalElement,
 	SequenceCounterReset,
 	SequenceCounter,
-	NextWeakNode,
 	PossessiveSequence,
 	FixedLengthElementSequence,
 	AtomicGroup,
@@ -66,29 +64,30 @@ using Node= std::variant<
 	StateSave,
 	StateRestore>;
 
-using NodePtr= std::shared_ptr<Node>;
+// Just observer ptr.
+using NodePtr= Node*;
 
 struct AnySymbol
 {
-	NodePtr next;
+	NodePtr next= nullptr;
 };
 
 // TODO - maybe replace it with "string" node?
 struct SpecificSymbol
 {
-	NodePtr next;
+	NodePtr next= nullptr;
 	CharType code= 0;
 };
 
 struct String
 {
-	NodePtr next;
+	NodePtr next= nullptr;
 	std::string str; // UTF-8
 };
 
 struct OneOf
 {
-	NodePtr next;
+	NodePtr next= nullptr;
 
 	std::vector<CharType> variants;
 	std::vector< std::pair<CharType, CharType> > ranges;
@@ -105,59 +104,59 @@ struct AlternativesPossessive
 	// Save state, evaluate path0_element,
 	// if it is true - evaluate path0_next without state restoring,
 	// else - restore state and evaluate path1_next.
-	NodePtr path0_element;
-	NodePtr path0_next;
-	NodePtr path1_next;
+	NodePtr path0_element= nullptr;
+	NodePtr path0_next= nullptr;
+	NodePtr path1_next= nullptr;
 };
 
 struct GroupStart
 {
-	NodePtr next; // To contents of the group.
+	NodePtr next= nullptr; // To contents of the group.
 	size_t index= std::numeric_limits<size_t>::max();
 };
 
 struct GroupEnd
 {
-	NodePtr next;
+	NodePtr next= nullptr;
 	size_t index= std::numeric_limits<size_t>::max();
 };
 
 struct BackReference
 {
-	NodePtr next;
+	NodePtr next= nullptr;
 	size_t index= std::numeric_limits<size_t>::max();
 };
 
 struct LookAhead
 {
-	NodePtr next;
-	NodePtr look_graph;
+	NodePtr next= nullptr;
+	NodePtr look_graph= nullptr;
 	bool positive= true;
 };
 
 struct LookBehind
 {
-	NodePtr next;
-	NodePtr look_graph;
+	NodePtr next= nullptr;
+	NodePtr look_graph= nullptr;
 	bool positive= true;
 	size_t size= 0; // Size in UTF-8 bytes. Now we support look behind with fixed size only.
 };
 
 struct StringStartAssertion
 {
-	NodePtr next;
+	NodePtr next= nullptr;
 };
 
 struct StringEndAssertion
 {
-	NodePtr next;
+	NodePtr next= nullptr;
 };
 
 struct ConditionalElement
 {
-	NodePtr condition_node;
-	NodePtr next_true;
-	NodePtr next_false;
+	NodePtr condition_node= nullptr;
+	NodePtr next_true= nullptr;
+	NodePtr next_false= nullptr;
 };
 
 using SequenceId= const void*;
@@ -165,38 +164,32 @@ using SequenceIdSet= std::unordered_set<SequenceId>;
 
 struct SequenceCounterReset
 {
-	NodePtr next; // To sequence counter node.
+	NodePtr next= nullptr; // To sequence counter node.
 	SequenceId id= nullptr;
 };
 
 struct SequenceCounter
 {
-	NodePtr next_iteration;
-	NodePtr next_sequence_end;
+	NodePtr next_iteration= nullptr;
+	NodePtr next_sequence_end= nullptr;
 	SequenceId id= nullptr;
 	size_t min_elements= 0u;
 	size_t max_elements= 0u;
 	bool greedy= true;
 };
 
-// Used for creation of back references (sequences, recursive calls, etc.)
-struct NextWeakNode
-{
-	NodePtr::weak_type next;
-};
-
 struct PossessiveSequence
 {
-	NodePtr next;
-	NodePtr sequence_element;
+	NodePtr next= nullptr;
+	NodePtr sequence_element= nullptr;
 	size_t min_elements= 0u;
 	size_t max_elements= 0u;
 };
 
 struct FixedLengthElementSequence
 {
-	NodePtr next;
-	NodePtr sequence_element;
+	NodePtr next= nullptr;
+	NodePtr sequence_element= nullptr;
 	size_t min_elements= 0u;
 	size_t max_elements= 0u;
 	size_t element_length= 0u; // In UTF-8 bytes.
@@ -204,14 +197,14 @@ struct FixedLengthElementSequence
 
 struct AtomicGroup
 {
-	NodePtr next;
-	NodePtr group_element;
+	NodePtr next= nullptr;
+	NodePtr group_element= nullptr;
 };
 
 struct SubroutineEnter
 {
-	NodePtr next; // Next node after subroutine leave.
-	NodePtr subroutine_node;
+	NodePtr next= nullptr; // Next node after subroutine leave.
+	NodePtr subroutine_node= nullptr;
 	size_t index= std::numeric_limits<size_t>::max(); // 0 - whole expression, 1 - first group, etc.
 };
 
@@ -221,16 +214,44 @@ struct SubroutineLeave
 
 struct StateSave
 {
-	NodePtr next;
+	NodePtr next= nullptr;
 	SequenceIdSet sequence_counters_to_save;
 	std::unordered_set<size_t> groups_to_save;
 };
 
 struct StateRestore
 {
-	NodePtr next;
+	NodePtr next= nullptr;
 	SequenceIdSet sequence_counters_to_restore;
 	std::unordered_set<size_t> groups_to_restore;
+};
+
+// Store all nodes inside this class.
+// Use only observer pointers inside nodes itself.
+// This is needed to prevent strong shared_ptr loops.
+// All nodes are destroyed when this storage is destroyed.
+// Noded deletion and any garbage collection is not supported,
+// so, optimized-out nodes will be destroyed only during destruction of this class.
+class NodesStorage
+{
+public:
+	NodesStorage()= default;
+
+	NodesStorage(const NodesStorage&)= delete;
+	NodesStorage(NodesStorage&&)= default;
+
+	NodesStorage& operator=(const NodesStorage&)= delete;
+	NodesStorage& operator=(NodesStorage&&)= default;
+
+public:
+	NodePtr Allocate(Node node)
+	{
+		nodes_.push_back(std::make_unique<Node>(std::move(node)));
+		return nodes_.back().get();
+	}
+
+private:
+	std::vector<std::unique_ptr<Node>> nodes_;
 };
 
 } // GraphElements
@@ -255,7 +276,8 @@ struct RegexGraphBuildResult
 	Options options;
 	GroupStats group_stats;
 	GraphElements::SequenceIdSet used_sequence_counters; // Set of sequence counters, actually used in this graph.
-	GraphElements::NodePtr root;
+	GraphElements::NodePtr root= nullptr;
+	GraphElements::NodesStorage nodes_storage;
 };
 
 RegexGraphBuildResult BuildRegexGraph(const RegexElementsChain& regex_chain, const Options& options);
