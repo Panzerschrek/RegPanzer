@@ -175,6 +175,10 @@ OneOf GetPossibleStartSybmolsImpl(VisitedNodesSet& visited_nodes, const GraphEle
 
 OneOf GetPossibleStartSybmolsImpl(VisitedNodesSet& visited_nodes, const GraphElements::SequenceCounter& sequence_counter)
 {
+	if(sequence_counter.min_elements > 0)
+		return GetPossibleStartSybmols(visited_nodes, sequence_counter.next_iteration); // At least one iteration - can use only sequence element.
+
+	// Combine for cases of empty sequence.
 	return CombineSymbolSets(
 		GetPossibleStartSybmols(visited_nodes, sequence_counter.next_iteration),
 		GetPossibleStartSybmols(visited_nodes, sequence_counter.next_sequence_end));
@@ -187,8 +191,10 @@ OneOf GetPossibleStartSybmolsImpl(VisitedNodesSet& visited_nodes, const GraphEle
 
 OneOf GetPossibleStartSybmolsImpl(VisitedNodesSet& visited_nodes, const GraphElements::PossessiveSequence& possessive_sequence)
 {
+	if(possessive_sequence.min_elements > 0)
+		return GetPossibleStartSybmols(visited_nodes, possessive_sequence.sequence_element); // At least one iteration - can use only sequence element.
+
 	// Combine for cases of empty sequence.
-	// TODO - return only first symbol of sequence if min size is greater than zero.
 	return CombineSymbolSets(
 		GetPossibleStartSybmols(visited_nodes, possessive_sequence.sequence_element),
 		GetPossibleStartSybmols(visited_nodes, possessive_sequence.next));
