@@ -556,6 +556,102 @@ void ApplyAlternativesBacktrackingEliminationOptimization(const GraphElements::N
 		graph_start);
 }
 
+void ApplyFixedLengthElementSequenceOptimizationForNode(const GraphElements::NodePtr node)
+{
+	// For now apply the optimization only for sequences, implemented via alternatives node.
+	const auto alternatives= std::get_if<GraphElements::Alternatives>(&*node);
+	if(alternatives == nullptr)
+		return;
+
+	// Assume sequence is implemetded via alternatives node with loop trough first alternative path.
+	// There is no reason to optimize sequences, implemented via second alternative path, because such sequences will be optimized
+	// by the compiler backend, because they are tail calls.
+
+	if(alternatives->next.size() != 2)
+		return;
+	const GraphElements::NodePtr first_alternative= alternatives->next[0];
+	const GraphElements::NodePtr second_alternative= alternatives->next[1];
+
+	// For now support only sequence body, consisting of single simple element.
+	size_t element_length= 0;
+	GraphElements::NodePtr sequence_element;
+	if(const auto specific_symbol= std::get_if<GraphElements::SpecificSymbol>(&*first_alternative))
+	{
+		if(specific_symbol->next != node)
+			return; // Too complicated sequence body.
+
+		const CharType str_utf32[]{specific_symbol->code, 0};
+		element_length= Utf32ToUtf8(str_utf32).size();
+
+		GraphElements::SpecificSymbol copy= *specific_symbol;
+		copy.next= nullptr;
+		sequence_element= std::make_shared<GraphElements::Node>(std::move(copy));
+
+	}
+	else if(const auto string= std::get_if<GraphElements::String>(&*first_alternative))
+	{
+		if(string->next != node)
+			return; // Too complicated sequence body.
+
+		element_length= string->str.size();
+
+		GraphElements::String copy= *string;
+		copy.next= nullptr;
+		sequence_element= std::make_shared<GraphElements::Node>(std::move(copy));
+	}
+	else if(const auto one_of= std::get_if<GraphElements::OneOf>(&*first_alternative))
+	{
+		if(one_of->next != node)
+			return; // Too complicated sequence body.
+
+		size_t min_size= 100, max_size= 0;
+		for(const CharType c : one_of->variants)
+		{
+			const CharType str_utf32[]{c, 0};
+			const size_t size= Utf32ToUtf8(str_utf32).size();
+			min_size= std::min(min_size, size);
+			max_size= std::max(max_size, size);
+		}
+
+		for(const auto& range : one_of->ranges)
+		{
+			const CharType begin_str_utf32[]{range.first , 0};
+			const CharType   end_str_utf32[]{range.second, 0};
+			min_size= std::min(min_size, Utf32ToUtf8(begin_str_utf32).size());
+			max_size= std::max(max_size, Utf32ToUtf8(  end_str_utf32).size());
+		}
+
+		if(min_size != max_size)
+			return;
+
+		element_length= max_size;
+
+		GraphElements::OneOf copy= *one_of;
+		copy.next= nullptr;
+		sequence_element= std::make_shared<GraphElements::Node>(std::move(copy));
+	}
+	else
+		return; // Unsupported kind.
+
+
+	GraphElements::FixedLengthElementSequence fixed_length_element_sequence;
+	fixed_length_element_sequence.next= second_alternative;
+	fixed_length_element_sequence.sequence_element= std::move(sequence_element);
+	fixed_length_element_sequence.min_elements= 0;
+	fixed_length_element_sequence.max_elements= std::numeric_limits<size_t>::max();
+	fixed_length_element_sequence.element_length= element_length;
+
+	// Replace alternatives node with fixed length element sequence node.
+	*node= GraphElements::Node(std::move(fixed_length_element_sequence));
+}
+
+void ApplyFixedLengthElementSequenceOptimization(const GraphElements::NodePtr& graph_start)
+{
+	EnumerateAllNodesOnce(
+		ApplyFixedLengthElementSequenceOptimizationForNode,
+		graph_start);
+}
+
 } // namespace
 
 RegexGraphBuildResult OptimizeRegexGraph(RegexGraphBuildResult input_graph)
@@ -564,6 +660,8 @@ RegexGraphBuildResult OptimizeRegexGraph(RegexGraphBuildResult input_graph)
 
 	ApplySymbolsCombiningOptimization(result.root);
 	ApplyAlternativesBacktrackingEliminationOptimization(result.root);
+	// Apply fixed length sequence optimization only after alternatives backtracking elimination optimization, because first optimization is better (produces faster code).
+	ApplyFixedLengthElementSequenceOptimization(result.root);
 
 	return result;
 }
