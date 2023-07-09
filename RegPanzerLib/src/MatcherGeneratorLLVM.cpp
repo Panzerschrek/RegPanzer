@@ -617,7 +617,6 @@ void Generator::BuildNodeFunctionBodyImpl(
 		const auto ok_block= llvm::BasicBlock::Create(context_, "ok", function);
 		const auto fail_block= llvm::BasicBlock::Create(context_, "fail", function);
 
-		const auto not_enough_condition= llvm_ir_builder.CreateICmpULE(next_str_begin_value, str_end_value);
 		llvm_ir_builder.CreateCondBr(not_enough_condition, check_content_block, fail_block);
 
 		// Check content block.
