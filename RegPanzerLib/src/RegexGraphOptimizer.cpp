@@ -497,6 +497,147 @@ void ApplySymbolsCombiningOptimization(const GraphElements::NodePtr graph_start)
 }
 
 //
+// AlternativeStartunite
+//
+
+std::string GetNodeStartString(const GraphElements::NodePtr node)
+{
+	if(const auto string= std::get_if<GraphElements::String>(node))
+		return string->str;
+
+	if(const auto specific_symbol= std::get_if<GraphElements::SpecificSymbol>(node))
+	{
+		const CharType str_utf32[]{specific_symbol->code, 0};
+		return Utf32ToUtf8(str_utf32);
+	}
+
+	return "";
+}
+
+// Return none if can't cut. May return nullptr.
+std::optional<GraphElements::NodePtr> CutNodeStartString(const GraphElements::NodePtr node, const size_t symbols_cut, GraphElements::NodesStorage& nodes_storage)
+{
+	if(const auto string= std::get_if<GraphElements::String>(node))
+	{
+		assert(symbols_cut <= string->str.size());
+
+		if(symbols_cut == string->str.size())
+			return string->next;
+
+		GraphElements::String copy;
+		copy.next= string->next;
+		copy.str= string->str.substr(symbols_cut);
+		return nodes_storage.Allocate(std::move(copy));
+	}
+
+	if(const auto specific_symbol= std::get_if<GraphElements::SpecificSymbol>(node))
+	{
+		const CharType str_utf32[]{specific_symbol->code, 0};
+		std::string s= Utf32ToUtf8(str_utf32);
+		assert(symbols_cut <= s.size());
+
+		if(symbols_cut == s.size())
+			return specific_symbol->next;
+
+		GraphElements::String copy;
+		copy.next= specific_symbol->next;
+		copy.str= s.substr(symbols_cut);
+		return nodes_storage.Allocate(std::move(copy));
+	}
+
+	return std::nullopt;
+}
+
+//
+// Alternatives start unite.
+//
+
+bool ApplyAlternativeStartUniteToNode(const GraphElements::NodePtr node, GraphElements::NodesStorage& nodes_storage)
+{
+	/*
+		If alternative variants starts with common prefix - extract it - move branching point further.
+		This may be important for later optimizations.
+	*/
+
+	const auto alternatives= std::get_if<GraphElements::Alternatives>(node);
+	if(alternatives == nullptr || alternatives->next.empty())
+		return false;
+
+	std::vector<std::string> start_strings;
+	start_strings.reserve(alternatives->next.size());
+	for(const GraphElements::NodePtr branch : alternatives->next)
+		start_strings.push_back(GetNodeStartString(branch));
+
+	size_t num_common_symbols= 0;
+	for(size_t i= 0; ; ++i)
+	{
+		bool matches= true;
+
+		if(start_strings[0].size() <= i)
+			break;
+
+		for(size_t j= 1; j < start_strings.size(); ++j)
+		{
+			if(start_strings[j].size() <= i || start_strings[j][i] != start_strings[0][i])
+			{
+				matches= false;
+				break;
+			}
+		}
+
+		if(!matches)
+			break;
+
+		++num_common_symbols;
+	}
+
+	if(num_common_symbols == 0)
+		return false; // No common prefix.
+
+	// Cut prefix from next nodes.
+	std::vector<GraphElements::NodePtr> next_cut;
+	next_cut.reserve(alternatives->next.size());
+	for(const GraphElements::NodePtr branch : alternatives->next)
+	{
+		const std::optional<GraphElements::NodePtr> cut= CutNodeStartString(branch, num_common_symbols, nodes_storage);
+		if(cut == std::nullopt)
+			return false;
+
+		next_cut.push_back(*cut);
+	}
+
+	// Create new alternatives node.
+	const GraphElements::NodePtr new_alternatives= nodes_storage.Allocate(GraphElements::Alternatives{std::move(next_cut)});
+
+	// Replace this node with new alternatives.
+	GraphElements::String string_node;
+	string_node.str= start_strings[0].substr(0, num_common_symbols);
+	string_node.next= new_alternatives;
+	*node= std::move(string_node);
+
+	return true;
+}
+
+void ApplyAlternativeStartUnite(const GraphElements::NodePtr graph_start, GraphElements::NodesStorage& nodes_storage)
+{
+	// Perform several steps to ensure full combination.
+	while(true)
+	{
+		bool something_changed= false;
+		EnumerateAllNodesOnce(
+			[&](const GraphElements::NodePtr node)
+			{
+				if(ApplyAlternativeStartUniteToNode(node, nodes_storage))
+					something_changed= true;
+			},
+			graph_start);
+
+		if(!something_changed)
+			break;
+	}
+}
+
+//
 // Alternatives possessification.
 //
 
@@ -673,7 +814,15 @@ RegexGraphBuildResult OptimizeRegexGraph(RegexGraphBuildResult input_graph)
 {
 	RegexGraphBuildResult result= std::move(input_graph);
 
-	ApplySymbolsCombiningOptimization(result.root);
+	// Perform symbols combining and alternatives start unite.
+	// Do this multiple times in order to re-combine strings, combined during alternatives start unite.
+	for(size_t i= 0; i < 3; ++i)
+	{
+		ApplySymbolsCombiningOptimization(result.root);
+
+		// Perform this step before performing alternatives possessification.
+		ApplyAlternativeStartUnite(result.root, result.nodes_storage);
+	}
 
 	ApplyAlternativesPossessificationOptimization(result.root, result.nodes_storage);
 
