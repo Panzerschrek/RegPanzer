@@ -221,6 +221,13 @@ OneOf GetPossibleStartSybmolsImpl(VisitedNodesSet& visited_nodes, const GraphEle
 		GetPossibleStartSybmols(visited_nodes, possessive_sequence.next));
 }
 
+OneOf GetPossibleStartSybmolsImpl(VisitedNodesSet& visited_nodes, const GraphElements::SingleRollbackPointSequence& single_rollback_point_sequence)
+{
+	return CombineSymbolSets(
+		GetPossibleStartSybmols(visited_nodes, single_rollback_point_sequence.sequence_element),
+		GetPossibleStartSybmols(visited_nodes, single_rollback_point_sequence.next));
+}
+
 OneOf GetPossibleStartSybmolsImpl(VisitedNodesSet& visited_nodes, const GraphElements::FixedLengthElementSequence& fixed_length_element_sequence)
 {
 	// Combine for cases of empty sequence.
@@ -381,6 +388,12 @@ void EnumerateAllNodesOnceVisitImpl(const NodeEnumerationFunction& func, Visited
 {
 	EnumerateAllNodesOnceImpl(func, visited_nodes_set, possesive_sequence.sequence_element);
 	EnumerateAllNodesOnceImpl(func, visited_nodes_set, possesive_sequence.next);
+}
+
+void EnumerateAllNodesOnceVisitImpl(const NodeEnumerationFunction& func, VisitedNodesSet& visited_nodes_set, const GraphElements::SingleRollbackPointSequence& single_rollback_point_sequence)
+{
+	EnumerateAllNodesOnceImpl(func, visited_nodes_set, single_rollback_point_sequence.sequence_element);
+	EnumerateAllNodesOnceImpl(func, visited_nodes_set, single_rollback_point_sequence.next);
 }
 
 void EnumerateAllNodesOnceVisitImpl(const NodeEnumerationFunction& func, VisitedNodesSet& visited_nodes_set, const GraphElements::FixedLengthElementSequence& fixed_length_element_sequence)
@@ -908,16 +921,45 @@ void ApplySequenceWithSingleRollbackPointOptimizationToNode(const GraphElements:
 	else
 		return; // Unsupported kind.
 
+	// Check if this optimization has sence.
 	const bool element_after_alternative_length_is_moderate=
 		element_after_alternative_length <= 2 ||
 		element_after_alternative_length * 2 <= sequence_element_length;
 	if(!element_after_alternative_length_is_moderate)
 		return;
 
+	// Create sequence element node.
+	GraphElements::NodePtr sequence_element_node= nullptr;
+	if(const auto specific_symbol= std::get_if<GraphElements::SpecificSymbol>(first_alternative))
+	{
+		GraphElements::SpecificSymbol copy= *specific_symbol;
+		copy.next= nullptr;
+		sequence_element_node= nodes_storage.Allocate(std::move(copy));
+
+	}
+	else if(const auto string= std::get_if<GraphElements::String>(first_alternative))
+	{
+		GraphElements::String copy= *string;
+		copy.next= nullptr;
+		sequence_element_node= nodes_storage.Allocate(std::move(copy));
+	}
+	else if(const auto one_of= std::get_if<GraphElements::OneOf>(first_alternative))
+	{
+		GraphElements::OneOf copy= *one_of;
+		copy.next= nullptr;
+		sequence_element_node= nodes_storage.Allocate(std::move(copy));
+	}
+	else
+		return; // Unsupported kind.
+
 	std::cout << "Apply sequence with single rollback point optimization for sequence with element size=" << sequence_element_length << " and tail size= " << element_after_alternative_length << std::endl;
 
-	// TODO
-	(void)nodes_storage;
+	// Replace this alternatives node with optimized one.
+	GraphElements::SingleRollbackPointSequence sequenece;
+	sequenece.sequence_element= sequence_element_node;
+	sequenece.next= second_alternative;
+
+	*node= GraphElements::Node(std::move(sequenece));
 }
 
 void ApplySequenceWithSingleRollbackPointOptimization(const GraphElements::NodePtr graph_start, GraphElements::NodesStorage& nodes_storage)

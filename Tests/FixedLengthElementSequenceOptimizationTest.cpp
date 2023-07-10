@@ -41,9 +41,9 @@ const TestDataElement g_test_data[]
 		"[A-Z]*?Q",
 		std::nullopt,
 	},
-	{ // FLES optimization is used here because possessification optimization can't be used because of same symbols in sequence and after it.
+	{ // FLES optimization is not used here because single rollback point optimization is used instead.
 		"[a-z]*q",
-		1,
+		std::nullopt,
 	},
 	{ // FLES optimization for sequence with element size greater than 1.
 		"(?:vRe){3,16}v",
