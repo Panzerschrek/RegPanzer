@@ -1557,11 +1557,55 @@ void Generator::BuildNodeFunctionBodyImpl(
 void Generator::BuildNodeFunctionBodyImpl(
 	IRBuilder& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::SingleRollbackPointSequence& node)
 {
-	// TODO
-	(void)llvm_ir_builder;
-	(void)state_ptr;
-	(void)node;
-	assert(false);
+	const auto bool_type= llvm::Type::getInt1Ty(context_);
+	const auto function= llvm_ir_builder.GetInsertBlock()->getParent();
+
+	const auto state_backup_ptr= llvm_ir_builder.CreateAlloca(state_type_, 0, "state_backup");
+	const auto state_next_ptr= llvm_ir_builder.CreateAlloca(state_type_, 0, "state_next");
+
+	const auto has_next_state_ptr= llvm_ir_builder.CreateAlloca(bool_type, 0, "has_next_state");
+	llvm_ir_builder.CreateStore(llvm::ConstantInt::getFalse(context_), has_next_state_ptr);
+
+	const auto next_check_block= llvm::BasicBlock::Create(context_, "next_check_block", function);
+	const auto save_next_state_block= llvm::BasicBlock::Create(context_, "save_next_state", function);
+	const auto sequence_element_check_block= llvm::BasicBlock::Create(context_, "sequence_element_check", function);
+	const auto loop_end_block= llvm::BasicBlock::Create(context_, "loop_end", function);
+	const auto ret_true_block= llvm::BasicBlock::Create(context_, "ret_true", function);
+	const auto ret_false_block= llvm::BasicBlock::Create(context_, "ret_false", function);
+
+	llvm_ir_builder.CreateBr(next_check_block);
+
+	// Next check block.
+	llvm_ir_builder.SetInsertPoint(next_check_block);
+	SaveState(llvm_ir_builder, state_ptr, state_backup_ptr);
+	const auto next_is_ok= llvm_ir_builder.CreateCall(GetOrCreateNodeFunction(node.next), {state_ptr});
+	llvm_ir_builder.CreateCondBr(next_is_ok, save_next_state_block, sequence_element_check_block);
+
+	// Save next state block.
+	llvm_ir_builder.SetInsertPoint(save_next_state_block);
+	SaveState(llvm_ir_builder, state_ptr, state_next_ptr);
+	llvm_ir_builder.CreateStore(llvm::ConstantInt::getTrue(context_), has_next_state_ptr);
+	llvm_ir_builder.CreateBr(sequence_element_check_block);
+
+	// Sequence element check block.
+	llvm_ir_builder.SetInsertPoint(sequence_element_check_block);
+	RestoreState(llvm_ir_builder, state_ptr, state_backup_ptr);
+	const auto sequence_element_is_ok= llvm_ir_builder.CreateCall(GetOrCreateNodeFunction(node.sequence_element), {state_ptr});
+	llvm_ir_builder.CreateCondBr(sequence_element_is_ok, next_check_block, loop_end_block);
+
+	// End block.
+	llvm_ir_builder.SetInsertPoint(loop_end_block);
+	const auto has_next_state= llvm_ir_builder.CreateLoad(bool_type, has_next_state_ptr, "has_next_state_val");
+	llvm_ir_builder.CreateCondBr(has_next_state, ret_true_block, ret_false_block);
+
+	// Ret true block.
+	llvm_ir_builder.SetInsertPoint(ret_true_block);
+	RestoreState(llvm_ir_builder, state_ptr, state_next_ptr);
+	llvm_ir_builder.CreateRet(llvm::ConstantInt::getTrue(context_));
+
+	// Ret false block.
+	llvm_ir_builder.SetInsertPoint(ret_false_block);
+	llvm_ir_builder.CreateRet(llvm::ConstantInt::getFalse(context_));
 }
 
 void Generator::BuildNodeFunctionBodyImpl(
