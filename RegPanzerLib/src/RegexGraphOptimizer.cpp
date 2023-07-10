@@ -13,6 +13,31 @@ using VisitedNodesSet= std::unordered_set<GraphElements::NodePtr>;
 // Start symbols stuff
 //
 
+std::optional<size_t> GetOneOfLength(const GraphElements::OneOf& one_of)
+{
+	size_t min_size= 100, max_size= 0;
+	for(const CharType c : one_of.variants)
+	{
+		const CharType str_utf32[]{c, 0};
+		const size_t size= Utf32ToUtf8(str_utf32).size();
+		min_size= std::min(min_size, size);
+		max_size= std::max(max_size, size);
+	}
+
+	for(const auto& range : one_of.ranges)
+	{
+		const CharType begin_str_utf32[]{range.first , 0};
+		const CharType   end_str_utf32[]{range.second, 0};
+		min_size= std::min(min_size, Utf32ToUtf8(begin_str_utf32).size());
+		max_size= std::max(max_size, Utf32ToUtf8(  end_str_utf32).size());
+	}
+
+	if(min_size != max_size)
+		return std::nullopt;
+
+	return min_size;
+}
+
 OneOf CombineSymbolSets(const OneOf& l, const OneOf& r)
 {
 	if(l.inverse_flag || r.inverse_flag) // TODO - support merging inversed "OneOf"
@@ -758,27 +783,11 @@ void ApplyFixedLengthElementSequenceOptimizationForNode(const GraphElements::Nod
 		if(one_of->next != node)
 			return; // Too complicated sequence body.
 
-		size_t min_size= 100, max_size= 0;
-		for(const CharType c : one_of->variants)
-		{
-			const CharType str_utf32[]{c, 0};
-			const size_t size= Utf32ToUtf8(str_utf32).size();
-			min_size= std::min(min_size, size);
-			max_size= std::max(max_size, size);
-		}
-
-		for(const auto& range : one_of->ranges)
-		{
-			const CharType begin_str_utf32[]{range.first , 0};
-			const CharType   end_str_utf32[]{range.second, 0};
-			min_size= std::min(min_size, Utf32ToUtf8(begin_str_utf32).size());
-			max_size= std::max(max_size, Utf32ToUtf8(  end_str_utf32).size());
-		}
-
-		if(min_size != max_size)
+		const auto on_of_length= GetOneOfLength(*one_of);
+		if(on_of_length == std::nullopt)
 			return;
 
-		element_length= max_size;
+		element_length= *on_of_length;
 
 		GraphElements::OneOf copy= *one_of;
 		copy.next= nullptr;
@@ -808,6 +817,119 @@ void ApplyFixedLengthElementSequenceOptimization(const GraphElements::NodePtr gr
 		graph_start);
 }
 
+//
+// Sequence with single rollback point ooptimiz<ation.
+//
+
+void ApplySequenceWithSingleRollbackPointOptimizationToNode(const GraphElements::NodePtr node, GraphElements::NodesStorage& nodes_storage)
+{
+	/*
+		Use following optimization:
+		if sequence element has fixed length and element after sequence has fixed small length and this is the end of whole regexp,
+		create sequence with single rollback point.
+		On each iteration of the sequence perform evaluation of both sequence element and element after sequence.
+		If evaluation of element after the sequence was successfull - save state for this evaluation.
+		Perform sequence element match until first fail. Than return last saved state for element after the sequence (if it is non-empty).
+		It is necessary to have simple element after sequence (like single char or a small fixed string), because its matching is performing on each sequence iteration step.
+	*/
+
+	// For now apply the optimization only for sequences, implemented via alternatives node.
+	const auto alternatives= std::get_if<GraphElements::Alternatives>(node);
+	if(alternatives == nullptr)
+		return;
+
+	// Assume sequence is implemetded via alternatives node with loop trough first alternative path.
+	// There is no reason to optimize sequences, implemented via second alternative path, because such sequences will be optimized
+	// by the compiler backend, because they are tail calls.
+
+	if(alternatives->next.size() != 2)
+		return;
+	const GraphElements::NodePtr first_alternative= alternatives->next[0];
+	const GraphElements::NodePtr second_alternative= alternatives->next[1];
+
+	// Support only single simple element after sequence.
+
+	size_t element_after_alternative_length= 0;
+	if(const auto specific_symbol= std::get_if<GraphElements::SpecificSymbol>(second_alternative))
+	{
+		if(specific_symbol->next != nullptr)
+			return; // Too complicated tail.
+
+		const CharType str_utf32[]{specific_symbol->code, 0};
+		element_after_alternative_length= Utf32ToUtf8(str_utf32).size();
+	}
+	else if(const auto string= std::get_if<GraphElements::String>(second_alternative))
+	{
+		if(string->next != nullptr)
+			return; // Too complicated tail.
+
+		element_after_alternative_length= string->str.size();
+	}
+	else if(const auto one_of= std::get_if<GraphElements::OneOf>(second_alternative))
+	{
+		if(one_of->next != nullptr)
+			return; // Too complicated tail.
+
+		const auto on_of_length= GetOneOfLength(*one_of);
+		if(on_of_length == std::nullopt)
+			return;
+		element_after_alternative_length= *on_of_length;
+	}
+	else
+		return; // Unsupported kind.
+
+	// For now support only sequence body, consisting of single simple element.
+	size_t sequence_element_length= 0;
+	if(const auto specific_symbol= std::get_if<GraphElements::SpecificSymbol>(first_alternative))
+	{
+		if(specific_symbol->next != node)
+			return; // Too complicated sequence body.
+
+		const CharType str_utf32[]{specific_symbol->code, 0};
+		sequence_element_length= Utf32ToUtf8(str_utf32).size();
+	}
+	else if(const auto string= std::get_if<GraphElements::String>(first_alternative))
+	{
+		if(string->next != node)
+			return; // Too complicated sequence body.
+
+		sequence_element_length= string->str.size();
+	}
+	else if(const auto one_of= std::get_if<GraphElements::OneOf>(first_alternative))
+	{
+		if(one_of->next != node)
+			return; // Too complicated sequence body.
+
+		const auto on_of_length= GetOneOfLength(*one_of);
+		if(on_of_length == std::nullopt)
+			return;
+		sequence_element_length= *on_of_length;
+	}
+	else
+		return; // Unsupported kind.
+
+	const bool element_after_alternative_length_is_moderate=
+		element_after_alternative_length <= 2 ||
+		element_after_alternative_length * 2 <= sequence_element_length;
+	if(!element_after_alternative_length_is_moderate)
+		return;
+
+	std::cout << "Apply sequence with single rollback point optimization for sequence with element size=" << sequence_element_length << " and tail size= " << element_after_alternative_length << std::endl;
+
+	// TODO
+	(void)nodes_storage;
+}
+
+void ApplySequenceWithSingleRollbackPointOptimization(const GraphElements::NodePtr graph_start, GraphElements::NodesStorage& nodes_storage)
+{
+	EnumerateAllNodesOnce(
+		[&](const GraphElements::NodePtr node)
+		{
+			ApplySequenceWithSingleRollbackPointOptimizationToNode(node, nodes_storage);
+		},
+		graph_start);
+}
+
 } // namespace
 
 RegexGraphBuildResult OptimizeRegexGraph(RegexGraphBuildResult input_graph)
@@ -825,6 +947,9 @@ RegexGraphBuildResult OptimizeRegexGraph(RegexGraphBuildResult input_graph)
 	}
 
 	ApplyAlternativesPossessificationOptimization(result.root, result.nodes_storage);
+
+	// Apply sequence with single rollback point optimization before fixed length sequence optimization, because it is faster.
+	ApplySequenceWithSingleRollbackPointOptimization(result.root, result.nodes_storage);
 
 	// Apply fixed length sequence optimization only after alternatives possessification optimization,
 	// because first optimization is better (produces faster code).
