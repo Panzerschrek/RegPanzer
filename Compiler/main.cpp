@@ -1,5 +1,6 @@
-#include "../RegPanzerLib/Parser.hpp"
 #include "../RegPanzerLib/MatcherGeneratorLLVM.hpp"
+#include "../RegPanzerLib/Parser.hpp"
+#include "../RegPanzerLib/RegexGraphOptimizer.hpp"
 #include "../RegPanzerLib/PushDisableLLVMWarnings.hpp"
 #include <llvm/Analysis/TargetTransformInfo.h>
 #include <llvm/Bitcode/BitcodeWriter.h>
@@ -328,9 +329,11 @@ int Main(int argc, const char* argv[])
 	RegPanzer::Options regex_build_options;
 	regex_build_options.extract_groups= Options::extract_groups;
 	regex_build_options.multiline= Options::multiline;
-	regex_build_options.no_graph_optimizations= Options::no_graph_optimizations;
 
-	const RegexGraphBuildResult regex_graph= BuildRegexGraph(*regex_chain, regex_build_options);
+	RegexGraphBuildResult regex_graph= BuildRegexGraph(*regex_chain, regex_build_options);
+	if(!Options::no_graph_optimizations)
+		regex_graph= OptimizeRegexGraph(std::move(regex_graph));
+
 	GenerateMatcherFunction(module, regex_graph, Options::result_function_name);
 
 	// Run optimizations.

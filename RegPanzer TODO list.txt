@@ -28,6 +28,9 @@ Library:
 LLVM Generator:
 * Optimization of state save chain node structure size
 * Optimization for expressions started with fixed sequence (like Knuth–Morris–Pratt algorithm)
+* Optimization for sequences, terminated with single symbol (prevent multiple rollback steps)
+* Use fixed length sequence optimization for sequences with counter
+* Other optimizations, that can eliminate recursion in result optimized code
 
 Tests:
 * More Unicode tests

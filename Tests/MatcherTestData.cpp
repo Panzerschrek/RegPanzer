@@ -1294,6 +1294,34 @@ const MatcherTestDataElement g_matcher_test_data[]
 		},
 	},
 
+	// Greedy sequence inside another sequence.
+	// Should match properly with backtracking.
+	{
+		"(a+){3}",
+		{
+			{ // Empty string - no matches.
+				"",
+				{},
+			},
+			{
+				"aaa",
+				{ {0, 3} },
+			},
+			{
+				"aaaa",
+				{ {0, 4} },
+			},
+			{
+				"aaaaaaaaaa",
+				{ {0, 10} },
+			},
+			{
+				"aaaa aaaa aaaaaaaaaaaa",
+				{ {0, 4}, {5, 9}, {10, 22} },
+			},
+		},
+	},
+
 	// Simple positive lookahead.
 	{
 		"w(?=Q)",

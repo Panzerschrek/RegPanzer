@@ -2,6 +2,7 @@
 #include "GroupsExtractionTestData.hpp"
 #include "../RegPanzerLib/MatcherGeneratorLLVM.hpp"
 #include "../RegPanzerLib/Parser.hpp"
+#include "../RegPanzerLib/RegexGraphOptimizer.hpp"
 #include "../RegPanzerLib/Utils.hpp"
 #include "../RegPanzerLib/PushDisableLLVMWarnings.hpp"
 #include <llvm/ExecutionEngine/ExecutionEngine.h>
@@ -39,7 +40,7 @@ void RunTestCase(const MatcherTestDataElement& param, const bool is_multiline)
 
 	Options options;
 	options.multiline= is_multiline;
-	const auto regex_graph= BuildRegexGraph(*regex_chain, options);
+	const auto regex_graph= OptimizeRegexGraph( BuildRegexGraph(*regex_chain, options) );
 
 	llvm::LLVMContext llvm_context;
 	auto module= std::make_unique<llvm::Module>("id", llvm_context);
@@ -117,7 +118,7 @@ TEST_P(GeneratedLLVMMatcherGroupsExtractionTest, TestGroupsExtraction)
 
 	Options options;
 	options.extract_groups= true;
-	const auto regex_graph= BuildRegexGraph(*regex_chain, options);
+	const auto regex_graph= OptimizeRegexGraph( BuildRegexGraph(*regex_chain, options) );
 
 	llvm::LLVMContext llvm_context;
 	auto module= std::make_unique<llvm::Module>("id", llvm_context);
