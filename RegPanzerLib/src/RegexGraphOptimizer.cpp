@@ -952,8 +952,6 @@ void ApplySequenceWithSingleRollbackPointOptimizationToNode(const GraphElements:
 	else
 		return; // Unsupported kind.
 
-	std::cout << "Apply sequence with single rollback point optimization for sequence with element size=" << sequence_element_length << " and tail size= " << element_after_alternative_length << std::endl;
-
 	// Replace this alternatives node with optimized one.
 	GraphElements::SingleRollbackPointSequence sequenece;
 	sequenece.sequence_element= sequence_element_node;
