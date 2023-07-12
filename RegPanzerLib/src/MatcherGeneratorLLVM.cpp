@@ -1557,14 +1557,15 @@ void Generator::BuildNodeFunctionBodyImpl(
 void Generator::BuildNodeFunctionBodyImpl(
 	IRBuilder& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::SingleRollbackPointSequence& node)
 {
-	const auto bool_type= llvm::Type::getInt1Ty(context_);
 	const auto function= llvm_ir_builder.GetInsertBlock()->getParent();
 
 	const auto state_backup_ptr= llvm_ir_builder.CreateAlloca(state_type_, 0, "state_backup");
 	const auto state_next_ptr= llvm_ir_builder.CreateAlloca(state_type_, 0, "state_next");
 
-	const auto has_next_state_ptr= llvm_ir_builder.CreateAlloca(bool_type, 0, "has_next_state");
-	llvm_ir_builder.CreateStore(llvm::ConstantInt::getFalse(context_), has_next_state_ptr);
+	// Store nullptr inside state_next.str_begin to indicate non-existing next state.
+	const auto next_str_begin_ptr= llvm_ir_builder.CreateGEP(state_type_, state_next_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrBegin)});
+	const auto null_ptr= llvm::ConstantInt::getNullValue(char_type_ptr_);
+	llvm_ir_builder.CreateStore(null_ptr, next_str_begin_ptr);
 
 	const auto next_check_block= llvm::BasicBlock::Create(context_, "next_check_block", function);
 	const auto save_next_state_block= llvm::BasicBlock::Create(context_, "save_next_state", function);
@@ -1584,7 +1585,6 @@ void Generator::BuildNodeFunctionBodyImpl(
 	// Save next state block.
 	llvm_ir_builder.SetInsertPoint(save_next_state_block);
 	SaveState(llvm_ir_builder, state_ptr, state_next_ptr);
-	llvm_ir_builder.CreateStore(llvm::ConstantInt::getTrue(context_), has_next_state_ptr);
 	llvm_ir_builder.CreateBr(sequence_element_check_block);
 
 	// Sequence element check block.
@@ -1595,8 +1595,9 @@ void Generator::BuildNodeFunctionBodyImpl(
 
 	// End block.
 	llvm_ir_builder.SetInsertPoint(loop_end_block);
-	const auto has_next_state= llvm_ir_builder.CreateLoad(bool_type, has_next_state_ptr, "has_next_state_val");
-	llvm_ir_builder.CreateCondBr(has_next_state, ret_true_block, ret_false_block);
+	const auto next_str_begin= llvm_ir_builder.CreateLoad(char_type_ptr_, next_str_begin_ptr, "next_str_begin");
+	const auto next_str_begin_is_null= llvm_ir_builder.CreateICmpEQ(next_str_begin, null_ptr);
+	llvm_ir_builder.CreateCondBr(next_str_begin_is_null, ret_false_block, ret_true_block);
 
 	// Ret true block.
 	llvm_ir_builder.SetInsertPoint(ret_true_block);
