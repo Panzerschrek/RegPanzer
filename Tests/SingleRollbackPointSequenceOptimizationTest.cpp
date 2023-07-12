@@ -58,9 +58,9 @@ const TestDataElement g_test_data[]
 	},
 };
 
-class SingleRollbackPointOptimizationTest : public ::testing::TestWithParam<TestDataElement> {};
+class SingleRollbackPointSequenceOptimizationTest : public ::testing::TestWithParam<TestDataElement> {};
 
-TEST_P(SingleRollbackPointOptimizationTest, TestOptimization)
+TEST_P(SingleRollbackPointSequenceOptimizationTest, TestOptimization)
 {
 	const auto param= GetParam();
 	const auto parse_res= RegPanzer::ParseRegexString(param.regex_str);
@@ -76,7 +76,7 @@ TEST_P(SingleRollbackPointOptimizationTest, TestOptimization)
 		ASSERT_TRUE(single_rollback_point_sequence == nullptr);
 }
 
-INSTANTIATE_TEST_SUITE_P(SRPSO, SingleRollbackPointOptimizationTest, testing::ValuesIn(g_test_data));
+INSTANTIATE_TEST_SUITE_P(SRPSO, SingleRollbackPointSequenceOptimizationTest, testing::ValuesIn(g_test_data));
 
 } // namespace
 

@@ -831,7 +831,7 @@ void ApplyFixedLengthElementSequenceOptimization(const GraphElements::NodePtr gr
 }
 
 //
-// Sequence with single rollback point ooptimiz<ation.
+// Sequence with single rollback point optimization.
 //
 
 void ApplySequenceWithSingleRollbackPointOptimizationToNode(const GraphElements::NodePtr node, GraphElements::NodesStorage& nodes_storage)
