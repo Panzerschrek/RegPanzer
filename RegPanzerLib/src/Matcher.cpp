@@ -251,6 +251,32 @@ bool MatchNodeImpl(const GraphElements::PossessiveSequence& node, State& state)
 	return MatchNode(node.next, state);
 }
 
+bool MatchNodeImpl(const GraphElements::SingleRollbackPointSequence& node, State& state)
+{
+	std::optional<State> next_state;
+
+	while(true)
+	{
+		{
+			State state_copy= state;
+			if(MatchNode(node.next, state))
+				next_state= state;
+			state= std::move(state_copy);
+		}
+
+		if(!MatchNode(node.sequence_element, state))
+			break;
+	}
+
+	if(next_state != std::nullopt)
+	{
+		state= std::move(*next_state);
+		return true;
+	}
+
+	return false;
+}
+
 bool MatchNodeImpl(const GraphElements::FixedLengthElementSequence& node, State& state)
 {
 	const std::string_view str_initial= state.str;

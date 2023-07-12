@@ -29,6 +29,7 @@ const char* GetNodeName(const GraphElements::ConditionalElement&) { return "cond
 const char* GetNodeName(const GraphElements::SequenceCounterReset&) { return "sequence_counter_reset"; }
 const char* GetNodeName(const GraphElements::SequenceCounter&) { return "sequence_counter"; }
 const char* GetNodeName(const GraphElements::PossessiveSequence&) { return "possessive_sequence"; }
+const char* GetNodeName(const GraphElements::SingleRollbackPointSequence&) { return "single_rollback_point_sequence"; }
 const char* GetNodeName(const GraphElements::FixedLengthElementSequence&) { return "fixed_length_element_sequence"; }
 const char* GetNodeName(const GraphElements::AtomicGroup&) { return "atomic_group"; }
 const char* GetNodeName(const GraphElements::SubroutineEnter&) { return "subroutine_enter"; }
@@ -147,6 +148,9 @@ private:
 
 	void BuildNodeFunctionBodyImpl(
 		IRBuilder& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::PossessiveSequence& node);
+
+	void BuildNodeFunctionBodyImpl(
+		IRBuilder& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::SingleRollbackPointSequence& node);
 
 	void BuildNodeFunctionBodyImpl(
 		IRBuilder& llvm_ir_builder, llvm::Value* state_ptr, const GraphElements::FixedLengthElementSequence& node);
@@ -1548,6 +1552,61 @@ void Generator::BuildNodeFunctionBodyImpl(
 	end_block->insertInto(function);
 	llvm_ir_builder.SetInsertPoint(end_block);
 	CreateNextCallRet(llvm_ir_builder, state_ptr, node.next);
+}
+
+void Generator::BuildNodeFunctionBodyImpl(
+	IRBuilder& llvm_ir_builder, llvm::Value* const state_ptr, const GraphElements::SingleRollbackPointSequence& node)
+{
+	const auto function= llvm_ir_builder.GetInsertBlock()->getParent();
+
+	const auto state_backup_ptr= llvm_ir_builder.CreateAlloca(state_type_, 0, "state_backup");
+	const auto state_next_ptr= llvm_ir_builder.CreateAlloca(state_type_, 0, "state_next");
+
+	// Store nullptr inside state_next.str_begin to indicate non-existing next state.
+	const auto next_str_begin_ptr= llvm_ir_builder.CreateGEP(state_type_, state_next_ptr, {GetZeroGEPIndex(), GetFieldGEPIndex(StateFieldIndex::StrBegin)});
+	const auto null_ptr= llvm::ConstantInt::getNullValue(char_type_ptr_);
+	llvm_ir_builder.CreateStore(null_ptr, next_str_begin_ptr);
+
+	const auto next_check_block= llvm::BasicBlock::Create(context_, "next_check_block", function);
+	const auto save_next_state_block= llvm::BasicBlock::Create(context_, "save_next_state", function);
+	const auto sequence_element_check_block= llvm::BasicBlock::Create(context_, "sequence_element_check", function);
+	const auto loop_end_block= llvm::BasicBlock::Create(context_, "loop_end", function);
+	const auto ret_true_block= llvm::BasicBlock::Create(context_, "ret_true", function);
+	const auto ret_false_block= llvm::BasicBlock::Create(context_, "ret_false", function);
+
+	llvm_ir_builder.CreateBr(next_check_block);
+
+	// Next check block.
+	llvm_ir_builder.SetInsertPoint(next_check_block);
+	SaveState(llvm_ir_builder, state_ptr, state_backup_ptr);
+	const auto next_is_ok= llvm_ir_builder.CreateCall(GetOrCreateNodeFunction(node.next), {state_ptr});
+	llvm_ir_builder.CreateCondBr(next_is_ok, save_next_state_block, sequence_element_check_block);
+
+	// Save next state block.
+	llvm_ir_builder.SetInsertPoint(save_next_state_block);
+	SaveState(llvm_ir_builder, state_ptr, state_next_ptr);
+	llvm_ir_builder.CreateBr(sequence_element_check_block);
+
+	// Sequence element check block.
+	llvm_ir_builder.SetInsertPoint(sequence_element_check_block);
+	RestoreState(llvm_ir_builder, state_ptr, state_backup_ptr);
+	const auto sequence_element_is_ok= llvm_ir_builder.CreateCall(GetOrCreateNodeFunction(node.sequence_element), {state_ptr});
+	llvm_ir_builder.CreateCondBr(sequence_element_is_ok, next_check_block, loop_end_block);
+
+	// End block.
+	llvm_ir_builder.SetInsertPoint(loop_end_block);
+	const auto next_str_begin= llvm_ir_builder.CreateLoad(char_type_ptr_, next_str_begin_ptr, "next_str_begin");
+	const auto next_str_begin_is_null= llvm_ir_builder.CreateICmpEQ(next_str_begin, null_ptr);
+	llvm_ir_builder.CreateCondBr(next_str_begin_is_null, ret_false_block, ret_true_block);
+
+	// Ret true block.
+	llvm_ir_builder.SetInsertPoint(ret_true_block);
+	RestoreState(llvm_ir_builder, state_ptr, state_next_ptr);
+	llvm_ir_builder.CreateRet(llvm::ConstantInt::getTrue(context_));
+
+	// Ret false block.
+	llvm_ir_builder.SetInsertPoint(ret_false_block);
+	llvm_ir_builder.CreateRet(llvm::ConstantInt::getFalse(context_));
 }
 
 void Generator::BuildNodeFunctionBodyImpl(

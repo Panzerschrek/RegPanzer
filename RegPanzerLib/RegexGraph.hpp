@@ -32,6 +32,7 @@ struct ConditionalElement;
 struct SequenceCounterReset;
 struct SequenceCounter;
 struct PossessiveSequence;
+struct SingleRollbackPointSequence;
 struct FixedLengthElementSequence;
 struct AtomicGroup;
 struct SubroutineEnter;
@@ -57,6 +58,7 @@ using Node= std::variant<
 	SequenceCounterReset,
 	SequenceCounter,
 	PossessiveSequence,
+	SingleRollbackPointSequence,
 	FixedLengthElementSequence,
 	AtomicGroup,
 	SubroutineEnter,
@@ -184,6 +186,12 @@ struct PossessiveSequence
 	NodePtr sequence_element= nullptr;
 	size_t min_elements= 0u;
 	size_t max_elements= 0u;
+};
+
+struct SingleRollbackPointSequence
+{
+	NodePtr next= nullptr;
+	NodePtr sequence_element= nullptr;
 };
 
 struct FixedLengthElementSequence
