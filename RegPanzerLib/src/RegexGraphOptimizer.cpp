@@ -1,5 +1,6 @@
 #include "../RegexGraphOptimizer.hpp"
 #include "../Utils.hpp"
+#include <optional>
 
 namespace RegPanzer
 {
